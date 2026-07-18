@@ -6,21 +6,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/admin-guard";
 import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
-import { categories as seedCategories } from "@/data/products";
+import { demoStore } from "@/lib/demo-store";
 import { logger } from "@/lib/logger";
 
 export async function GET() {
   if (!isSupabaseServiceConfigured()) {
-    return NextResponse.json({
-      categories: seedCategories.map((c, i) => ({
-        id: `demo-cat-${i}`,
-        slug: c.slug,
-        name: c.name,
-        sort_order: i,
-        is_active: true,
-        products_count: 0,
-      })),
-    });
+    return NextResponse.json({ categories: demoStore.listCategories() });
   }
 
   const guard = await requireAdmin();
@@ -39,9 +30,6 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await requireAdmin();
-  if (!guard.ok) return guard.error;
-
   const body = (await req.json()) as {
     slug?: string;
     name?: string;
@@ -50,7 +38,6 @@ export async function POST(req: NextRequest) {
     sort_order?: number;
     is_active?: boolean;
   };
-  const supabase = guard.client;
 
   // Validate required fields
   if (!body.slug || !body.name) {
@@ -59,6 +46,22 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
+
+  // Demo mode — persist to in-memory store
+  if (!isSupabaseServiceConfigured()) {
+    const cat = demoStore.createCategory({
+      slug: body.slug,
+      name: body.name,
+      description: body.description,
+      image_url: body.image_url,
+    });
+    return NextResponse.json({ category: cat }, { status: 201 });
+  }
+
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard.error;
+
+  const supabase = guard.client;
 
   const insertPayload = {
     slug: body.slug!,

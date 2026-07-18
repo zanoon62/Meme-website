@@ -101,6 +101,26 @@ export function MarketingSection() {
   const [coupons, setCoupons] = React.useState<Coupon[]>(DEMO_COUPONS);
   const [creating, setCreating] = React.useState(false);
 
+  // Load coupons from API on mount
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/coupons");
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.coupons) && data.coupons.length > 0) {
+            // Merge API coupons with local demo coupons (avoid duplicates by code)
+            const apiCodes = new Set(data.coupons.map((c: Coupon) => c.code));
+            const localOnly = DEMO_COUPONS.filter((c) => !apiCodes.has(c.code));
+            setCoupons([...data.coupons, ...localOnly]);
+          }
+        }
+      } catch {
+        // fall back to demo coupons
+      }
+    })();
+  }, []);
+
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
     toast.success(`Copied "${code}" to clipboard`);
@@ -296,7 +316,7 @@ function CreateCouponDialog({
     max_uses: 100,
   });
 
-  const create = () => {
+  const create = async () => {
     if (!form.code) {
       toast.error("Coupon code is required");
       return;
@@ -314,6 +334,22 @@ function CreateCouponDialog({
       starts_at: new Date().toISOString(),
       ends_at: null,
     };
+    // Try to persist via API (demo mode will store in-memory)
+    try {
+      await fetch("/api/admin/coupons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: newCoupon.code,
+          type: newCoupon.type,
+          value: newCoupon.value,
+          min_subtotal: newCoupon.min_subtotal,
+          usage_limit: newCoupon.max_uses,
+        }),
+      });
+    } catch {
+      // ignore — local state still updates
+    }
     onCreate(newCoupon);
     toast.success(`Coupon ${newCoupon.code} created`);
     onClose();

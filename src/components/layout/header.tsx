@@ -19,6 +19,7 @@ import { categories, collections } from "@/data/products";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
 import { LanguageToggle } from "./language-toggle";
+import { useT, useLangDir } from "@/lib/i18n";
 
 // Cloned from dream-stock3 reference header:
 // - Logo (left, with optional video / brand text)
@@ -33,6 +34,8 @@ export function Header() {
   const wishlistCount = useWishlistCount();
   const [scrolled, setScrolled] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const t = useT();
+  const dir = useLangDir();
 
   React.useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -42,6 +45,7 @@ export function Header() {
 
   return (
     <header
+      dir={dir}
       className={cn(
         "sticky top-0 z-40 w-full transition-all duration-300 border-b border-white/5",
         scrolled ? "glass" : "bg-background"
@@ -97,11 +101,11 @@ export function Header() {
 
           {/* Desktop nav — matches reference: Home, Shop, Collections, Contact */}
           <nav className="hidden lg:flex items-center gap-8 text-[13px] uppercase tracking-[0.14em] font-medium flex-1">
-            <Link href="/" className="link-underline hover:text-foreground/80">Home</Link>
-            <Link href="/shop" className="link-underline hover:text-foreground/80">Shop</Link>
+            <Link href="/" className="link-underline hover:text-foreground/80">{t("nav.home")}</Link>
+            <Link href="/shop" className="link-underline hover:text-foreground/80">{t("nav.shop")}</Link>
             <div className="relative group">
               <Link href="/shop" className="link-underline hover:text-foreground/80 inline-flex items-center gap-1">
-                Collections
+                {t("nav.collections")}
               </Link>
               {/* Mega menu */}
               <div className="absolute top-full left-1/2 -translate-x-1/2 pt-4 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200">
@@ -135,12 +139,12 @@ export function Header() {
                 </div>
               </div>
             </div>
-            <Link href="/" className="link-underline hover:text-foreground/80">Contact</Link>
+            <Link href="/" className="link-underline hover:text-foreground/80">{t("nav.contact")}</Link>
             <Link
               href="/admin"
               className="hidden lg:inline-flex items-center gap-1.5 ml-2 px-3 py-1.5 rounded-full text-[11px] uppercase tracking-[0.14em] font-semibold border border-primary/30 bg-primary/5 hover:bg-primary hover:text-primary-foreground transition-colors"
             >
-              Admin
+              {t("nav.admin")}
             </Link>
           </nav>
 

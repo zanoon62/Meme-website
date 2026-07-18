@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/admin-guard";
 import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
+import { demoStore } from "@/lib/demo-store";
 import { limiters } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 
@@ -15,9 +16,29 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
-  // Demo mode — return sample orders for preview/evaluation only
+  // Demo mode — return sample orders with line items
   if (!isSupabaseServiceConfigured()) {
-    return NextResponse.json({ orders: demoOrders, items: [], total: demoOrders.length });
+    const { searchParams } = new URL(req.url);
+    const status = searchParams.get("status");
+    const q = searchParams.get("q");
+    let orders = demoStore.listOrders();
+    if (status && status !== "all") {
+      orders = orders.filter((o) => o.status === status);
+    }
+    if (q) {
+      const lower = q.toLowerCase();
+      orders = orders.filter(
+        (o) =>
+          o.order_number.toLowerCase().includes(lower) ||
+          o.email.toLowerCase().includes(lower) ||
+          `${o.shipping_address.first_name} ${o.shipping_address.last_name}`.toLowerCase().includes(lower),
+      );
+    }
+    return NextResponse.json({
+      orders,
+      items: demoStore.listOrderItems(),
+      total: orders.length,
+    });
   }
 
   const guard = await requireAdmin();
@@ -66,74 +87,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
-// Demo orders used when Supabase is not configured (still returned in demo mode)
-const demoOrders = [
-  {
-    id: "demo-o-1",
-    order_number: "MEME-250101-000001",
-    customer_id: null,
-    email: "sophia.l@example.com",
-    status: "delivered",
-    payment_status: "paid",
-    fulfillment_status: "fulfilled",
-    subtotal: 14500,
-    discount_total: 0,
-    shipping_total: 0,
-    tax_total: 2030,
-    total: 16530,
-    currency: "EGP",
-    coupon_code: null,
-    shipping_address: {
-      first_name: "Salma",
-      last_name: "Ahmed",
-      address1: "12 Taha Hussein St., Zamalek",
-      city: "Cairo",
-      state: "Cairo",
-      postal_code: "11211",
-      country: "EG",
-    },
-    placed_at: "2025-09-14T10:30:00Z",
-    paid_at: "2025-09-14T10:30:00Z",
-    delivered_at: "2025-09-17T16:00:00Z",
-    created_at: "2025-09-14T10:30:00Z",
-  },
-  {
-    id: "demo-o-2",
-    order_number: "MEME-250103-000002",
-    customer_id: null,
-    email: "nour.k@example.com",
-    status: "shipped",
-    payment_status: "paid",
-    fulfillment_status: "fulfilled",
-    subtotal: 7800,
-    discount_total: 780,
-    shipping_total: 0,
-    tax_total: 983,
-    total: 8003,
-    currency: "EGP",
-    coupon_code: "ATELIER10",
-    placed_at: "2025-10-02T14:20:00Z",
-    paid_at: "2025-10-02T14:20:00Z",
-    shipped_at: "2025-10-03T09:00:00Z",
-    created_at: "2025-10-02T14:20:00Z",
-  },
-  {
-    id: "demo-o-3",
-    order_number: "MEME-250105-000003",
-    customer_id: null,
-    email: "margot.r@example.com",
-    status: "pending",
-    payment_status: "awaiting",
-    fulfillment_status: "unfulfilled",
-    subtotal: 38500,
-    discount_total: 0,
-    shipping_total: 75,
-    tax_total: 5390,
-    total: 43965,
-    currency: "EGP",
-    coupon_code: null,
-    placed_at: "2025-10-12T08:45:00Z",
-    created_at: "2025-10-12T08:45:00Z",
-  },
-];

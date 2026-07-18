@@ -38,6 +38,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { LanguageToggle } from "@/components/layout/language-toggle";
 
 export type AdminSection =
   | "dashboard"
@@ -232,6 +234,8 @@ export function AdminShell({
                 <Bell className="h-4 w-4" />
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full" />
               </Button>
+              <LanguageToggle />
+              <ThemeToggle />
               {onNewProduct && (
                 <Button
                   size="sm"

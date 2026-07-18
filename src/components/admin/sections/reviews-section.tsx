@@ -22,20 +22,83 @@ export function ReviewsSection() {
   const [respondingTo, setRespondingTo] = React.useState<string | null>(null);
   const [response, setResponse] = React.useState("");
 
-  const togglePublish = (id: string) => {
+  // Load reviews from API on mount
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/reviews?status=all");
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.reviews) && data.reviews.length > 0) {
+            // Map API reviews to local shape
+            const mapped: Review[] = data.reviews.map((r: {
+              id: string;
+              product_id: string;
+              product_name: string;
+              customer_name: string;
+              rating: number;
+              title: string;
+              body: string;
+              is_published: boolean;
+              is_verified: boolean;
+              public_response: string | null;
+              created_at: string;
+            }) => ({
+              id: r.id,
+              productId: r.product_id,
+              productName: r.product_name,
+              author: r.customer_name,
+              rating: r.rating,
+              title: r.title,
+              body: r.body,
+              verified: r.is_verified,
+              date: r.created_at.slice(0, 10),
+              is_published: r.is_published,
+              response: r.public_response ?? undefined,
+            }));
+            setReviews(mapped);
+          }
+        }
+      } catch {
+        // fall back to seed
+      }
+    })();
+  }, []);
+
+  const togglePublish = async (id: string) => {
+    const current = reviews.find((r) => r.id === id);
+    const next = !current?.is_published;
     setReviews((rs) =>
       rs.map((r) =>
-        r.id === id ? { ...r, is_published: !r.is_published } : r
+        r.id === id ? { ...r, is_published: next } : r
       )
     );
-    toast.success("Review status updated");
+    try {
+      await fetch(`/api/admin/reviews/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_published: next }),
+      });
+    } catch {
+      // ignore
+    }
+    toast.success(next ? "Review published" : "Review unpublished");
   };
 
-  const submitResponse = (id: string) => {
+  const submitResponse = async (id: string) => {
     if (!response.trim()) return;
     setReviews((rs) =>
       rs.map((r) => (r.id === id ? { ...r, response: response.trim() } : r))
     );
+    try {
+      await fetch(`/api/admin/reviews/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ public_response: response.trim() }),
+      });
+    } catch {
+      // ignore
+    }
     setRespondingTo(null);
     setResponse("");
     toast.success("Response published");

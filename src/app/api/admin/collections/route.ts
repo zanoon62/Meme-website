@@ -6,23 +6,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/admin-guard";
 import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
-import { collections as seedCollections } from "@/data/products";
+import { demoStore } from "@/lib/demo-store";
 import { logger } from "@/lib/logger";
 
 export async function GET() {
   if (!isSupabaseServiceConfigured()) {
-    return NextResponse.json({
-      collections: seedCollections.map((c, i) => ({
-        id: `demo-col-${i}`,
-        slug: c.slug,
-        name: c.name,
-        tagline: c.tagline,
-        description: c.description,
-        image_url: c.image,
-        is_featured: i < 2,
-        is_active: true,
-      })),
-    });
+    return NextResponse.json({ collections: demoStore.listCollections() });
   }
 
   const guard = await requireAdmin();
@@ -41,9 +30,6 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = await requireAdmin();
-  if (!guard.ok) return guard.error;
-
   const body = (await req.json()) as {
     slug?: string;
     name?: string;
@@ -54,7 +40,6 @@ export async function POST(req: NextRequest) {
     is_featured?: boolean;
     is_active?: boolean;
   };
-  const supabase = guard.client;
 
   if (!body.slug || !body.name) {
     return NextResponse.json(
@@ -62,6 +47,24 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
+
+  // Demo mode — persist to in-memory store
+  if (!isSupabaseServiceConfigured()) {
+    const col = demoStore.createCollection({
+      slug: body.slug,
+      name: body.name,
+      tagline: body.tagline,
+      description: body.description,
+      cover_image: body.image_url,
+      is_featured: body.is_featured,
+    });
+    return NextResponse.json({ collection: col }, { status: 201 });
+  }
+
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard.error;
+
+  const supabase = guard.client;
 
   const { data, error } = await supabase
     .from("collections")
