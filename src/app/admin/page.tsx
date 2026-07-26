@@ -52,15 +52,17 @@ export default function AdminPage() {
     refreshFromServer();
   }, [refreshFromServer]);
 
-  // Sync section changes with URL ?tab= for deep-linking / refresh safety
+  // Sync section changes with URL ?tab= for deep-linking / refresh safety without RSC network delay
   const handleSectionChange = React.useCallback(
     (s: AdminSection) => {
       setSection(s);
-      const params = new URLSearchParams(window.location.search);
-      params.set("tab", s);
-      router.replace(`/admin?${params.toString()}`, { scroll: false });
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        params.set("tab", s);
+        window.history.replaceState(null, "", `/admin?${params.toString()}`);
+      }
     },
-    [router]
+    []
   );
 
   const openAdd = () => {

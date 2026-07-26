@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useLang } from "@/components/layout/language-toggle";
 
 export const ADMIN_I18N = {
@@ -144,9 +145,12 @@ export function useAdminT() {
   const isAr = lang === "ar";
   const dict = isAr ? ADMIN_I18N.ar : ADMIN_I18N.en;
 
-  const t = (key: AdminI18nKey): string => {
-    return dict[key] || ADMIN_I18N.en[key] || key;
-  };
+  const t = React.useCallback(
+    (key: AdminI18nKey): string => {
+      return dict[key] || ADMIN_I18N.en[key] || key;
+    },
+    [dict]
+  );
 
   return { t, lang, isAr, dir: isAr ? "rtl" : "ltr" };
 }
