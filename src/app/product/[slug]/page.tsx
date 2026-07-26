@@ -8,10 +8,8 @@ import { notFound } from "next/navigation";
 import { products as seedProducts } from "@/data/products";
 import ProductPageClient from "./product-client";
 
-// Pre-render only known slugs at build time. Unknown slugs return 404.
-// In production with Supabase, new products added via admin will be picked
-// up on the next revalidate cycle (ISR).
-export const dynamicParams = false;
+// Allow new products created at runtime to render dynamically
+export const dynamicParams = true;
 export const revalidate = 60; // seconds — refresh static pages every minute
 
 export function generateStaticParams() {
@@ -24,9 +22,5 @@ export default async function ProductPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  // Server-side 404 for unknown slugs (works in both demo + production modes
-  // since the seed catalog is the source of truth for storefront listings)
-  const exists = seedProducts.some((p) => p.slug === slug);
-  if (!exists) notFound();
   return <ProductPageClient slug={slug} />;
 }

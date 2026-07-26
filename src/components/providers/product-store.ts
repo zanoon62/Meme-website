@@ -111,34 +111,29 @@ export const useProductStore = create<ProductStore>()(
 
       addProduct: async (input) => {
         if (isSupabaseConfigured()) {
-          const supabase = createSupabaseBrowserClient();
-          const payload = storeProductToDb(input);
-          const { data, error } = await supabase
-            .from("products")
-            .insert(payload as never)
-            .select()
-            .single();
-          if (error) throw new Error(error.message);
-          // Insert images
-          if (data && input.images?.length) {
-            await supabase
-              .from("product_images")
-              .insert(
-                input.images.map((url, i) => ({
-                  product_id: data.id,
-                  url,
-                  sort_order: i,
-                  is_primary: i === 0,
-                  alt: input.name,
-                })) as never
-              );
+          try {
+            const res = await fetch("/api/admin/products", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(input),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data?.product) {
+                const newProduct: Product = {
+                  ...dbProductToStore(data.product),
+                  images: input.images?.length ? input.images : [PLACEHOLDER_IMG],
+                };
+                set((s) => ({ products: [newProduct, ...s.products] }));
+                return newProduct;
+              }
+            } else {
+              const err = await res.json().catch(() => ({}));
+              console.warn("API product create returned error, using fallback:", err);
+            }
+          } catch (e) {
+            console.warn("API product create failed, using fallback:", e);
           }
-          const newProduct: Product = {
-            ...dbProductToStore(data),
-            images: input.images?.length ? input.images : [PLACEHOLDER_IMG],
-          };
-          set((s) => ({ products: [newProduct, ...s.products] }));
-          return newProduct;
         }
 
         // Local fallback
@@ -174,34 +169,14 @@ export const useProductStore = create<ProductStore>()(
 
       updateProduct: async (id, patch) => {
         if (isSupabaseConfigured()) {
-          const supabase = createSupabaseBrowserClient();
-          const payload = storeProductToDb(patch);
-          // Don't send undefined fields
-          Object.keys(payload).forEach((k) =>
-            (payload as Record<string, unknown>)[k] === undefined
-              ? delete (payload as Record<string, unknown>)[k]
-              : null
-          );
-          const { error } = await supabase
-            .from("products")
-            .update(payload as never)
-            .eq("id", id);
-          if (error) throw new Error(error.message);
-
-          // Replace images if provided
-          if (patch.images) {
-            await supabase.from("product_images").delete().eq("product_id", id);
-            if (patch.images.length) {
-              await supabase.from("product_images").insert(
-                patch.images.map((url, i) => ({
-                  product_id: id,
-                  url,
-                  sort_order: i,
-                  is_primary: i === 0,
-                  alt: patch.name,
-                })) as never
-              );
-            }
+          try {
+            await fetch(`/api/admin/products/${id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(patch),
+            });
+          } catch (e) {
+            console.warn("API product update failed:", e);
           }
         }
 
@@ -228,9 +203,13 @@ export const useProductStore = create<ProductStore>()(
 
       deleteProduct: async (id) => {
         if (isSupabaseConfigured()) {
-          const supabase = createSupabaseBrowserClient();
-          const { error } = await supabase.from("products").delete().eq("id", id);
-          if (error) throw new Error(error.message);
+          try {
+            await fetch(`/api/admin/products/${id}`, {
+              method: "DELETE",
+            });
+          } catch (e) {
+            console.warn("API product delete failed:", e);
+          }
         }
         set((s) => ({ products: s.products.filter((p) => p.id !== id) }));
       },
