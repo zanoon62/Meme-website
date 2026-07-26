@@ -5,11 +5,14 @@ import type { Database } from "@/lib/supabase/database.types";
 /**
  * Refreshes Supabase auth session and protects /admin routes.
  *
- * In demo mode (Supabase env vars not set), all routes are public.
- * In production, /admin/* (except /admin/login) requires a logged-in user.
+ * Supports both simple hardcoded admin login (admin/admin123 cookie)
+ * and Supabase auth sessions.
  */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
+
+  const hasAdminSession =
+    request.cookies.get("meme_admin_session")?.value === "true";
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -18,8 +21,28 @@ export async function updateSession(request: NextRequest) {
     Boolean(supabaseKey) &&
     supabaseUrl!.startsWith("http");
 
-  // Demo mode: no auth, pass through
+  // Protect admin routes — require auth (hardcoded admin session cookie or Supabase auth)
+  if (
+    !hasAdminSession &&
+    request.nextUrl.pathname.startsWith("/admin") &&
+    !request.nextUrl.pathname.startsWith("/admin/login")
+  ) {
+    // If Supabase not configured and no simple-auth cookie, redirect to login
+    if (!isConfigured) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin/login";
+      url.searchParams.set("redirect", request.nextUrl.pathname);
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // Demo mode without Supabase
   if (!isConfigured) {
+    if (hasAdminSession && request.nextUrl.pathname === "/admin/login") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin";
+      return NextResponse.redirect(url);
+    }
     return supabaseResponse;
   }
 
@@ -44,9 +67,10 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protect admin routes — require auth
+  // Protect admin routes — require auth (simple-auth cookie OR Supabase user)
   if (
     !user &&
+    !hasAdminSession &&
     request.nextUrl.pathname.startsWith("/admin") &&
     !request.nextUrl.pathname.startsWith("/admin/login")
   ) {
@@ -57,7 +81,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   // If already logged in and visiting /admin/login, send to /admin
-  if (user && request.nextUrl.pathname === "/admin/login") {
+  if ((user || hasAdminSession) && request.nextUrl.pathname === "/admin/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/admin";
     return NextResponse.redirect(url);

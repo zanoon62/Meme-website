@@ -6,38 +6,32 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Lock, Mail, ArrowLeft, ShieldCheck } from "lucide-react";
+import { Loader2, Lock, User, ArrowLeft, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import { getSupabaseBrowser } from "@/lib/supabase/browser";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
+import {
+  validateAdminCredentials,
+  setAdminSession,
+} from "@/lib/auth/simple-auth";
 
 function LoginForm() {
   const router = useRouter();
   const search = useSearchParams();
   const redirect = search.get("redirect") ?? "/admin";
 
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isSupabaseConfigured()) {
-      toast.info(
-        "Supabase not configured — running in demo mode. Open /admin directly."
-      );
-      router.push("/admin");
-      return;
-    }
     setLoading(true);
     try {
-      const supabase = getSupabaseBrowser();
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
-      toast.success("Welcome back to the atelier.");
+      const isValid = validateAdminCredentials(username, password);
+      if (!isValid) {
+        throw new Error("Invalid username or password (try admin / admin123)");
+      }
+      setAdminSession();
+      toast.success("Welcome back to MEME Atelier.");
       router.push(redirect);
       router.refresh();
     } catch (err) {
@@ -73,20 +67,20 @@ function LoginForm() {
 
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-xs uppercase tracking-wider">
-                Email
+              <Label htmlFor="username" className="text-xs uppercase tracking-wider">
+                Username
               </Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
                 <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   required
-                  placeholder="admin@memeatelier.com"
+                  placeholder="admin"
                   className="pl-10"
-                  autoComplete="email"
+                  autoComplete="username"
                 />
               </div>
             </div>
@@ -106,7 +100,7 @@ function LoginForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  placeholder="••••••••"
+                  placeholder="admin123"
                   className="pl-10"
                   autoComplete="current-password"
                 />
@@ -131,10 +125,14 @@ function LoginForm() {
 
           <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-800 flex items-start gap-2 text-xs text-neutral-500">
             <ShieldCheck className="h-4 w-4 flex-shrink-0 mt-0.5" />
-            <p>
-              Access is restricted to authorized MEME atelier staff. All actions
-              are logged. For account issues, contact your studio manager.
-            </p>
+            <div>
+              <p>
+                Default staff credentials: <strong>admin / admin123</strong>
+              </p>
+              <p className="text-[11px] text-neutral-400 mt-1">
+                (Configure in <code>src/lib/auth/simple-auth.ts</code>)
+              </p>
+            </div>
           </div>
         </div>
       </div>

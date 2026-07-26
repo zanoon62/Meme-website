@@ -14,9 +14,11 @@
  */
 
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase/server";
 import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
 import { logger } from "@/lib/logger";
+import { ADMIN_COOKIE_NAME } from "@/lib/auth/simple-auth";
 
 type ServiceClient = ReturnType<typeof createSupabaseServiceClient>;
 
@@ -25,13 +27,33 @@ type GuardResult =
   | { ok: false; error: NextResponse };
 
 export async function requireAdmin(): Promise<GuardResult> {
-  // Demo mode (no Supabase configured) — block admin writes
+  const cookieStore = await cookies();
+  const hasSimpleAdmin = cookieStore.get(ADMIN_COOKIE_NAME)?.value === "true";
+
+  if (hasSimpleAdmin) {
+    if (!isSupabaseServiceConfigured()) {
+      return {
+        ok: true,
+        userId: "admin-hardcoded",
+        role: "admin",
+        client: null as unknown as ServiceClient,
+      };
+    }
+    return {
+      ok: true,
+      userId: "admin-hardcoded",
+      role: "admin",
+      client: createSupabaseServiceClient(),
+    };
+  }
+
+  // Demo mode (no Supabase configured) — block if not logged in
   if (!isSupabaseServiceConfigured()) {
     return {
       ok: false,
       error: NextResponse.json(
-        { error: "Server not configured. Set SUPABASE_SERVICE_ROLE_KEY." },
-        { status: 503 },
+        { error: "Unauthorized — sign in at /admin/login (admin/admin123)." },
+        { status: 401 },
       ),
     };
   }
