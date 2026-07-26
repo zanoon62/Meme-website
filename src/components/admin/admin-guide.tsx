@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useAdminT } from "@/components/admin/admin-i18n";
 
 /**
  * AdminGuideSection
@@ -24,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
  * exactly how to add, edit, delete and reset products from the Admin panel.
  */
 export function AdminGuideSection() {
+  const { isAr } = useAdminT();
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Intro */}
@@ -34,14 +36,22 @@ export function AdminGuideSection() {
           </div>
           <div>
             <h2 className="font-display text-2xl tracking-tight mb-2">
-              How to manage your products
+              {isAr ? "دليل إدارة المنتجات والمتجر" : "How to manage your products"}
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              This guide walks you through everything you can do from the{" "}
-              <Link href="/admin" className="underline">Admin → Products</Link> tab:
-              adding new pieces, editing existing ones, deleting out-of-stock items,
-              and resetting the catalog back to its original state. Every change you
-              save is pushed to the live storefront instantly — no publish step required.
+              {isAr ? (
+                <>
+                  يشرح لك هذا الدليل خطوة بخطوة كيفية إدارة منتجاتك من تبويب (المنتجات)، سواء بإضافة قطع جديدة إلى الكتالوج، أو تعديل أسعار وتفاصيل المنتجات الحالية، أو حذف المنتجات، وكذلك إعادة ضبط الكتالوج للوضع الافتراضي. جميع التغييرات التي تقوم بحفظها تنعكس فوراً على المتجر أمام زوار موقعك.
+                </>
+              ) : (
+                <>
+                  This guide walks you through everything you can do from the{" "}
+                  <Link href="/admin" className="underline">Admin → Products</Link> tab:
+                  adding new pieces, editing existing ones, deleting out-of-stock items,
+                  and resetting the catalog back to its original state. Every change you
+                  save is pushed to the live storefront instantly — no publish step required.
+                </>
+              )}
             </p>
           </div>
         </div>

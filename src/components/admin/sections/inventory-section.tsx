@@ -16,8 +16,10 @@ import { Badge } from "@/components/ui/badge";
 import { useProductStore } from "@/components/providers/product-store";
 import { formatPrice } from "@/lib/format";
 import { toast } from "sonner";
+import { useAdminT } from "@/components/admin/admin-i18n";
 
 export function InventorySection() {
+  const { t } = useAdminT();
   const products = useProductStore((s) => s.products);
   const updateProduct = useProductStore((s) => s.updateProduct);
   const [search, setSearch] = React.useState("");
@@ -59,7 +61,7 @@ export function InventorySection() {
         <Card className="p-4">
           <Boxes className="h-4 w-4 text-muted-foreground mb-2" />
           <p className="text-xl font-display">{totalUnits}</p>
-          <p className="text-xs text-muted-foreground">Units in stock</p>
+          <p className="text-xs text-muted-foreground">{t("totalUnits")}</p>
         </Card>
         <Card className="p-4">
           <Package className="h-4 w-4 text-muted-foreground mb-2" />
@@ -69,27 +71,27 @@ export function InventorySection() {
         <Card className="p-4">
           <AlertTriangle className="h-4 w-4 text-amber-500 mb-2" />
           <p className="text-xl font-display">{lowStock}</p>
-          <p className="text-xs text-muted-foreground">Low stock</p>
+          <p className="text-xs text-muted-foreground">{t("lowStock")}</p>
         </Card>
         <Card className="p-4">
           <TrendingDown className="h-4 w-4 text-rose-500 mb-2" />
           <p className="text-xl font-display">{outOfStock}</p>
-          <p className="text-xs text-muted-foreground">Out of stock</p>
+          <p className="text-xs text-muted-foreground">{t("outOfStock")}</p>
         </Card>
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Search products…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9 bg-background"
+            placeholder={t("searchProducts")}
+            className="pl-8 h-8 w-64 text-xs"
           />
         </div>
         <div className="text-xs text-muted-foreground">
-          Inventory value:{" "}
+          {t("inventoryValue")}:{" "}
           <span className="font-medium text-foreground">
             {formatPrice(inventoryValue)}
           </span>
@@ -101,12 +103,12 @@ export function InventorySection() {
           <table className="w-full text-sm">
             <thead className="bg-accent/50 border-b border-border/60">
               <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                <th className="px-4 py-3">Product</th>
+                <th className="px-4 py-3">{t("product")}</th>
                 <th className="px-4 py-3">SKU</th>
-                <th className="px-4 py-3">Category</th>
-                <th className="px-4 py-3 text-right">Price</th>
-                <th className="px-4 py-3 text-center">Stock</th>
-                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">{t("category")}</th>
+                <th className="px-4 py-3 text-right">{t("price")}</th>
+                <th className="px-4 py-3 text-center">{t("inventoryCol")}</th>
+                <th className="px-4 py-3">{t("status")}</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>

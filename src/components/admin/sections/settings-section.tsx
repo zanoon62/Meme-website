@@ -28,18 +28,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useAdminT } from "@/components/admin/admin-i18n";
 
 export function SettingsSection() {
+  const { t, isAr } = useAdminT();
   const [tab, setTab] = React.useState<
     "store" | "payments" | "shipping" | "notifications" | "security"
   >("store");
 
   const tabs = [
-    { id: "store" as const, label: "Store", icon: Store },
-    { id: "payments" as const, label: "Payments", icon: CreditCard },
-    { id: "shipping" as const, label: "Shipping", icon: Truck },
-    { id: "notifications" as const, label: "Notifications", icon: Bell },
-    { id: "security" as const, label: "Security", icon: Shield },
+    { id: "store" as const, label: isAr ? "المتجر" : "Store", icon: Store },
+    { id: "payments" as const, label: isAr ? "الدفع" : "Payments", icon: CreditCard },
+    { id: "shipping" as const, label: isAr ? "الشحن" : "Shipping", icon: Truck },
+    { id: "notifications" as const, label: isAr ? "الإشعارات" : "Notifications", icon: Bell },
+    { id: "security" as const, label: isAr ? "الأمان" : "Security", icon: Shield },
   ];
 
   return (

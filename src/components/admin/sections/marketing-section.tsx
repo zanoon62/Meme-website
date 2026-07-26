@@ -10,9 +10,6 @@ import {
   Calendar,
   Copy,
   Trash2,
-  Mail,
-  Instagram,
-  Facebook,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -34,11 +31,14 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useAdminT } from "@/components/admin/admin-i18n";
+import { formatPrice } from "@/lib/format";
 
 type Coupon = {
   id: string;
   code: string;
   description: string | null;
+  description_ar?: string | null;
   type: "percent" | "fixed" | "shipping";
   value: number;
   min_subtotal: number;
@@ -49,45 +49,34 @@ type Coupon = {
   ends_at: string | null;
 };
 
-const DEMO_COUPONS: Coupon[] = [
+const DEFAULT_COUPONS: Coupon[] = [
   {
     id: "c1",
-    code: "ATELIER10",
-    description: "10% off for newsletter subscribers",
+    code: "WELCOME10",
+    description: "10% off first order",
+    description_ar: "خصم 10% على أول طلب",
     type: "percent",
     value: 10,
     min_subtotal: 0,
-    max_uses: 1000,
-    used_count: 247,
-    is_active: true,
-    starts_at: "2025-09-01T00:00:00Z",
-    ends_at: null,
-  },
-  {
-    id: "c2",
-    code: "FREESHIP",
-    description: "Free shipping on orders over 6,000 EGP",
-    type: "shipping",
-    value: 0,
-    min_subtotal: 6000,
     max_uses: null,
-    used_count: 412,
+    used_count: 0,
     is_active: true,
     starts_at: "2025-01-01T00:00:00Z",
     ends_at: null,
   },
   {
-    id: "c3",
-    code: "WELCOME50",
-    description: "1,500 EGP off first order over 9,000 EGP",
-    type: "fixed",
-    value: 1500,
-    min_subtotal: 9000,
-    max_uses: 500,
-    used_count: 89,
+    id: "c2",
+    code: "FREESHIP",
+    description: "Free shipping on orders over 5,000 EGP",
+    description_ar: "شحن مجاني للطلبات فوق 5,000 ج.م",
+    type: "shipping",
+    value: 0,
+    min_subtotal: 5000,
+    max_uses: null,
+    used_count: 0,
     is_active: true,
-    starts_at: "2025-08-15T00:00:00Z",
-    ends_at: "2025-12-31T23:59:59Z",
+    starts_at: "2025-01-01T00:00:00Z",
+    ends_at: null,
   },
 ];
 
@@ -97,202 +86,161 @@ const typeIcon: Record<Coupon["type"], React.ElementType> = {
   shipping: Truck,
 };
 
-export function MarketingSection() {
-  const [coupons, setCoupons] = React.useState<Coupon[]>(DEMO_COUPONS);
-  const [creating, setCreating] = React.useState(false);
+const STORAGE_KEY = "meme-admin-promotions-v2";
 
-  // Load coupons from API on mount
+export function MarketingSection() {
+  const [coupons, setCoupons] = React.useState<Coupon[]>(DEFAULT_COUPONS);
+  const [creating, setCreating] = React.useState(false);
+  const { t, isAr } = useAdminT();
+
+  // Load coupons from localStorage on mount
   React.useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/admin/coupons");
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.coupons) && data.coupons.length > 0) {
-            // Merge API coupons with local demo coupons (avoid duplicates by code)
-            const apiCodes = new Set(data.coupons.map((c: Coupon) => c.code));
-            const localOnly = DEMO_COUPONS.filter((c) => !apiCodes.has(c.code));
-            setCoupons([...data.coupons, ...localOnly]);
-          }
-        }
-      } catch {
-        // fall back to demo coupons
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        setCoupons(JSON.parse(saved));
+        return;
       }
-    })();
+    } catch {
+      // fallback to default
+    }
+    setCoupons(DEFAULT_COUPONS);
   }, []);
+
+  const saveCoupons = (next: Coupon[]) => {
+    setCoupons(next);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  };
 
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code);
-    toast.success(`Copied "${code}" to clipboard`);
+    toast.success(isAr ? `تم نسخ "${code}"` : `Copied "${code}"`);
+  };
+
+  const deleteCoupon = (id: string) => {
+    const next = coupons.filter((c) => c.id !== id);
+    saveCoupons(next);
+    toast.success(t("couponDeleted"));
   };
 
   return (
     <div className="space-y-6">
-      {/* Marketing channels overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-5">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="h-9 w-9 rounded-md bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white">
-              <Instagram className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="text-xs font-medium">Instagram Shop</p>
-              <p className="text-[10px] text-muted-foreground">@suited_by_meme</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div>
-              <p className="text-lg font-display">24.8k</p>
-              <p className="text-[10px] text-muted-foreground">Followers</p>
-            </div>
-            <div>
-              <p className="text-lg font-display">847</p>
-              <p className="text-[10px] text-muted-foreground">Posts</p>
-            </div>
-            <div>
-              <p className="text-lg font-display">3.2%</p>
-              <p className="text-[10px] text-muted-foreground">Engagement</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-5">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="h-9 w-9 rounded-md bg-blue-600 flex items-center justify-center text-white">
-              <Mail className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="text-xs font-medium">Email (Klaviyo)</p>
-              <p className="text-[10px] text-muted-foreground">2,847 subscribers</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div>
-              <p className="text-lg font-display">42%</p>
-              <p className="text-[10px] text-muted-foreground">Open rate</p>
-            </div>
-            <div>
-              <p className="text-lg font-display">3.8%</p>
-              <p className="text-[10px] text-muted-foreground">Click rate</p>
-            </div>
-            <div>
-              <p className="text-lg font-display">246k</p>
-              <p className="text-[10px] text-muted-foreground">Revenue</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-5">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="h-9 w-9 rounded-md bg-blue-800 flex items-center justify-center text-white">
-              <Facebook className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="text-xs font-medium">Meta Ads</p>
-              <p className="text-[10px] text-muted-foreground">Active campaigns</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div>
-              <p className="text-lg font-display">36k</p>
-              <p className="text-[10px] text-muted-foreground">Spend (30d)</p>
-            </div>
-            <div>
-              <p className="text-lg font-display">3.4x</p>
-              <p className="text-[10px] text-muted-foreground">ROAS</p>
-            </div>
-            <div>
-              <p className="text-lg font-display">847</p>
-              <p className="text-[10px] text-muted-foreground">Clicks</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Coupons */}
+      {/* Coupons Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-display text-lg">Discount codes</h3>
-          <p className="text-xs text-muted-foreground">
-            Create and manage promotional codes
+          <h3 className="font-display text-xl">{t("discountCodes")}</h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            {t("manageCoupons")}
           </p>
         </div>
         <Button size="sm" onClick={() => setCreating(true)}>
-          <Plus className="h-4 w-4 mr-1" /> New coupon
+          <Plus className="h-4 w-4 mr-1" /> {t("newCoupon")}
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        {coupons.map((c) => {
-          const Icon = typeIcon[c.type];
-          return (
-            <Card key={c.id} className="p-5">
-              <div className="flex items-start justify-between mb-3">
-                <div className="h-9 w-9 rounded-md bg-foreground/5 flex items-center justify-center">
-                  <Icon className="h-4 w-4" />
-                </div>
-                <Badge
-                  variant={c.is_active ? "default" : "secondary"}
-                  className="text-[10px]"
-                >
-                  {c.is_active ? "Active" : "Paused"}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <p className="font-mono text-sm font-medium tracking-wider">
-                  {c.code}
-                </p>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6"
-                  onClick={() => copyCode(c.code)}
-                >
-                  <Copy className="h-3 w-3" />
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
-                {c.description}
-              </p>
-              <div className="space-y-1 text-[11px]">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Discount</span>
-                  <span className="font-medium">
-                    {c.type === "percent"
-                      ? `${c.value}%`
-                      : c.type === "fixed"
-                        ? `$${c.value}`
-                        : "Free shipping"}
-                  </span>
-                </div>
-                {c.min_subtotal > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Min subtotal</span>
-                    <span className="font-medium">${c.min_subtotal}</span>
+      {coupons.length === 0 ? (
+        <Card className="p-12 text-center text-muted-foreground text-sm">
+          {t("noCoupons")}
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {coupons.map((c) => {
+            const Icon = typeIcon[c.type];
+            const desc =
+              isAr && c.description_ar ? c.description_ar : c.description;
+            return (
+              <Card key={c.id} className="p-5 relative group">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="h-9 w-9 rounded-md bg-foreground/5 flex items-center justify-center">
+                    <Icon className="h-4 w-4" />
                   </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Used</span>
-                  <span className="font-medium">
-                    {c.used_count}
-                    {c.max_uses ? ` / ${c.max_uses}` : ""}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant={c.is_active ? "default" : "secondary"}
+                      className="text-[10px]"
+                    >
+                      {c.is_active ? t("active") : t("paused")}
+                    </Badge>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => deleteCoupon(c.id)}
+                      title={t("deleteCoupon")}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-              <div className="mt-3 pt-3 border-t border-border/40 flex items-center gap-2 text-[10px] text-muted-foreground">
-                <Calendar className="h-3 w-3" />
-                {new Date(c.starts_at).toLocaleDateString()}
-                {c.ends_at && ` → ${new Date(c.ends_at).toLocaleDateString()}`}
-              </div>
-            </Card>
-          );
-        })}
-      </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <p className="font-mono text-sm font-medium tracking-wider">
+                    {c.code}
+                  </p>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    onClick={() => copyCode(c.code)}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
+                  {desc || "—"}
+                </p>
+                <div className="space-y-1.5 text-[11px]">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">
+                      {t("discount")}
+                    </span>
+                    <span className="font-medium">
+                      {c.type === "percent"
+                        ? `${c.value}%`
+                        : c.type === "fixed"
+                        ? formatPrice(c.value)
+                        : t("freeShipping")}
+                    </span>
+                  </div>
+                  {c.min_subtotal > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        {t("minOrderAmount")}
+                      </span>
+                      <span className="font-medium">
+                        {formatPrice(c.min_subtotal)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">
+                      {t("usedCount")}
+                    </span>
+                    <span className="font-medium">
+                      {c.used_count}
+                      {c.max_uses ? ` / ${c.max_uses}` : ""}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-border/40 flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <Calendar className="h-3 w-3" />
+                  {new Date(c.starts_at).toLocaleDateString()}
+                  {c.ends_at &&
+                    ` → ${new Date(c.ends_at).toLocaleDateString()}`}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       <CreateCouponDialog
         open={creating}
         onClose={() => setCreating(false)}
-        onCreate={(c) => setCoupons((prev) => [c, ...prev])}
+        onCreate={(c) => saveCoupons([c, ...coupons])}
       />
     </div>
   );
@@ -307,6 +255,7 @@ function CreateCouponDialog({
   onClose: () => void;
   onCreate: (c: Coupon) => void;
 }) {
+  const { t, isAr } = useAdminT();
   const [form, setForm] = React.useState({
     code: "",
     description: "",
@@ -318,7 +267,7 @@ function CreateCouponDialog({
 
   const create = async () => {
     if (!form.code) {
-      toast.error("Coupon code is required");
+      toast.error(isAr ? "كود الخصم مطلوب" : "Coupon code is required");
       return;
     }
     const newCoupon: Coupon = {
@@ -334,7 +283,6 @@ function CreateCouponDialog({
       starts_at: new Date().toISOString(),
       ends_at: null,
     };
-    // Try to persist via API (demo mode will store in-memory)
     try {
       await fetch("/api/admin/coupons", {
         method: "POST",
@@ -348,10 +296,14 @@ function CreateCouponDialog({
         }),
       });
     } catch {
-      // ignore — local state still updates
+      // ignore
     }
     onCreate(newCoupon);
-    toast.success(`Coupon ${newCoupon.code} created`);
+    toast.success(
+      isAr
+        ? `تم إنشاء كود الخصم "${newCoupon.code}"`
+        : `Coupon ${newCoupon.code} created`
+    );
     onClose();
     setForm({
       code: "",
@@ -367,34 +319,34 @@ function CreateCouponDialog({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>New discount code</DialogTitle>
+          <DialogTitle>{t("newCoupon")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label className="text-xs">Code</Label>
+            <Label className="text-xs">{t("couponCode")}</Label>
             <Input
               value={form.code}
               onChange={(e) =>
                 setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))
               }
-              placeholder="SUMMER25"
+              placeholder="ATELIER25"
               className="mt-1 font-mono uppercase"
             />
           </div>
           <div>
-            <Label className="text-xs">Description</Label>
+            <Label className="text-xs">{t("couponDesc")}</Label>
             <Input
               value={form.description}
               onChange={(e) =>
                 setForm((f) => ({ ...f, description: e.target.value }))
               }
-              placeholder="25% off summer collection"
+              placeholder={isAr ? "خصم 25% على المجموعة" : "25% off collection"}
               className="mt-1"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">Type</Label>
+              <Label className="text-xs">{t("discountType")}</Label>
               <Select
                 value={form.type}
                 onValueChange={(v) =>
@@ -405,16 +357,14 @@ function CreateCouponDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="percent">Percentage</SelectItem>
-                  <SelectItem value="fixed">Fixed amount</SelectItem>
-                  <SelectItem value="shipping">Free shipping</SelectItem>
+                  <SelectItem value="percent">{t("percentType")}</SelectItem>
+                  <SelectItem value="fixed">{t("fixedType")}</SelectItem>
+                  <SelectItem value="shipping">{t("shippingType")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-xs">
-                {form.type === "percent" ? "Percent off" : "Amount off"}
-              </Label>
+              <Label className="text-xs">{t("discountValue")}</Label>
               <Input
                 type="number"
                 value={form.value}
@@ -428,12 +378,17 @@ function CreateCouponDialog({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">Min subtotal ($)</Label>
+              <Label className="text-xs">
+                {t("minOrderAmount")} ({isAr ? "ج.م" : "EGP"})
+              </Label>
               <Input
                 type="number"
                 value={form.min_subtotal}
                 onChange={(e) =>
-                  setForm((f) => ({ ...f, min_subtotal: Number(e.target.value) }))
+                  setForm((f) => ({
+                    ...f,
+                    min_subtotal: Number(e.target.value),
+                  }))
                 }
                 className="mt-1"
               />
@@ -453,9 +408,9 @@ function CreateCouponDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t("cancel")}
           </Button>
-          <Button onClick={create}>Create coupon</Button>
+          <Button onClick={create}>{t("createCoupon")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

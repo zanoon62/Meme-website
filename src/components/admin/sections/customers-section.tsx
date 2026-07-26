@@ -19,6 +19,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatPrice } from "@/lib/format";
+import { useAdminT } from "@/components/admin/admin-i18n";
 
 type Customer = {
   id: string;
@@ -41,6 +42,7 @@ function tierFor(spent: number): { label: string; color: string } {
 }
 
 export function CustomersSection() {
+  const { t } = useAdminT();
   const [customers, setCustomers] = React.useState<Customer[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
@@ -115,12 +117,12 @@ export function CustomersSection() {
           <table className="w-full text-sm">
             <thead className="bg-accent/50 border-b border-border/60">
               <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                <th className="px-4 py-3">Customer</th>
-                <th className="px-4 py-3">Contact</th>
-                <th className="px-4 py-3">Orders</th>
-                <th className="px-4 py-3 text-right">Spent</th>
+                <th className="px-4 py-3">{t("customer")}</th>
+                <th className="px-4 py-3">{t("email")}</th>
+                <th className="px-4 py-3">{t("orders")}</th>
+                <th className="px-4 py-3 text-right">{t("totalSpent")}</th>
                 <th className="px-4 py-3">Tier</th>
-                <th className="px-4 py-3">Last order</th>
+                <th className="px-4 py-3">{t("lastOrder")}</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -128,14 +130,14 @@ export function CustomersSection() {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-muted-foreground">
-                    Loading customers…
+                    {t("loading")}
                   </td>
                 </tr>
               ) : customers.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-muted-foreground">
                     <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    No customers found
+                    {t("noResults")}
                   </td>
                 </tr>
               ) : (

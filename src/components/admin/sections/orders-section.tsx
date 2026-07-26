@@ -46,6 +46,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatPrice } from "@/lib/format";
 import { toast } from "sonner";
+import { useAdminT } from "@/components/admin/admin-i18n";
 
 type OrderStatus =
   | "pending"
@@ -114,6 +115,7 @@ const statusColor: Record<OrderStatus, string> = {
 };
 
 export function OrdersSection() {
+  const { t } = useAdminT();
   const [orders, setOrders] = React.useState<Order[]>([]);
   const [items, setItems] = React.useState<Record<string, OrderItem[]>>({});
   const [loading, setLoading] = React.useState(true);
@@ -234,12 +236,12 @@ export function OrdersSection() {
           <table className="w-full text-sm">
             <thead className="bg-accent/50 border-b border-border/60">
               <tr className="text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                <th className="px-4 py-3">Order</th>
-                <th className="px-4 py-3">Customer</th>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Payment</th>
-                <th className="px-4 py-3 text-right">Total</th>
+                <th className="px-4 py-3">{t("orderId")}</th>
+                <th className="px-4 py-3">{t("customer")}</th>
+                <th className="px-4 py-3">{t("date")}</th>
+                <th className="px-4 py-3">{t("status")}</th>
+                <th className="px-4 py-3">{t("payment")}</th>
+                <th className="px-4 py-3 text-right">{t("total")}</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
@@ -247,14 +249,14 @@ export function OrdersSection() {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-muted-foreground">
-                    Loading orders…
+                    {t("loading")}
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-muted-foreground">
                     <ShoppingCart className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    No orders found
+                    {t("noResults")}
                   </td>
                 </tr>
               ) : (

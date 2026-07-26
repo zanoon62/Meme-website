@@ -32,6 +32,7 @@ import type { Product } from "@/components/providers/ui-provider";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useAdminT } from "@/components/admin/admin-i18n";
 
 export function ProductsSection({
   onAdd,
@@ -43,6 +44,7 @@ export function ProductsSection({
   const products = useProductStore((s) => s.products);
   const deleteProduct = useProductStore((s) => s.deleteProduct);
   const resetToSeed = useProductStore((s) => s.resetToSeed);
+  const { t } = useAdminT();
 
   const [search, setSearch] = React.useState("");
   const [categoryFilter, setCategoryFilter] = React.useState<string>("all");
@@ -122,7 +124,7 @@ export function ProductsSection({
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search products…"
+              placeholder={t("searchProducts")}
               className="pl-8 h-8 w-44 sm:w-56 text-xs"
             />
           </div>
@@ -131,7 +133,7 @@ export function ProductsSection({
             onChange={(e) => setCategoryFilter(e.target.value)}
             className="h-8 rounded-md border border-input bg-background px-3 text-xs"
           >
-            <option value="all">All categories</option>
+            <option value="all">{t("filterByCategory")}</option>
             {categoryOptions.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -145,13 +147,13 @@ export function ProductsSection({
             onClick={() => setPendingReset(true)}
             title="Restore the original 12-product catalog"
           >
-            <RotateCcw className="h-3 w-3 mr-1" /> Reset
+            <RotateCcw className="h-3 w-3 mr-1" /> {t("resetCatalog")}
           </Button>
           <Button variant="outline" size="sm" className="h-8">
-            <Download className="h-3 w-3 mr-1" /> Export
+            <Download className="h-3 w-3 mr-1" /> {t("export")}
           </Button>
           <Button size="sm" className="h-8" onClick={onAdd}>
-            <Plus className="h-3 w-3 mr-1" /> Add product
+            <Plus className="h-3 w-3 mr-1" /> {t("newProduct")}
           </Button>
         </div>
       </div>
@@ -162,25 +164,25 @@ export function ProductsSection({
             <thead className="bg-accent/30 border-b border-border/60">
               <tr>
                 <th className="text-left p-4 text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                  Product
+                  {t("product")}
                 </th>
                 <th className="text-left p-4 text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                  Category
+                  {t("category")}
                 </th>
                 <th className="text-left p-4 text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                  Price
+                  {t("price")}
                 </th>
                 <th className="text-left p-4 text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                  Inventory
+                  {t("inventoryCol")}
                 </th>
                 <th className="text-left p-4 text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                  Flags
+                  {t("flags")}
                 </th>
                 <th className="text-left p-4 text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                  Status
+                  {t("status")}
                 </th>
                 <th className="p-4 text-right text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                  Actions
+                  {t("actions")}
                 </th>
               </tr>
             </thead>
