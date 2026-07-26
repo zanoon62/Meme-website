@@ -18,6 +18,7 @@ import { CheckoutPayloadSchema } from "@/lib/checkout/types";
 import { checkInventory, createOrder } from "@/lib/checkout/server";
 import { retrievePaymentIntent } from "@/lib/stripe/server";
 import { isStripeConfigured } from "@/lib/stripe/server";
+import { isResendConfigured, sendOrderConfirmationEmail } from "@/lib/email";
 import { limiters } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 
@@ -50,13 +51,30 @@ export async function POST(req: NextRequest) {
   // Supabase not configured — return a fake success for demo purposes
   if (!isSupabaseServiceConfigured()) {
     const orderNumber = `MEME-${Date.now().toString(36).toUpperCase()}`;
+    const total = payload.lines.reduce((s, l) => s + l.price * l.quantity, 0) + 75;
+
+    if (isResendConfigured()) {
+      sendOrderConfirmationEmail({
+        orderNumber,
+        recipientEmail: payload.email,
+        lines: payload.lines,
+        total,
+        shippingAddress: payload.shipping_address,
+        shippingMethod: payload.shipping_method,
+      }).catch((err) => {
+        logger.error("Failed to send demo order confirmation email", {
+          error: err,
+        });
+      });
+    }
+
     return NextResponse.json({
       ok: true,
       demo: true,
       order: {
         id: `demo-${Date.now()}`,
         order_number: orderNumber,
-        total: payload.lines.reduce((s, l) => s + l.price * l.quantity, 0),
+        total,
         subtotal: payload.lines.reduce((s, l) => s + l.price * l.quantity, 0),
         discount_total: 0,
         shipping_total: 75,
@@ -152,6 +170,20 @@ export async function POST(req: NextRequest) {
         paid_at: new Date().toISOString(),
       })
       .eq("id", result.order.id);
+  }
+
+  // 6. Send order confirmation email via Resend (non-blocking)
+  if (isResendConfigured()) {
+    sendOrderConfirmationEmail({
+      orderNumber: result.order.order_number,
+      recipientEmail: payload.email,
+      lines: payload.lines,
+      total: result.order.total,
+      shippingAddress: payload.shipping_address,
+      shippingMethod: payload.shipping_method,
+    }).catch((err) => {
+      logger.error("Failed to send order confirmation email", { error: err });
+    });
   }
 
   return NextResponse.json({ ok: true, order: result.order });
