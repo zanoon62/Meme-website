@@ -41,6 +41,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { clearAdminSession } from "@/lib/auth/simple-auth";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { LanguageToggle } from "@/components/layout/language-toggle";
+import { useAdminT } from "@/components/admin/admin-i18n";
 
 export type AdminSection =
   | "dashboard"
@@ -56,41 +57,6 @@ export type AdminSection =
   | "settings"
   | "guide";
 
-const NAV_GROUPS: { label: string; items: { id: AdminSection; icon: React.ElementType; label: string }[] }[] = [
-  {
-    label: "Overview",
-    items: [
-      { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
-      { id: "analytics", icon: BarChart3, label: "Analytics" },
-    ],
-  },
-  {
-    label: "Catalog",
-    items: [
-      { id: "products", icon: Package, label: "Products" },
-      { id: "inventory", icon: Boxes, label: "Inventory" },
-      { id: "categories", icon: FolderTree, label: "Categories" },
-      { id: "collections", icon: Layers, label: "Collections" },
-    ],
-  },
-  {
-    label: "Sales",
-    items: [
-      { id: "orders", icon: ShoppingCart, label: "Orders" },
-      { id: "customers", icon: Users, label: "Customers" },
-      { id: "reviews", icon: Star, label: "Reviews" },
-      { id: "marketing", icon: Megaphone, label: "Marketing" },
-    ],
-  },
-  {
-    label: "System",
-    items: [
-      { id: "guide", icon: BookOpen, label: "Admin Guide" },
-      { id: "settings", icon: Settings, label: "Settings" },
-    ],
-  },
-];
-
 export function AdminShell({
   section,
   onSection,
@@ -104,6 +70,45 @@ export function AdminShell({
 }) {
   const router = useRouter();
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
+  const { t, dir } = useAdminT();
+
+  const navGroups = React.useMemo(
+    () => [
+      {
+        label: t("overview"),
+        items: [
+          { id: "dashboard" as AdminSection, icon: LayoutDashboard, label: t("dashboard") },
+          { id: "analytics" as AdminSection, icon: BarChart3, label: t("analytics") },
+        ],
+      },
+      {
+        label: t("catalog"),
+        items: [
+          { id: "products" as AdminSection, icon: Package, label: t("products") },
+          { id: "inventory" as AdminSection, icon: Boxes, label: t("inventory") },
+          { id: "categories" as AdminSection, icon: FolderTree, label: t("categories") },
+          { id: "collections" as AdminSection, icon: Layers, label: t("collections") },
+        ],
+      },
+      {
+        label: t("sales"),
+        items: [
+          { id: "orders" as AdminSection, icon: ShoppingCart, label: t("orders") },
+          { id: "customers" as AdminSection, icon: Users, label: t("customers") },
+          { id: "reviews" as AdminSection, icon: Star, label: t("reviews") },
+          { id: "marketing" as AdminSection, icon: Megaphone, label: t("marketing") },
+        ],
+      },
+      {
+        label: t("system"),
+        items: [
+          { id: "guide" as AdminSection, icon: BookOpen, label: t("guide") },
+          { id: "settings" as AdminSection, icon: Settings, label: t("settings") },
+        ],
+      },
+    ],
+    [t]
+  );
 
   const handleLogout = async () => {
     clearAdminSession();
@@ -117,11 +122,11 @@ export function AdminShell({
   };
 
   const currentLabel =
-    NAV_GROUPS.flatMap((g) => g.items).find((i) => i.id === section)?.label ??
-    "Dashboard";
+    navGroups.flatMap((g) => g.items).find((i) => i.id === section)?.label ??
+    t("dashboard");
 
   return (
-    <main className="flex-1 bg-accent/20 min-h-screen">
+    <main dir={dir} className="flex-1 bg-accent/20 min-h-screen">
       <div className="flex">
         {/* Sidebar — desktop */}
         <aside className="hidden lg:flex flex-col w-64 border-r border-border/60 bg-background sticky top-0 h-screen">
@@ -138,7 +143,7 @@ export function AdminShell({
           </div>
 
           <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-5">
-            {NAV_GROUPS.map((group) => (
+            {navGroups.map((group) => (
               <div key={group.label}>
                 <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground px-3 mb-2">
                   {group.label}
@@ -174,7 +179,7 @@ export function AdminShell({
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate">Atelier Admin</p>
+                    <p className="text-xs font-medium truncate">{t("atelierAdmin")}</p>
                     <p className="text-[10px] text-muted-foreground truncate">
                       admin@memeatelier.com
                     </p>
@@ -183,15 +188,15 @@ export function AdminShell({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>My account</DropdownMenuLabel>
+                <DropdownMenuLabel>{t("myAccount")}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => onSection("settings")}>
                   <Settings className="mr-2 h-4 w-4" />
-                  Settings
+                  {t("settings")}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
-                  Sign out
+                  {t("signOut")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -213,7 +218,7 @@ export function AdminShell({
               </Button>
               <div>
                 <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                  Admin
+                  {t("admin")}
                 </p>
                 <h1 className="font-display text-xl lg:text-2xl tracking-tight">
                   {currentLabel}
@@ -224,7 +229,7 @@ export function AdminShell({
               <div className="relative hidden sm:block">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search…"
+                  placeholder={t("search")}
                   className="pl-9 h-9 w-48 lg:w-64 bg-background"
                 />
               </div>
@@ -244,7 +249,7 @@ export function AdminShell({
                   className="rounded-full hidden sm:inline-flex"
                   onClick={onNewProduct}
                 >
-                  <Plus className="h-4 w-4 mr-1" /> New product
+                  <Plus className="h-4 w-4 mr-1" /> {t("newProduct")}
                 </Button>
               )}
             </div>
@@ -253,7 +258,7 @@ export function AdminShell({
           {/* Mobile nav drawer */}
           {mobileNavOpen && (
             <div className="lg:hidden border-b border-border/60 bg-background p-4 space-y-4">
-              {NAV_GROUPS.map((group) => (
+              {navGroups.map((group) => (
                 <div key={group.label}>
                   <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">
                     {group.label}

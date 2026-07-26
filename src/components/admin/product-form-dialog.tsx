@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { SmartImage as Image } from "@/components/ui/smart-image";
+import { img } from "@/lib/img";
 import { Plus, Trash2, X, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,7 +55,8 @@ const DEFAULT_NEW_PRODUCT: ProductInput = {
   colors: [{ name: "Noir", hex: "#0d0d0d" }],
   sizes: ["XS", "S", "M", "L"],
   images: [
-    "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1200&q=85&auto=format&fit=crop",
+    img("New Atelier Piece", "Dresses", "noir", 0),
+    img("New Atelier Piece", "Dresses", "noir", 1),
   ],
   badges: [],
   rating: 5,
@@ -132,7 +134,19 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
       updateProduct(product.id, form);
       toast.success(`Updated "${form.name}"`);
     } else {
-      addProduct(form);
+      const isDefaultImg =
+        form.images.length === 2 &&
+        form.images[0].includes("New%20Atelier%20Piece");
+      const finalForm = isDefaultImg
+        ? {
+            ...form,
+            images: [
+              img(form.name || "Atelier Piece", form.category, form.colors[0]?.name || "noir", 0),
+              img(form.name || "Atelier Piece", form.category, form.colors[0]?.name || "noir", 1),
+            ],
+          }
+        : form;
+      addProduct(finalForm);
       toast.success(`Added new product "${form.name}"`);
     }
     onOpenChange(false);

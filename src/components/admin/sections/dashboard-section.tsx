@@ -37,6 +37,7 @@ import {
 import { useProductStore } from "@/components/providers/product-store";
 import { formatPrice } from "@/lib/format";
 import type { AdminSection } from "@/components/admin/admin-shell";
+import { useAdminT } from "@/components/admin/admin-i18n";
 
 type Analytics = {
   kpis: {
@@ -63,6 +64,7 @@ export function DashboardSection({
   const products = useProductStore((s) => s.products);
   const [analytics, setAnalytics] = React.useState<Analytics | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const { t } = useAdminT();
 
   React.useEffect(() => {
     let cancelled = false;
@@ -90,33 +92,33 @@ export function DashboardSection({
 
   const kpis = [
     {
-      label: "Revenue (30d)",
+      label: t("revenue30d"),
       value: kpi ? formatPrice(kpi.revenue) : "$—",
       change: kpi ? `${kpi.revenueDelta > 0 ? "+" : ""}${kpi.revenueDelta}%` : "—",
       up: (kpi?.revenueDelta ?? 0) >= 0,
       icon: DollarSign,
-      sub: "vs previous 30 days",
+      sub: t("vsPrev30"),
     },
     {
-      label: "Orders (30d)",
+      label: t("orders30d"),
       value: kpi?.orders?.toString() ?? "—",
       change: "+8.2%",
       up: true,
       icon: ShoppingCart,
-      sub: "vs previous period",
+      sub: t("vsPrevPeriod"),
     },
     {
-      label: "Avg order value",
+      label: t("avgOrderValue"),
       value: kpi ? formatPrice(kpi.aov) : "$—",
       change: "+3.8%",
       up: true,
       icon: TrendingUp,
-      sub: "vs previous period",
+      sub: t("vsPrevPeriod"),
     },
     {
-      label: "Pending orders",
+      label: t("pendingOrders"),
       value: kpi?.pendingOrders?.toString() ?? "—",
-      change: kpi?.pendingOrders ? "Action needed" : "All caught up",
+      change: kpi?.pendingOrders ? t("actionNeeded") : t("allCaughtUp"),
       up: !kpi?.pendingOrders,
       icon: AlertCircle,
       sub: "Awaiting fulfillment",
@@ -129,16 +131,16 @@ export function DashboardSection({
       <div className="bg-foreground text-background rounded-lg p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <p className="text-[11px] uppercase tracking-[0.25em] opacity-70 mb-1">
-            Welcome back
+            {t("welcomeBack")}
           </p>
           <h3 className="font-display text-2xl tracking-tight">
-            Manage your women&apos;s atelier catalog
+            {t("manageCatalog")}
           </h3>
           <p className="text-sm opacity-80 mt-1.5">
-            {products.length} products live ·{" "}
-            {products.filter((p) => p.inventory > 0).length} active ·{" "}
-            {lowStock.length} low stock
-            {outOfStock.length > 0 && ` · ${outOfStock.length} out of stock`}
+            {products.length} {t("productsLive")} ·{" "}
+            {products.filter((p) => p.inventory > 0).length} {t("active")} ·{" "}
+            {lowStock.length} {t("lowStock")}
+            {outOfStock.length > 0 && ` · ${outOfStock.length} ${t("outOfStock")}`}
           </p>
         </div>
         <div className="flex gap-2 flex-shrink-0">

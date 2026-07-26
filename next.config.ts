@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
   },
   images: {
     formats: ["image/avif", "image/webp"],
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     // Allow dynamic SVG product images served by /api/product-img with any
     // query string. The `search` field is a glob that must include the
     // leading `?` and at least one wildcard to permit query strings.
