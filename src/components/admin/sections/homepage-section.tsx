@@ -29,9 +29,7 @@ import {
   Check,
   ArrowRight,
   Star,
-  Truck,
-  Shield,
-  RefreshCw,
+  Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -40,7 +38,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -66,10 +63,30 @@ import { cn } from "@/lib/utils";
 
 export function HomepageSection() {
   const { t, isAr } = useAdminT();
-  const config = useHomepageConfig();
-  const { toggleVisibility, resetToDefaults, saving } = useHomepageStore();
+  const storeConfig = useHomepageConfig();
+  const { toggleVisibility, resetToDefaults, saving, updateSection } = useHomepageStore();
+
+  // Local draft state for 100% real-time instant keystroke updates
+  const [draftConfig, setDraftConfig] = React.useState<HomepageConfig>(storeConfig);
   const [expandedKey, setExpandedKey] = React.useState<keyof HomepageConfig | null>("hero");
   const [builderMode, setBuilderMode] = React.useState<"builder" | "list">("builder");
+
+  // Keep draft in sync if store reloads from server
+  React.useEffect(() => {
+    setDraftConfig(storeConfig);
+  }, [storeConfig]);
+
+  const updateDraft = <K extends keyof HomepageConfig>(key: K, data: HomepageConfig[K]) => {
+    setDraftConfig((prev) => ({
+      ...prev,
+      [key]: data,
+    }));
+  };
+
+  const saveSectionToStore = async (key: keyof HomepageConfig) => {
+    await updateSection(key, draftConfig[key]);
+    toast.success(isAr ? "تم حفظ التغييرات ونشرها للمتجر" : "Section saved & updated on live store");
+  };
 
   const sections: Array<{
     key: keyof HomepageConfig;
@@ -194,7 +211,7 @@ export function HomepageSection() {
           <div className="flex items-center gap-3">
             <h2 className="font-display text-2xl tracking-tight">{t("homepageSections")}</h2>
             <Badge variant="outline" className="text-xs border-[#f6ec91]/50 text-[#f6ec91] bg-[#f6ec91]/10">
-              {isAr ? "مُحرّر واجهة الأتيليه التفاعلي" : "Visual Page Builder"}
+              {isAr ? "مُحرّر الأتيليه التفاعلي المباشر" : "Interactive Live Page Builder"}
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground mt-1">{t("manageHomepage")}</p>
@@ -262,7 +279,7 @@ export function HomepageSection() {
             </div>
 
             {sections.map(({ key, label, description, icon: Icon, previewType }) => {
-              const sectionConfig = config[key] as { visible: boolean };
+              const sectionConfig = draftConfig[key] as { visible: boolean };
               const isSelected = expandedKey === key;
 
               return (
@@ -297,7 +314,10 @@ export function HomepageSection() {
                           <Switch
                             id={`builder-toggle-${key}`}
                             checked={sectionConfig.visible}
-                            onCheckedChange={() => toggleVisibility(key)}
+                            onCheckedChange={() => {
+                              toggleVisibility(key);
+                              updateDraft(key, { ...draftConfig[key], visible: !sectionConfig.visible });
+                            }}
                             onClick={(e) => e.stopPropagation()}
                           />
                         </div>
@@ -312,7 +332,7 @@ export function HomepageSection() {
                     {isSelected && (
                       <span className="text-[10px] text-[#f6ec91] font-medium flex items-center gap-1">
                         <Pencil className="h-3 w-3" />
-                        {isAr ? "قيد التعديل الآن" : "Editing now"}
+                        {isAr ? "قيد التعديل المباشر" : "Editing now"}
                       </span>
                     )}
                   </div>
@@ -339,10 +359,10 @@ export function HomepageSection() {
                           {activeSectionInfo?.label}
                         </h3>
                         <Badge
-                          variant={(config[expandedKey] as { visible: boolean }).visible ? "default" : "secondary"}
+                          variant={(draftConfig[expandedKey] as { visible: boolean }).visible ? "default" : "secondary"}
                           className="text-[10px]"
                         >
-                          {(config[expandedKey] as { visible: boolean }).visible ? t("sectionVisible") : t("sectionHidden")}
+                          {(draftConfig[expandedKey] as { visible: boolean }).visible ? t("sectionVisible") : t("sectionHidden")}
                         </Badge>
                       </div>
                       <p className="text-xs text-zinc-400 mt-0.5">{activeSectionInfo?.description}</p>
@@ -351,31 +371,41 @@ export function HomepageSection() {
 
                   <div className="flex items-center gap-3">
                     <Switch
-                      checked={(config[expandedKey] as { visible: boolean }).visible}
-                      onCheckedChange={() => toggleVisibility(expandedKey)}
+                      checked={(draftConfig[expandedKey] as { visible: boolean }).visible}
+                      onCheckedChange={(v) => {
+                        toggleVisibility(expandedKey);
+                        updateDraft(expandedKey, { ...draftConfig[expandedKey], visible: v });
+                      }}
                     />
                   </div>
                 </div>
 
-                {/* Real-time Interactive Section Live Preview Card */}
-                <div className="p-4 bg-black/90 border-b border-zinc-800">
+                {/* ⚡ 100% Real-time Keystroke Live Preview Banner */}
+                <div className="p-4 bg-black/95 border-b border-zinc-800">
                   <div className="flex items-center justify-between mb-2 px-1">
-                    <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-[#f6ec91]">
-                      {isAr ? "معاينة القسم المباشرة" : "Live Section Preview"}
+                    <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-[#f6ec91] flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      {isAr ? "معاينة القسم الحية المباشرة (تحديث لحظي عند الكتابة)" : "Live Instant Preview (Keystroke Updated)"}
                     </span>
                     <span className="text-[10px] text-zinc-400">
-                      {isAr ? "تتغير المحتويات تلقائياً عند الكتابة" : "Updates in real-time as you edit"}
+                      {isAr ? "يتغير الشكل فور كتابة أي حرف" : "Updates on every single keypress"}
                     </span>
                   </div>
 
                   <div className="rounded-lg border border-zinc-800 overflow-hidden bg-background">
-                    <LiveSectionPreview sectionKey={expandedKey} />
+                    <LiveSectionPreview sectionKey={expandedKey} config={draftConfig} />
                   </div>
                 </div>
 
                 {/* Form Fields Editor */}
                 <div className="p-6">
-                  <SectionEditor sectionKey={expandedKey} onSaved={() => {}} />
+                  <SectionEditor
+                    sectionKey={expandedKey}
+                    draftConfig={draftConfig}
+                    updateDraft={updateDraft}
+                    onSave={() => saveSectionToStore(expandedKey)}
+                    onClose={() => {}}
+                  />
                 </div>
               </Card>
             ) : (
@@ -390,7 +420,7 @@ export function HomepageSection() {
         /* Mode 2: Enhanced Section List View */
         <div className="space-y-3">
           {sections.map(({ key, label, description, icon: Icon, previewType }) => {
-            const section = config[key] as { visible: boolean };
+            const section = draftConfig[key] as { visible: boolean };
             const isExpanded = expandedKey === key;
 
             return (
@@ -403,7 +433,10 @@ export function HomepageSection() {
                   <Switch
                     id={`list-toggle-${key}`}
                     checked={section.visible}
-                    onCheckedChange={() => toggleVisibility(key)}
+                    onCheckedChange={(v) => {
+                      toggleVisibility(key);
+                      updateDraft(key, { ...draftConfig[key], visible: v });
+                    }}
                   />
                   <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center shrink-0">
                     <Icon className="h-4 w-4 text-foreground" />
@@ -440,15 +473,22 @@ export function HomepageSection() {
                   <div className="border-t border-border/60 px-5 pb-6 pt-4 bg-accent/15 space-y-5">
                     {/* Live preview header */}
                     <div className="rounded-lg border border-border/80 overflow-hidden bg-black/90 p-4">
-                      <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-[#f6ec91] mb-2">
-                        {isAr ? "معاينة القسم المباشرة" : "Live Section Preview"}
+                      <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-[#f6ec91] mb-2 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        {isAr ? "معاينة القسم الحية المباشرة" : "Live Section Preview"}
                       </p>
                       <div className="rounded border border-zinc-800 bg-background overflow-hidden">
-                        <LiveSectionPreview sectionKey={key} />
+                        <LiveSectionPreview sectionKey={key} config={draftConfig} />
                       </div>
                     </div>
 
-                    <SectionEditor sectionKey={key} onSaved={() => setExpandedKey(null)} />
+                    <SectionEditor
+                      sectionKey={key}
+                      draftConfig={draftConfig}
+                      updateDraft={updateDraft}
+                      onSave={() => saveSectionToStore(key)}
+                      onClose={() => setExpandedKey(null)}
+                    />
                   </div>
                 )}
               </Card>
@@ -521,16 +561,15 @@ function SectionMiniWireframe({ type, isVisible }: { type: string; isVisible: bo
 // REAL-TIME INTERACTIVE LIVE SECTION PREVIEW
 // ─────────────────────────────────────────────
 
-function LiveSectionPreview({ sectionKey }: { sectionKey: keyof HomepageConfig }) {
-  const config = useHomepageConfig();
+function LiveSectionPreview({ sectionKey, config }: { sectionKey: keyof HomepageConfig; config: HomepageConfig }) {
   const { isAr } = useAdminT();
 
   switch (sectionKey) {
     case "announcement": {
       const items = config.announcement.items.filter((i) => i.visible);
       return (
-        <div className="bg-black text-[#f6ec91] text-xs py-2.5 px-4 font-mono truncate text-center">
-          {items.map((it) => (isAr ? it.ar : it.en)).join("  •  ") || "—"}
+        <div className="bg-black text-[#f6ec91] text-xs py-2.5 px-4 font-mono truncate text-center transition-all">
+          {items.map((it) => (isAr ? (it.ar || it.en) : (it.en || it.ar))).join("  •  ") || "—"}
         </div>
       );
     }
@@ -538,18 +577,18 @@ function LiveSectionPreview({ sectionKey }: { sectionKey: keyof HomepageConfig }
       const slide = config.hero.slides[0];
       if (!slide) return null;
       return (
-        <div className="relative aspect-[21/9] bg-zinc-950 text-white flex flex-col justify-end p-5 overflow-hidden">
+        <div className="relative aspect-[21/9] bg-zinc-950 text-white flex flex-col justify-end p-5 overflow-hidden transition-all">
           {slide.image && (
             <Image src={slide.image} alt="Hero" fill sizes="600px" className="object-cover opacity-50" />
           )}
           <div className="relative z-10">
             <p className="text-[9px] uppercase tracking-[0.2em] text-[#f6ec91] mb-1">
-              {isAr ? slide.eyebrow.ar : slide.eyebrow.en}
+              {isAr ? (slide.eyebrow.ar || slide.eyebrow.en) : (slide.eyebrow.en || slide.eyebrow.ar)}
             </p>
             <h4 className="font-display text-xl sm:text-2xl leading-tight">
-              {isAr ? slide.headline.ar : slide.headline.en}{" "}
+              {isAr ? (slide.headline.ar || slide.headline.en) : (slide.headline.en || slide.headline.ar)}{" "}
               <span className="italic font-light text-[#f6ec91]">
-                {isAr ? slide.italicTail.ar : slide.italicTail.en}
+                {isAr ? (slide.italicTail.ar || slide.italicTail.en) : (slide.italicTail.en || slide.italicTail.ar)}
               </span>
             </h4>
           </div>
@@ -559,11 +598,11 @@ function LiveSectionPreview({ sectionKey }: { sectionKey: keyof HomepageConfig }
     case "sponsors": {
       const s = config.sponsors;
       return (
-        <div className="bg-black text-white p-4 text-center">
+        <div className="bg-black text-white p-4 text-center transition-all">
           <p className="text-[9px] uppercase tracking-[0.2em] text-[#f6ec91]">
-            {isAr ? s.eyebrow.ar : s.eyebrow.en}
+            {isAr ? (s.eyebrow.ar || s.eyebrow.en) : (s.eyebrow.en || s.eyebrow.ar)}
           </p>
-          <p className="text-xs text-zinc-400 mt-1">{isAr ? s.subtext.ar : s.subtext.en}</p>
+          <p className="text-xs text-zinc-400 mt-1">{isAr ? (s.subtext.ar || s.subtext.en) : (s.subtext.en || s.subtext.ar)}</p>
         </div>
       );
     }
@@ -572,14 +611,14 @@ function LiveSectionPreview({ sectionKey }: { sectionKey: keyof HomepageConfig }
     case "trending": {
       const s = config[sectionKey];
       return (
-        <div className="p-4 bg-background text-foreground space-y-3">
+        <div className="p-4 bg-background text-foreground space-y-3 transition-all">
           <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-            {isAr ? s.eyebrow.ar : s.eyebrow.en}
+            {isAr ? (s.eyebrow.ar || s.eyebrow.en) : (s.eyebrow.en || s.eyebrow.ar)}
           </p>
           <h4 className="font-display text-lg">
-            {isAr ? s.title.ar : s.title.en}{" "}
+            {isAr ? (s.title.ar || s.title.en) : (s.title.en || s.title.ar)}{" "}
             <span className="italic font-light opacity-80">
-              {isAr ? s.italicTail.ar : s.italicTail.en}
+              {isAr ? (s.italicTail.ar || s.italicTail.en) : (s.italicTail.en || s.italicTail.ar)}
             </span>
           </h4>
           <div className="grid grid-cols-4 gap-2 pt-1">
@@ -597,19 +636,19 @@ function LiveSectionPreview({ sectionKey }: { sectionKey: keyof HomepageConfig }
       const s = config[sectionKey];
       const isDark = sectionKey === "editorialStory";
       return (
-        <div className={cn("p-5 grid grid-cols-2 gap-4 items-center", isDark ? "bg-zinc-950 text-white" : "bg-background text-foreground")}>
+        <div className={cn("p-5 grid grid-cols-2 gap-4 items-center transition-all", isDark ? "bg-zinc-950 text-white" : "bg-background text-foreground")}>
           <div className="relative aspect-[4/3] rounded overflow-hidden bg-muted">
             {s.image && <Image src={s.image} alt="Preview" fill sizes="300px" className="object-cover" />}
           </div>
           <div>
             <p className="text-[9px] uppercase tracking-[0.2em] opacity-70 mb-1">
-              {isAr ? s.eyebrow.ar : s.eyebrow.en}
+              {isAr ? (s.eyebrow.ar || s.eyebrow.en) : (s.eyebrow.en || s.eyebrow.ar)}
             </p>
             <h4 className="font-display text-lg leading-tight mb-2">
-              {isAr ? s.title.ar : s.title.en}
+              {isAr ? (s.title.ar || s.title.en) : (s.title.en || s.title.ar)}
             </h4>
             <p className="text-xs opacity-80 line-clamp-2">
-              {isAr ? s.body.ar[0] : s.body.en[0]}
+              {isAr ? (s.body.ar[0] || s.body.en[0]) : (s.body.en[0] || s.body.ar[0])}
             </p>
           </div>
         </div>
@@ -618,11 +657,11 @@ function LiveSectionPreview({ sectionKey }: { sectionKey: keyof HomepageConfig }
     case "valueProps": {
       const items = config.valueProps.items.filter((i) => i.visible);
       return (
-        <div className="p-4 bg-accent/30 grid grid-cols-4 gap-2">
+        <div className="p-4 bg-accent/30 grid grid-cols-4 gap-2 transition-all">
           {items.map((it, idx) => (
             <div key={idx} className="p-2 border border-border/50 rounded bg-background text-center space-y-1">
               <ShieldCheck className="h-4 w-4 mx-auto text-[#f6ec91]" />
-              <p className="text-[10px] font-medium truncate">{isAr ? it.ar : it.en}</p>
+              <p className="text-[10px] font-medium truncate">{isAr ? (it.ar || it.en) : (it.en || it.ar)}</p>
             </div>
           ))}
         </div>
@@ -631,12 +670,12 @@ function LiveSectionPreview({ sectionKey }: { sectionKey: keyof HomepageConfig }
     case "manifesto": {
       const s = config.manifesto;
       return (
-        <div className="bg-black text-white p-6 text-center">
+        <div className="bg-black text-white p-6 text-center transition-all">
           <p className="text-[9px] uppercase tracking-[0.2em] text-[#f6ec91] mb-1">
-            {isAr ? s.eyebrow.ar : s.eyebrow.en}
+            {isAr ? (s.eyebrow.ar || s.eyebrow.en) : (s.eyebrow.en || s.eyebrow.ar)}
           </p>
           <h4 className="font-display text-xl leading-tight">
-            {isAr ? s.headline.ar : s.headline.en}
+            {isAr ? (s.headline.ar || s.headline.en) : (s.headline.en || s.headline.ar)}
           </h4>
         </div>
       );
@@ -647,40 +686,10 @@ function LiveSectionPreview({ sectionKey }: { sectionKey: keyof HomepageConfig }
 }
 
 // ─────────────────────────────────────────────
-// SECTION EDITOR DISPATCHER
+// SMART SIDE-BY-SIDE DUAL LANGUAGE FIELD
 // ─────────────────────────────────────────────
 
-function SectionEditor({
-  sectionKey,
-  onSaved,
-}: {
-  sectionKey: keyof HomepageConfig;
-  onSaved: () => void;
-}) {
-  switch (sectionKey) {
-    case "announcement": return <AnnouncementEditor onSaved={onSaved} />;
-    case "hero": return <HeroEditor onSaved={onSaved} />;
-    case "sponsors": return <SponsorsEditor onSaved={onSaved} />;
-    case "bestSellers": return <ShowcaseEditor sectionKey="bestSellers" onSaved={onSaved} />;
-    case "editorialPremium": return <EditorialEditor sectionKey="editorialPremium" onSaved={onSaved} />;
-    case "newArrivals": return <ShowcaseEditor sectionKey="newArrivals" onSaved={onSaved} />;
-    case "limitedDrop": return <SimpleVisibilityEditor sectionKey="limitedDrop" onSaved={onSaved} />;
-    case "trending": return <ShowcaseEditor sectionKey="trending" onSaved={onSaved} />;
-    case "editorialStory": return <EditorialEditor sectionKey="editorialStory" onSaved={onSaved} />;
-    case "valueProps": return <ValuePropsEditor onSaved={onSaved} />;
-    case "reviews": return <ReviewsEditor onSaved={onSaved} />;
-    case "instagram": return <InstagramEditor onSaved={onSaved} />;
-    case "faq": return <FAQEditor onSaved={onSaved} />;
-    case "manifesto": return <ManifestoEditor onSaved={onSaved} />;
-    default: return null;
-  }
-}
-
-// ─────────────────────────────────────────────
-// SHARED SUB-COMPONENTS
-// ─────────────────────────────────────────────
-
-function BiLangField({
+function SmartBiLangField({
   label,
   value,
   onChange,
@@ -691,33 +700,68 @@ function BiLangField({
   onChange: (v: BiLang) => void;
   multiline?: boolean;
 }) {
-  const { t } = useAdminT();
+  const { isAr } = useAdminT();
   const Field = multiline ? Textarea : Input;
+
+  const handleEnChange = (newEn: string) => {
+    // Smart Mirror: If AR is empty or identical to EN, auto-populate AR so user types ONCE!
+    const shouldMirror = !value.ar || value.ar === value.en;
+    onChange({
+      en: newEn,
+      ar: shouldMirror ? newEn : value.ar,
+    });
+  };
+
+  const handleArChange = (newAr: string) => {
+    onChange({
+      ...value,
+      ar: newAr,
+    });
+  };
+
+  const handleSmartSync = () => {
+    if (value.en && !value.ar) onChange({ ...value, ar: value.en });
+    else if (value.ar && !value.en) onChange({ ...value, en: value.ar });
+    else onChange({ ...value, ar: value.en });
+    toast.success(isAr ? "تم إكمال النص الثاني تلقائياً 🪄" : "Smart mirror synced 🪄");
+  };
+
   return (
-    <div className="space-y-2">
-      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</Label>
-      <Tabs defaultValue="en">
-        <TabsList className="h-7">
-          <TabsTrigger value="en" className="text-xs h-6 px-3">{t("englishContent")}</TabsTrigger>
-          <TabsTrigger value="ar" className="text-xs h-6 px-3">{t("arabicContent")}</TabsTrigger>
-        </TabsList>
-        <TabsContent value="en" className="mt-2">
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</Label>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleSmartSync}
+          className="h-6 px-2 text-[10px] text-[#f6ec91] hover:text-[#f6ec91]/80 hover:bg-[#f6ec91]/10 gap-1 font-medium"
+        >
+          <Wand2 className="h-3 w-3" />
+          {isAr ? "نسخ النص للغتين 🪄" : "Smart Mirror 🪄"}
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <span className="text-[10px] font-mono text-muted-foreground block mb-1">English (EN)</span>
           <Field
             value={value.en}
-            onChange={(e) => onChange({ ...value, en: e.target.value })}
+            onChange={(e) => handleEnChange(e.target.value)}
             dir="ltr"
-            className={multiline ? "min-h-[80px]" : ""}
+            className={multiline ? "min-h-[70px] text-xs" : "h-9 text-xs"}
           />
-        </TabsContent>
-        <TabsContent value="ar" className="mt-2">
+        </div>
+        <div>
+          <span className="text-[10px] font-mono text-muted-foreground block mb-1">العربية (AR)</span>
           <Field
             value={value.ar}
-            onChange={(e) => onChange({ ...value, ar: e.target.value })}
+            onChange={(e) => handleArChange(e.target.value)}
             dir="rtl"
-            className={multiline ? "min-h-[80px]" : ""}
+            className={multiline ? "min-h-[70px] text-xs" : "h-9 text-xs"}
           />
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </div>
   );
 }
@@ -805,27 +849,76 @@ function SaveRow({ onSave, onCancel }: { onSave: () => void; onCancel: () => voi
 }
 
 // ─────────────────────────────────────────────
+// SECTION EDITORS (KESTROKE LIVE UPDATES)
+// ─────────────────────────────────────────────
+
+interface SectionEditorProps<K extends keyof HomepageConfig> {
+  sectionKey: K;
+  draftConfig: HomepageConfig;
+  updateDraft: <T extends keyof HomepageConfig>(key: T, data: HomepageConfig[T]) => void;
+  onSave: () => void;
+  onClose: () => void;
+}
+
+function SectionEditor({
+  sectionKey,
+  draftConfig,
+  updateDraft,
+  onSave,
+  onClose,
+}: SectionEditorProps<keyof HomepageConfig>) {
+  switch (sectionKey) {
+    case "announcement":
+      return <AnnouncementEditor config={draftConfig.announcement} update={(d) => updateDraft("announcement", d)} onSave={onSave} onClose={onClose} />;
+    case "hero":
+      return <HeroEditor config={draftConfig.hero} update={(d) => updateDraft("hero", d)} onSave={onSave} onClose={onClose} />;
+    case "sponsors":
+      return <SponsorsEditor config={draftConfig.sponsors} update={(d) => updateDraft("sponsors", d)} onSave={onSave} onClose={onClose} />;
+    case "bestSellers":
+    case "newArrivals":
+    case "trending":
+      return <ShowcaseEditor sectionKey={sectionKey} config={draftConfig[sectionKey]} update={(d) => updateDraft(sectionKey, d)} onSave={onSave} onClose={onClose} />;
+    case "editorialPremium":
+    case "editorialStory":
+      return <EditorialEditor sectionKey={sectionKey} config={draftConfig[sectionKey]} update={(d) => updateDraft(sectionKey, d)} onSave={onSave} onClose={onClose} />;
+    case "valueProps":
+      return <ValuePropsEditor config={draftConfig.valueProps} update={(d) => updateDraft("valueProps", d)} onSave={onSave} onClose={onClose} />;
+    case "reviews":
+      return <ReviewsEditor config={draftConfig.reviews} update={(d) => updateDraft("reviews", d)} onSave={onSave} onClose={onClose} />;
+    case "instagram":
+      return <InstagramEditor config={draftConfig.instagram} update={(d) => updateDraft("instagram", d)} onSave={onSave} onClose={onClose} />;
+    case "faq":
+      return <FAQEditor config={draftConfig.faq} update={(d) => updateDraft("faq", d)} onSave={onSave} onClose={onClose} />;
+    case "manifesto":
+      return <ManifestoEditor config={draftConfig.manifesto} update={(d) => updateDraft("manifesto", d)} onSave={onSave} onClose={onClose} />;
+    default:
+      return null;
+  }
+}
+
+// ─────────────────────────────────────────────
 // ANNOUNCEMENT EDITOR
 // ─────────────────────────────────────────────
 
-function AnnouncementEditor({ onSaved }: { onSaved: () => void }) {
+function AnnouncementEditor({
+  config,
+  update,
+  onSave,
+  onClose,
+}: {
+  config: HomepageConfig["announcement"];
+  update: (d: HomepageConfig["announcement"]) => void;
+  onSave: () => void;
+  onClose: () => void;
+}) {
   const { t, isAr } = useAdminT();
-  const config = useHomepageConfig();
-  const { updateSection } = useHomepageStore();
-  const [items, setItems] = React.useState(config.announcement.items);
-
-  const save = async () => {
-    await updateSection("announcement", { ...config.announcement, items });
-    toast.success(t("sectionSaved"));
-    onSaved();
-  };
 
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
-        {isAr ? "كل إعلان يظهر كعنصر في الشريط الدوار. يمكنك إخفاء أي منها أو تعديل نصه." : "Each announcement appears as one item in the marquee. Toggle visibility or edit text."}
+        {isAr ? "كل إعلان يظهر كعنصر في الشريط الدوار. يمكن إخفاء أي عنصر أو تعديله." : "Each announcement appears in the marquee strip."}
       </p>
-      {items.map((item, i) => (
+      {config.items.map((item, i) => (
         <Card key={i} className="p-4 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium">{t("itemN")} {i + 1}</p>
@@ -833,16 +926,18 @@ function AnnouncementEditor({ onSaved }: { onSaved: () => void }) {
               <Switch
                 checked={item.visible}
                 onCheckedChange={(v) => {
-                  const next = [...items];
+                  const next = [...config.items];
                   next[i] = { ...next[i], visible: v };
-                  setItems(next);
+                  update({ ...config, items: next });
                 }}
               />
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7 text-destructive hover:text-destructive"
-                onClick={() => setItems(items.filter((_, j) => j !== i))}
+                className="h-7 w-7 text-destructive"
+                onClick={() => {
+                  update({ ...config, items: config.items.filter((_, j) => j !== i) });
+                }}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
@@ -850,26 +945,28 @@ function AnnouncementEditor({ onSaved }: { onSaved: () => void }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">{t("englishContent")}</Label>
+              <Label className="text-xs">English (EN)</Label>
               <Input
                 value={item.en}
                 onChange={(e) => {
-                  const next = [...items];
-                  next[i] = { ...next[i], en: e.target.value };
-                  setItems(next);
+                  const next = [...config.items];
+                  const newEn = e.target.value;
+                  const newAr = (!item.ar || item.ar === item.en) ? newEn : item.ar;
+                  next[i] = { ...next[i], en: newEn, ar: newAr };
+                  update({ ...config, items: next });
                 }}
                 dir="ltr"
                 className="mt-1 text-xs"
               />
             </div>
             <div>
-              <Label className="text-xs">{t("arabicContent")}</Label>
+              <Label className="text-xs">العربية (AR)</Label>
               <Input
                 value={item.ar}
                 onChange={(e) => {
-                  const next = [...items];
+                  const next = [...config.items];
                   next[i] = { ...next[i], ar: e.target.value };
-                  setItems(next);
+                  update({ ...config, items: next });
                 }}
                 dir="rtl"
                 className="mt-1 text-xs"
@@ -881,11 +978,11 @@ function AnnouncementEditor({ onSaved }: { onSaved: () => void }) {
       <Button
         variant="outline"
         size="sm"
-        onClick={() => setItems([...items, { en: "", ar: "", visible: true }])}
+        onClick={() => update({ ...config, items: [...config.items, { en: "", ar: "", visible: true }] })}
       >
         <Plus className="h-3.5 w-3.5 mr-1.5" />{t("addItem")}
       </Button>
-      <SaveRow onSave={save} onCancel={onSaved} />
+      <SaveRow onSave={onSave} onCancel={onClose} />
     </div>
   );
 }
@@ -894,54 +991,30 @@ function AnnouncementEditor({ onSaved }: { onSaved: () => void }) {
 // HERO CAROUSEL EDITOR
 // ─────────────────────────────────────────────
 
-const EMPTY_SLIDE = (): HeroSlide => ({
-  id: "slide-" + Date.now(),
-  visible: true,
-  eyebrow: { en: "", ar: "" },
-  headline: { en: "", ar: "" },
-  italicTail: { en: "", ar: "" },
-  subheading: { en: "", ar: "" },
-  image: "",
-  ctaLabel: { en: "Shop Now", ar: "تسوق الآن" },
-  ctaHref: "/shop",
-  align: "left",
-});
-
-function HeroEditor({ onSaved }: { onSaved: () => void }) {
+function HeroEditor({
+  config,
+  update,
+  onSave,
+  onClose,
+}: {
+  config: HomepageConfig["hero"];
+  update: (d: HomepageConfig["hero"]) => void;
+  onSave: () => void;
+  onClose: () => void;
+}) {
   const { t, isAr } = useAdminT();
-  const config = useHomepageConfig();
-  const { updateSection } = useHomepageStore();
-  const [slides, setSlides] = React.useState<HeroSlide[]>(config.hero.slides);
-  const [expandedSlide, setExpandedSlide] = React.useState<string | null>(slides[0]?.id ?? null);
+  const [expandedSlide, setExpandedSlide] = React.useState<string | null>(config.slides[0]?.id ?? null);
 
   const updateSlide = (idx: number, patch: Partial<HeroSlide>) => {
-    const next = [...slides];
+    const next = [...config.slides];
     next[idx] = { ...next[idx], ...patch };
-    setSlides(next);
-  };
-
-  const moveSlide = (idx: number, dir: -1 | 1) => {
-    const next = [...slides];
-    const target = idx + dir;
-    if (target < 0 || target >= next.length) return;
-    [next[idx], next[target]] = [next[target], next[idx]];
-    setSlides(next);
-  };
-
-  const save = async () => {
-    await updateSection("hero", { ...config.hero, slides });
-    toast.success(t("sectionSaved"));
-    onSaved();
+    update({ ...config, slides: next });
   };
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">
-        {isAr ? "أضف أو أزل أو رتب شرائح البانر الرئيسي. كل شريحة يمكن إخفاؤها بشكل مستقل." : "Add, remove, or reorder hero carousel slides. Each slide can be individually hidden."}
-      </p>
-      {slides.map((slide, i) => (
+      {config.slides.map((slide, i) => (
         <Card key={slide.id} className="overflow-hidden border-border/60">
-          {/* Slide header */}
           <div className="flex items-center gap-3 px-4 py-3 bg-card/60">
             <Switch
               checked={slide.visible}
@@ -951,12 +1024,6 @@ function HeroEditor({ onSaved }: { onSaved: () => void }) {
               {t("slideN")} {i + 1}: {slide.headline.en || (isAr ? "شريحة جديدة" : "New Slide")}
             </p>
             <div className="flex items-center gap-1">
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => moveSlide(i, -1)} disabled={i === 0}>
-                <ChevronUp className="h-3.5 w-3.5" />
-              </Button>
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => moveSlide(i, 1)} disabled={i === slides.length - 1}>
-                <ChevronDown className="h-3.5 w-3.5" />
-              </Button>
               <Button
                 size="icon"
                 variant="ghost"
@@ -968,22 +1035,21 @@ function HeroEditor({ onSaved }: { onSaved: () => void }) {
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7 text-destructive hover:text-destructive"
-                onClick={() => setSlides(slides.filter((_, j) => j !== i))}
+                className="h-7 w-7 text-destructive"
+                onClick={() => update({ ...config, slides: config.slides.filter((_, j) => j !== i) })}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
 
-          {/* Slide editor */}
           {expandedSlide === slide.id && (
             <div className="border-t border-border/60 px-4 pb-4 pt-3 space-y-4 bg-accent/10">
-              <BiLangField label={t("eyebrow")} value={slide.eyebrow} onChange={(v) => updateSlide(i, { eyebrow: v })} />
-              <BiLangField label={t("headline")} value={slide.headline} onChange={(v) => updateSlide(i, { headline: v })} />
-              <BiLangField label={t("italicTail")} value={slide.italicTail} onChange={(v) => updateSlide(i, { italicTail: v })} />
-              <BiLangField label={t("subtitleLabel")} value={slide.subheading} onChange={(v) => updateSlide(i, { subheading: v })} />
-              <BiLangField label={t("ctaLabel")} value={slide.ctaLabel} onChange={(v) => updateSlide(i, { ctaLabel: v })} />
+              <SmartBiLangField label={t("eyebrow")} value={slide.eyebrow} onChange={(v) => updateSlide(i, { eyebrow: v })} />
+              <SmartBiLangField label={t("headline")} value={slide.headline} onChange={(v) => updateSlide(i, { headline: v })} />
+              <SmartBiLangField label={t("italicTail")} value={slide.italicTail} onChange={(v) => updateSlide(i, { italicTail: v })} />
+              <SmartBiLangField label={t("subtitleLabel")} value={slide.subheading} onChange={(v) => updateSlide(i, { subheading: v })} />
+              <SmartBiLangField label={t("ctaLabel")} value={slide.ctaLabel} onChange={(v) => updateSlide(i, { ctaLabel: v })} />
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs">{t("ctaLink")}</Label>
@@ -1020,18 +1086,7 @@ function HeroEditor({ onSaved }: { onSaved: () => void }) {
         </Card>
       ))}
 
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => {
-          const s = EMPTY_SLIDE();
-          setSlides([...slides, s]);
-          setExpandedSlide(s.id);
-        }}
-      >
-        <Plus className="h-3.5 w-3.5 mr-1.5" />{t("addSlide")}
-      </Button>
-      <SaveRow onSave={save} onCancel={onSaved} />
+      <SaveRow onSave={onSave} onCancel={onClose} />
     </div>
   );
 }
@@ -1040,58 +1095,50 @@ function HeroEditor({ onSaved }: { onSaved: () => void }) {
 // SPONSORS EDITOR
 // ─────────────────────────────────────────────
 
-function SponsorsEditor({ onSaved }: { onSaved: () => void }) {
-  const { t } = useAdminT();
-  const config = useHomepageConfig();
-  const { updateSection } = useHomepageStore();
-  const [eyebrow, setEyebrow] = React.useState(config.sponsors.eyebrow);
-  const [subtext, setSubtext] = React.useState(config.sponsors.subtext);
-
-  const save = async () => {
-    await updateSection("sponsors", { ...config.sponsors, eyebrow, subtext });
-    toast.success(t("sectionSaved"));
-    onSaved();
-  };
-
+function SponsorsEditor({
+  config,
+  update,
+  onSave,
+  onClose,
+}: {
+  config: HomepageConfig["sponsors"];
+  update: (d: HomepageConfig["sponsors"]) => void;
+  onSave: () => void;
+  onClose: () => void;
+}) {
   return (
     <div className="space-y-4">
-      <BiLangField label={t("eyebrow")} value={eyebrow} onChange={setEyebrow} />
-      <BiLangField label={t("subtitleLabel")} value={subtext} onChange={setSubtext} />
-      <SaveRow onSave={save} onCancel={onSaved} />
+      <SmartBiLangField label="Eyebrow" value={config.eyebrow} onChange={(v) => update({ ...config, eyebrow: v })} />
+      <SmartBiLangField label="Subtext" value={config.subtext} onChange={(v) => update({ ...config, subtext: v })} />
+      <SaveRow onSave={onSave} onCancel={onClose} />
     </div>
   );
 }
 
 // ─────────────────────────────────────────────
-// SHOWCASE SECTION EDITOR
+// SHOWCASE EDITOR
 // ─────────────────────────────────────────────
 
-type ShowcaseKey = "bestSellers" | "newArrivals" | "trending";
-
-function ShowcaseEditor({ sectionKey, onSaved }: { sectionKey: ShowcaseKey; onSaved: () => void }) {
-  const { t } = useAdminT();
-  const config = useHomepageConfig();
-  const { updateSection } = useHomepageStore();
-  const section = config[sectionKey] as HomepageConfig[ShowcaseKey];
-
-  const [eyebrow, setEyebrow] = React.useState(section.eyebrow);
-  const [title, setTitle] = React.useState(section.title);
-  const [italicTail, setItalicTail] = React.useState(section.italicTail);
-  const [description, setDescription] = React.useState(section.description);
-
-  const save = async () => {
-    await updateSection(sectionKey, { ...section, eyebrow, title, italicTail, description });
-    toast.success(t("sectionSaved"));
-    onSaved();
-  };
-
+function ShowcaseEditor({
+  sectionKey,
+  config,
+  update,
+  onSave,
+  onClose,
+}: {
+  sectionKey: "bestSellers" | "newArrivals" | "trending";
+  config: HomepageConfig["bestSellers"];
+  update: (d: HomepageConfig["bestSellers"]) => void;
+  onSave: () => void;
+  onClose: () => void;
+}) {
   return (
     <div className="space-y-4">
-      <BiLangField label={t("eyebrow")} value={eyebrow} onChange={setEyebrow} />
-      <BiLangField label={t("headline")} value={title} onChange={setTitle} />
-      <BiLangField label={t("italicTail")} value={italicTail} onChange={setItalicTail} />
-      <BiLangField label={t("bodyText")} value={description} onChange={setDescription} multiline />
-      <SaveRow onSave={save} onCancel={onSaved} />
+      <SmartBiLangField label="Eyebrow" value={config.eyebrow} onChange={(v) => update({ ...config, eyebrow: v })} />
+      <SmartBiLangField label="Title" value={config.title} onChange={(v) => update({ ...config, title: v })} />
+      <SmartBiLangField label="Italic Tail" value={config.italicTail} onChange={(v) => update({ ...config, italicTail: v })} />
+      <SmartBiLangField label="Description" value={config.description} onChange={(v) => update({ ...config, description: v })} multiline />
+      <SaveRow onSave={onSave} onCancel={onClose} />
     </div>
   );
 }
@@ -1100,148 +1147,27 @@ function ShowcaseEditor({ sectionKey, onSaved }: { sectionKey: ShowcaseKey; onSa
 // EDITORIAL EDITOR
 // ─────────────────────────────────────────────
 
-type EditorialKey = "editorialPremium" | "editorialStory";
-
-function EditorialEditor({ sectionKey, onSaved }: { sectionKey: EditorialKey; onSaved: () => void }) {
-  const { t } = useAdminT();
-  const config = useHomepageConfig();
-  const { updateSection } = useHomepageStore();
-  const section = config[sectionKey] as HomepageConfig[EditorialKey];
-
-  const [eyebrow, setEyebrow] = React.useState(section.eyebrow);
-  const [title, setTitle] = React.useState(section.title);
-  const [italicTail, setItalicTail] = React.useState(section.italicTail);
-  const [bodyEn, setBodyEn] = React.useState(section.body.en);
-  const [bodyAr, setBodyAr] = React.useState(section.body.ar);
-  const [image, setImage] = React.useState(section.image);
-  const [ctaLabel, setCtaLabel] = React.useState(section.ctaLabel);
-  const [ctaHref, setCtaHref] = React.useState(section.ctaHref);
-  const [stats, setStats] = React.useState(section.stats);
-
-  const save = async () => {
-    await updateSection(sectionKey, {
-      ...section,
-      eyebrow,
-      title,
-      italicTail,
-      body: { en: bodyEn, ar: bodyAr },
-      image,
-      ctaLabel,
-      ctaHref,
-      stats,
-    });
-    toast.success(t("sectionSaved"));
-    onSaved();
-  };
-
+function EditorialEditor({
+  sectionKey,
+  config,
+  update,
+  onSave,
+  onClose,
+}: {
+  sectionKey: "editorialPremium" | "editorialStory";
+  config: HomepageConfig["editorialPremium"];
+  update: (d: HomepageConfig["editorialPremium"]) => void;
+  onSave: () => void;
+  onClose: () => void;
+}) {
   return (
-    <div className="space-y-5">
-      <BiLangField label={t("eyebrow")} value={eyebrow} onChange={setEyebrow} />
-      <BiLangField label={t("headline")} value={title} onChange={setTitle} />
-      <BiLangField label={t("italicTail")} value={italicTail} onChange={setItalicTail} />
-
-      <div className="space-y-2">
-        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("bodyText")} (English)</Label>
-        {bodyEn.map((para, i) => (
-          <div key={i} className="flex gap-2">
-            <Textarea
-              value={para}
-              onChange={(e) => {
-                const next = [...bodyEn];
-                next[i] = e.target.value;
-                setBodyEn(next);
-              }}
-              dir="ltr"
-              className="min-h-[60px] text-xs flex-1"
-            />
-            <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 mt-1 text-destructive" onClick={() => setBodyEn(bodyEn.filter((_, j) => j !== i))}>
-              <X className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        ))}
-        <Button variant="outline" size="sm" onClick={() => setBodyEn([...bodyEn, ""])}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" />{t("addParagraph")}
-        </Button>
-      </div>
-
-      <div className="space-y-2">
-        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("bodyText")} (Arabic)</Label>
-        {bodyAr.map((para, i) => (
-          <div key={i} className="flex gap-2">
-            <Textarea
-              value={para}
-              onChange={(e) => {
-                const next = [...bodyAr];
-                next[i] = e.target.value;
-                setBodyAr(next);
-              }}
-              dir="rtl"
-              className="min-h-[60px] text-xs flex-1"
-            />
-            <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 mt-1 text-destructive" onClick={() => setBodyAr(bodyAr.filter((_, j) => j !== i))}>
-              <X className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        ))}
-        <Button variant="outline" size="sm" onClick={() => setBodyAr([...bodyAr, ""])}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" />{t("addParagraph")}
-        </Button>
-      </div>
-
-      <ImageUploadField label={t("imageUrl")} value={image} onChange={setImage} />
-      <BiLangField label={t("ctaLabel")} value={ctaLabel} onChange={setCtaLabel} />
-      <div>
-        <Label className="text-xs">{t("ctaLink")}</Label>
-        <Input value={ctaHref} onChange={(e) => setCtaHref(e.target.value)} className="mt-1 text-xs" placeholder="/shop" />
-      </div>
-
-      <div className="space-y-2">
-        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Stats</Label>
-        {stats.map((s, i) => (
-          <div key={i} className="flex gap-2 items-center">
-            <Input
-              value={s.value}
-              onChange={(e) => {
-                const next = [...stats];
-                next[i] = { ...next[i], value: e.target.value };
-                setStats(next);
-              }}
-              className="w-20 text-xs"
-              placeholder="30+"
-            />
-            <Input
-              value={s.label.en}
-              onChange={(e) => {
-                const next = [...stats];
-                next[i] = { ...next[i], label: { ...next[i].label, en: e.target.value } };
-                setStats(next);
-              }}
-              dir="ltr"
-              className="flex-1 text-xs"
-              placeholder="Label EN"
-            />
-            <Input
-              value={s.label.ar}
-              onChange={(e) => {
-                const next = [...stats];
-                next[i] = { ...next[i], label: { ...next[i].label, ar: e.target.value } };
-                setStats(next);
-              }}
-              dir="rtl"
-              className="flex-1 text-xs"
-              placeholder="Label AR"
-            />
-            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setStats(stats.filter((_, j) => j !== i))}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        ))}
-        <Button variant="outline" size="sm" onClick={() => setStats([...stats, { value: "", label: { en: "", ar: "" } }])}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" />{t("addItem")}
-        </Button>
-      </div>
-
-      <SaveRow onSave={save} onCancel={onSaved} />
+    <div className="space-y-4">
+      <SmartBiLangField label="Eyebrow" value={config.eyebrow} onChange={(v) => update({ ...config, eyebrow: v })} />
+      <SmartBiLangField label="Headline" value={config.title} onChange={(v) => update({ ...config, title: v })} />
+      <SmartBiLangField label="Italic Tail" value={config.italicTail} onChange={(v) => update({ ...config, italicTail: v })} />
+      <ImageUploadField label="Image" value={config.image} onChange={(url) => update({ ...config, image: url })} />
+      <SmartBiLangField label="CTA Label" value={config.ctaLabel} onChange={(v) => update({ ...config, ctaLabel: v })} />
+      <SaveRow onSave={onSave} onCancel={onClose} />
     </div>
   );
 }
@@ -1250,62 +1176,67 @@ function EditorialEditor({ sectionKey, onSaved }: { sectionKey: EditorialKey; on
 // VALUE PROPS EDITOR
 // ─────────────────────────────────────────────
 
-function ValuePropsEditor({ onSaved }: { onSaved: () => void }) {
+function ValuePropsEditor({
+  config,
+  update,
+  onSave,
+  onClose,
+}: {
+  config: HomepageConfig["valueProps"];
+  update: (d: HomepageConfig["valueProps"]) => void;
+  onSave: () => void;
+  onClose: () => void;
+}) {
   const { t } = useAdminT();
-  const config = useHomepageConfig();
-  const { updateSection } = useHomepageStore();
-  const [items, setItems] = React.useState(config.valueProps.items);
-
-  const save = async () => {
-    await updateSection("valueProps", { ...config.valueProps, items });
-    toast.success(t("sectionSaved"));
-    onSaved();
-  };
 
   return (
     <div className="space-y-4">
-      {items.map((item, i) => (
+      {config.items.map((item, i) => (
         <Card key={i} className="p-4 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium">{t("itemN")} {i + 1}</p>
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={item.visible}
-                onCheckedChange={(v) => {
-                  const next = [...items];
-                  next[i] = { ...next[i], visible: v };
-                  setItems(next);
-                }}
-              />
-              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setItems(items.filter((_, j) => j !== i))}>
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+            <Switch
+              checked={item.visible}
+              onCheckedChange={(v) => {
+                const next = [...config.items];
+                next[i] = { ...next[i], visible: v };
+                update({ ...config, items: next });
+              }}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">{t("headline")} (EN)</Label>
-              <Input value={item.en} onChange={(e) => { const n = [...items]; n[i] = { ...n[i], en: e.target.value }; setItems(n); }} dir="ltr" className="mt-1 text-xs" />
+              <Label className="text-xs">English Headline</Label>
+              <Input
+                value={item.en}
+                onChange={(e) => {
+                  const next = [...config.items];
+                  const newEn = e.target.value;
+                  const newAr = (!item.ar || item.ar === item.en) ? newEn : item.ar;
+                  next[i] = { ...next[i], en: newEn, ar: newAr };
+                  update({ ...config, items: next });
+                }}
+                dir="ltr"
+                className="mt-1 text-xs"
+              />
             </div>
             <div>
-              <Label className="text-xs">{t("headline")} (AR)</Label>
-              <Input value={item.ar} onChange={(e) => { const n = [...items]; n[i] = { ...n[i], ar: e.target.value }; setItems(n); }} dir="rtl" className="mt-1 text-xs" />
-            </div>
-            <div>
-              <Label className="text-xs">{t("bodyText")} (EN)</Label>
-              <Textarea value={item.descEn} onChange={(e) => { const n = [...items]; n[i] = { ...n[i], descEn: e.target.value }; setItems(n); }} dir="ltr" className="mt-1 text-xs min-h-[60px]" />
-            </div>
-            <div>
-              <Label className="text-xs">{t("bodyText")} (AR)</Label>
-              <Textarea value={item.descAr} onChange={(e) => { const n = [...items]; n[i] = { ...n[i], descAr: e.target.value }; setItems(n); }} dir="rtl" className="mt-1 text-xs min-h-[60px]" />
+              <Label className="text-xs">العنوان بالعربية</Label>
+              <Input
+                value={item.ar}
+                onChange={(e) => {
+                  const next = [...config.items];
+                  next[i] = { ...next[i], ar: e.target.value };
+                  update({ ...config, items: next });
+                }}
+                dir="rtl"
+                className="mt-1 text-xs"
+              />
             </div>
           </div>
         </Card>
       ))}
-      <Button variant="outline" size="sm" onClick={() => setItems([...items, { en: "", ar: "", descEn: "", descAr: "", visible: true }])}>
-        <Plus className="h-3.5 w-3.5 mr-1.5" />{t("addItem")}
-      </Button>
-      <SaveRow onSave={save} onCancel={onSaved} />
+      <SaveRow onSave={onSave} onCancel={onClose} />
     </div>
   );
 }
@@ -1314,27 +1245,23 @@ function ValuePropsEditor({ onSaved }: { onSaved: () => void }) {
 // REVIEWS EDITOR
 // ─────────────────────────────────────────────
 
-function ReviewsEditor({ onSaved }: { onSaved: () => void }) {
-  const { t } = useAdminT();
-  const config = useHomepageConfig();
-  const { updateSection } = useHomepageStore();
-  const section = config.reviews;
-  const [eyebrow, setEyebrow] = React.useState(section.eyebrow);
-  const [title, setTitle] = React.useState(section.title);
-  const [subtitle, setSubtitle] = React.useState(section.subtitle);
-
-  const save = async () => {
-    await updateSection("reviews", { ...section, eyebrow, title, subtitle });
-    toast.success(t("sectionSaved"));
-    onSaved();
-  };
-
+function ReviewsEditor({
+  config,
+  update,
+  onSave,
+  onClose,
+}: {
+  config: HomepageConfig["reviews"];
+  update: (d: HomepageConfig["reviews"]) => void;
+  onSave: () => void;
+  onClose: () => void;
+}) {
   return (
     <div className="space-y-4">
-      <BiLangField label={t("eyebrow")} value={eyebrow} onChange={setEyebrow} />
-      <BiLangField label={t("headline")} value={title} onChange={setTitle} />
-      <BiLangField label={t("subtitleLabel")} value={subtitle} onChange={setSubtitle} />
-      <SaveRow onSave={save} onCancel={onSaved} />
+      <SmartBiLangField label="Eyebrow" value={config.eyebrow} onChange={(v) => update({ ...config, eyebrow: v })} />
+      <SmartBiLangField label="Title" value={config.title} onChange={(v) => update({ ...config, title: v })} />
+      <SmartBiLangField label="Subtitle" value={config.subtitle} onChange={(v) => update({ ...config, subtitle: v })} />
+      <SaveRow onSave={onSave} onCancel={onClose} />
     </div>
   );
 }
@@ -1343,30 +1270,26 @@ function ReviewsEditor({ onSaved }: { onSaved: () => void }) {
 // INSTAGRAM EDITOR
 // ─────────────────────────────────────────────
 
-function InstagramEditor({ onSaved }: { onSaved: () => void }) {
-  const { t } = useAdminT();
-  const config = useHomepageConfig();
-  const { updateSection } = useHomepageStore();
-  const section = config.instagram;
-  const [handle, setHandle] = React.useState(section.handle);
-  const [eyebrow, setEyebrow] = React.useState(section.eyebrow);
-  const [title, setTitle] = React.useState(section.title);
-
-  const save = async () => {
-    await updateSection("instagram", { ...section, handle, eyebrow, title });
-    toast.success(t("sectionSaved"));
-    onSaved();
-  };
-
+function InstagramEditor({
+  config,
+  update,
+  onSave,
+  onClose,
+}: {
+  config: HomepageConfig["instagram"];
+  update: (d: HomepageConfig["instagram"]) => void;
+  onSave: () => void;
+  onClose: () => void;
+}) {
   return (
     <div className="space-y-4">
       <div>
-        <Label className="text-xs">{t("instagramHandle")}</Label>
-        <Input value={handle} onChange={(e) => setHandle(e.target.value)} className="mt-1 text-xs" placeholder="@suited_by_meme" />
+        <Label className="text-xs">Instagram Handle</Label>
+        <Input value={config.handle} onChange={(e) => update({ ...config, handle: e.target.value })} className="mt-1 text-xs" />
       </div>
-      <BiLangField label={t("eyebrow")} value={eyebrow} onChange={setEyebrow} />
-      <BiLangField label={t("headline")} value={title} onChange={setTitle} />
-      <SaveRow onSave={save} onCancel={onSaved} />
+      <SmartBiLangField label="Eyebrow" value={config.eyebrow} onChange={(v) => update({ ...config, eyebrow: v })} />
+      <SmartBiLangField label="Title" value={config.title} onChange={(v) => update({ ...config, title: v })} />
+      <SaveRow onSave={onSave} onCancel={onClose} />
     </div>
   );
 }
@@ -1375,55 +1298,54 @@ function InstagramEditor({ onSaved }: { onSaved: () => void }) {
 // FAQ EDITOR
 // ─────────────────────────────────────────────
 
-function FAQEditor({ onSaved }: { onSaved: () => void }) {
-  const { t } = useAdminT();
-  const config = useHomepageConfig();
-  const { updateSection } = useHomepageStore();
-  const [items, setItems] = React.useState(config.faq.items);
-
-  const save = async () => {
-    await updateSection("faq", { ...config.faq, items });
-    toast.success(t("sectionSaved"));
-    onSaved();
-  };
-
+function FAQEditor({
+  config,
+  update,
+  onSave,
+  onClose,
+}: {
+  config: HomepageConfig["faq"];
+  update: (d: HomepageConfig["faq"]) => void;
+  onSave: () => void;
+  onClose: () => void;
+}) {
   return (
     <div className="space-y-4">
-      {items.map((item, i) => (
+      {config.items.map((item, i) => (
         <Card key={i} className="p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium">{t("itemN")} {i + 1}</p>
-            <div className="flex items-center gap-2">
-              <Switch checked={item.visible} onCheckedChange={(v) => { const n = [...items]; n[i] = { ...n[i], visible: v }; setItems(n); }} />
-              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setItems(items.filter((_, j) => j !== i))}>
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">{t("questionEn")}</Label>
-              <Input value={item.qEn} onChange={(e) => { const n = [...items]; n[i] = { ...n[i], qEn: e.target.value }; setItems(n); }} dir="ltr" className="mt-1 text-xs" />
+              <Label className="text-xs">Question (EN)</Label>
+              <Input
+                value={item.qEn}
+                onChange={(e) => {
+                  const next = [...config.items];
+                  const newEn = e.target.value;
+                  const newAr = (!item.qAr || item.qAr === item.qEn) ? newEn : item.qAr;
+                  next[i] = { ...next[i], qEn: newEn, qAr: newAr };
+                  update({ ...config, items: next });
+                }}
+                dir="ltr"
+                className="mt-1 text-xs"
+              />
             </div>
             <div>
-              <Label className="text-xs">{t("questionAr")}</Label>
-              <Input value={item.qAr} onChange={(e) => { const n = [...items]; n[i] = { ...n[i], qAr: e.target.value }; setItems(n); }} dir="rtl" className="mt-1 text-xs" />
-            </div>
-            <div>
-              <Label className="text-xs">{t("answerEn")}</Label>
-              <Textarea value={item.aEn} onChange={(e) => { const n = [...items]; n[i] = { ...n[i], aEn: e.target.value }; setItems(n); }} dir="ltr" className="mt-1 text-xs min-h-[80px]" />
-            </div>
-            <div>
-              <Label className="text-xs">{t("answerAr")}</Label>
-              <Textarea value={item.aAr} onChange={(e) => { const n = [...items]; n[i] = { ...n[i], aAr: e.target.value }; setItems(n); }} dir="rtl" className="mt-1 text-xs min-h-[80px]" />
+              <Label className="text-xs">السؤال (AR)</Label>
+              <Input
+                value={item.qAr}
+                onChange={(e) => {
+                  const next = [...config.items];
+                  next[i] = { ...next[i], qAr: e.target.value };
+                  update({ ...config, items: next });
+                }}
+                dir="rtl"
+                className="mt-1 text-xs"
+              />
             </div>
           </div>
         </Card>
       ))}
-      <Button variant="outline" size="sm" onClick={() => setItems([...items, { qEn: "", qAr: "", aEn: "", aAr: "", visible: true }])}>
-        <Plus className="h-3.5 w-3.5 mr-1.5" />{t("addItem")}
-      </Button>
-      <SaveRow onSave={save} onCancel={onSaved} />
+      <SaveRow onSave={onSave} onCancel={onClose} />
     </div>
   );
 }
@@ -1432,64 +1354,24 @@ function FAQEditor({ onSaved }: { onSaved: () => void }) {
 // MANIFESTO EDITOR
 // ─────────────────────────────────────────────
 
-function ManifestoEditor({ onSaved }: { onSaved: () => void }) {
-  const { t } = useAdminT();
-  const config = useHomepageConfig();
-  const { updateSection } = useHomepageStore();
-  const section = config.manifesto;
-
-  const [eyebrow, setEyebrow] = React.useState(section.eyebrow);
-  const [headline, setHeadline] = React.useState(section.headline);
-  const [italicTail, setItalicTail] = React.useState(section.italicTail);
-  const [body, setBody] = React.useState(section.body);
-  const [newsletterEyebrow, setNewsletterEyebrow] = React.useState(section.newsletterEyebrow);
-  const [newsletterTitle, setNewsletterTitle] = React.useState(section.newsletterTitle);
-  const [newsletterItalic, setNewsletterItalic] = React.useState(section.newsletterItalic);
-  const [newsletterBody, setNewsletterBody] = React.useState(section.newsletterBody);
-
-  const save = async () => {
-    await updateSection("manifesto", {
-      ...section,
-      eyebrow, headline, italicTail, body,
-      newsletterEyebrow, newsletterTitle, newsletterItalic, newsletterBody,
-    });
-    toast.success(t("sectionSaved"));
-    onSaved();
-  };
-
+function ManifestoEditor({
+  config,
+  update,
+  onSave,
+  onClose,
+}: {
+  config: HomepageConfig["manifesto"];
+  update: (d: HomepageConfig["manifesto"]) => void;
+  onSave: () => void;
+  onClose: () => void;
+}) {
   return (
-    <div className="space-y-5">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Manifesto</p>
-      <BiLangField label={t("eyebrow")} value={eyebrow} onChange={setEyebrow} />
-      <BiLangField label={t("headline")} value={headline} onChange={setHeadline} />
-      <BiLangField label={t("italicTail")} value={italicTail} onChange={setItalicTail} />
-      <BiLangField label={t("bodyText")} value={body} onChange={setBody} multiline />
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground pt-2">Newsletter</p>
-      <BiLangField label={t("eyebrow")} value={newsletterEyebrow} onChange={setNewsletterEyebrow} />
-      <BiLangField label={t("headline")} value={newsletterTitle} onChange={setNewsletterTitle} />
-      <BiLangField label={t("italicTail")} value={newsletterItalic} onChange={setNewsletterItalic} />
-      <BiLangField label={t("bodyText")} value={newsletterBody} onChange={setNewsletterBody} multiline />
-      <SaveRow onSave={save} onCancel={onSaved} />
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// SIMPLE VISIBILITY
-// ─────────────────────────────────────────────
-
-function SimpleVisibilityEditor({ sectionKey, onSaved }: { sectionKey: keyof HomepageConfig; onSaved: () => void }) {
-  const { isAr } = useAdminT();
-  return (
-    <div className="text-sm text-muted-foreground py-2">
-      {isAr
-        ? "هذا القسم يعرض المنتج المحدود الأول تلقائياً. استخدم الزر أعلاه لإظهاره أو إخفائه."
-        : "This section automatically displays the first limited product. Use the toggle above to show or hide it."}
-      <div className="pt-3">
-        <Button size="sm" variant="ghost" onClick={onSaved}>
-          {isAr ? "إغلاق" : "Close"}
-        </Button>
-      </div>
+    <div className="space-y-4">
+      <SmartBiLangField label="Eyebrow" value={config.eyebrow} onChange={(v) => update({ ...config, eyebrow: v })} />
+      <SmartBiLangField label="Headline" value={config.headline} onChange={(v) => update({ ...config, headline: v })} />
+      <SmartBiLangField label="Italic Tail" value={config.italicTail} onChange={(v) => update({ ...config, italicTail: v })} />
+      <SmartBiLangField label="Body" value={config.body} onChange={(v) => update({ ...config, body: v })} multiline />
+      <SaveRow onSave={onSave} onCancel={onClose} />
     </div>
   );
 }
