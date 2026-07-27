@@ -128,15 +128,15 @@ export function DashboardSection({
   return (
     <div className="space-y-6">
       {/* Welcome banner */}
-      <div className="bg-foreground text-background rounded-lg p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-zinc-900 text-white rounded-xl p-6 border border-zinc-800 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.25em] opacity-70 mb-1">
+          <p className="text-[11px] uppercase tracking-[0.25em] text-[#f6ec91] font-semibold mb-1">
             {t("welcomeBack")}
           </p>
-          <h3 className="font-display text-2xl tracking-tight">
+          <h3 className="font-display text-2xl tracking-tight text-white">
             {t("manageCatalog")}
           </h3>
-          <p className="text-sm opacity-80 mt-1.5">
+          <p className="text-sm text-zinc-300 mt-1.5">
             {products.length} {t("productsLive")} ·{" "}
             {products.filter((p) => p.inventory > 0).length} {t("active")} ·{" "}
             {lowStock.length} {t("lowStock")}
@@ -145,20 +145,19 @@ export function DashboardSection({
         </div>
         <div className="flex gap-2 flex-shrink-0">
           <Button
-            variant="secondary"
             size="sm"
             onClick={onNewProduct}
-            className="bg-background text-foreground hover:bg-background/90"
+            className="bg-[#f6ec91] text-zinc-950 hover:bg-[#f6ec91]/90 font-medium"
           >
-            <Plus className="h-4 w-4 mr-1" /> Add product
+            <Plus className="h-4 w-4 mr-1.5" /> {t("newProduct")}
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => onJump?.("guide")}
-            className="border-background/30 text-background hover:bg-background/10"
+            className="border-zinc-700 text-white bg-zinc-800 hover:bg-zinc-700 hover:text-white"
           >
-            <BookOpen className="h-4 w-4 mr-1" /> How to use
+            <BookOpen className="h-4 w-4 mr-1.5" /> {t("guide")}
           </Button>
         </div>
       </div>

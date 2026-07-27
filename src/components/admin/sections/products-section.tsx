@@ -108,15 +108,15 @@ export function ProductsSection({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <p className="text-sm text-muted-foreground">
           <span className="text-foreground font-medium">{products.length}</span>{" "}
-          products ·{" "}
+          {t("productsLive")} ·{" "}
           <span className="text-foreground font-medium">
             {products.filter((p) => p.inventory > 0).length}
           </span>{" "}
-          active ·{" "}
+          {t("active")} ·{" "}
           <span className="text-amber-600 font-medium">
             {products.filter((p) => p.inventory <= 12 && p.inventory > 0).length}
           </span>{" "}
-          low stock
+          {t("lowStock")}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">

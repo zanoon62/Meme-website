@@ -3,7 +3,7 @@
 import * as React from "react";
 import { SmartImage as Image } from "@/components/ui/smart-image";
 import { img } from "@/lib/img";
-import { Plus, Trash2, X, GripVertical } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Product, ProductColor, ProductSize } from "@/components/providers/ui-provider";
 import { useProductStore, type ProductInput } from "@/components/providers/product-store";
+import { useAdminT } from "@/components/admin/admin-i18n";
 
 const ALL_SIZES: ProductSize[] = ["XS", "S", "M", "L", "XL", "XXL", "ONE SIZE"];
 
@@ -81,6 +82,7 @@ type Props = {
 export function ProductFormDialog({ open, onOpenChange, product }: Props) {
   const addProduct = useProductStore((s) => s.addProduct);
   const updateProduct = useProductStore((s) => s.updateProduct);
+  const { t, isAr, dir } = useAdminT();
 
   const isEdit = !!product;
   const [form, setForm] = React.useState<ProductInput>(DEFAULT_NEW_PRODUCT);
@@ -109,30 +111,30 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
-    if (!form.name.trim()) e.name = "Name is required";
-    if (!form.subtitle.trim()) e.subtitle = "Subtitle is required";
-    if (!form.description.trim()) e.description = "Description is required";
-    if (!form.price || form.price <= 0) e.price = "Price must be greater than 0";
-    if (!form.category) e.category = "Category is required";
-    if (!form.collection) e.collection = "Collection is required";
-    if (!form.material.trim()) e.material = "Material is required";
-    if (!form.care.trim()) e.care = "Care instructions are required";
-    if (form.inventory < 0) e.inventory = "Inventory cannot be negative";
-    if (!form.colors.length) e.colors = "Add at least one color";
-    if (!form.sizes.length) e.sizes = "Select at least one size";
-    if (!form.images.length) e.images = "Add at least one image URL";
+    if (!form.name.trim()) e.name = isAr ? "اسم المنتج مطلوب" : "Name is required";
+    if (!form.subtitle.trim()) e.subtitle = isAr ? "العنوان الفرعي مطلوب" : "Subtitle is required";
+    if (!form.description.trim()) e.description = isAr ? "الوصف مطلوب" : "Description is required";
+    if (!form.price || form.price <= 0) e.price = isAr ? "يجب أن يكون السعر أكبر من صفر" : "Price must be greater than 0";
+    if (!form.category) e.category = isAr ? "الفئة مطلوبة" : "Category is required";
+    if (!form.collection) e.collection = isAr ? "المجموعة مطلوبة" : "Collection is required";
+    if (!form.material.trim()) e.material = isAr ? "المادة مطلوبة" : "Material is required";
+    if (!form.care.trim()) e.care = isAr ? "تعليمات العناية مطلوبة" : "Care instructions are required";
+    if (form.inventory < 0) e.inventory = isAr ? "المخزون لا يمكن أن يكون بالسالب" : "Inventory cannot be negative";
+    if (!form.colors.length) e.colors = isAr ? "أضف لوناً واحداً على الأقل" : "Add at least one color";
+    if (!form.sizes.length) e.sizes = isAr ? "اختر مقاساً واحداً على الأقل" : "Select at least one size";
+    if (!form.images.length) e.images = isAr ? "أضف رابط صورة واحد على الأقل" : "Add at least one image URL";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleSubmit = () => {
     if (!validate()) {
-      toast.error("Please fix the errors before saving");
+      toast.error(isAr ? "يرجى تصحيح الأخطاء قبل الحفظ" : "Please fix the errors before saving");
       return;
     }
     if (isEdit && product) {
       updateProduct(product.id, form);
-      toast.success(`Updated "${form.name}"`);
+      toast.success(isAr ? `تم تحديث "${form.name}"` : `Updated "${form.name}"`);
     } else {
       const isDefaultImg =
         form.images.length === 2 &&
@@ -147,14 +149,14 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
           }
         : form;
       addProduct(finalForm);
-      toast.success(`Added new product "${form.name}"`);
+      toast.success(isAr ? `تمت إضافة المنتج الجديد "${form.name}"` : `Added new product "${form.name}"`);
     }
     onOpenChange(false);
   };
 
   // Colors
   const addColor = () => {
-    update("colors", [...form.colors, { name: "New Color", hex: "#888888" }]);
+    update("colors", [...form.colors, { name: isAr ? "لون جديد" : "New Color", hex: "#888888" }]);
   };
   const updateColor = (idx: number, patch: Partial<ProductColor>) => {
     update(
@@ -212,15 +214,17 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-[95vw] max-h-[92vh] p-0 gap-0 overflow-hidden">
+      <DialogContent dir={dir} className="max-w-4xl w-[95vw] max-h-[92vh] p-0 gap-0 overflow-hidden">
         <DialogHeader className="px-6 py-5 border-b border-border/60">
           <DialogTitle className="font-display text-2xl tracking-tight">
-            {isEdit ? `Edit product` : "Add new product"}
+            {isEdit ? t("editProduct") : t("newProduct")}
           </DialogTitle>
           <DialogDescription className="text-xs">
             {isEdit
-              ? `Editing "${product?.name}" — changes are saved to the live storefront instantly.`
-              : "Fill in the details below. Required fields are marked with *."}
+              ? isAr
+                ? `تعديل "${product?.name}" — يتم حفظ التغييرات إلى المتجر المباشر فوراً.`
+                : `Editing "${product?.name}" — changes are saved to the live storefront instantly.`
+              : t("productDetailsDesc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -229,17 +233,17 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
             {/* ============ Basic info ============ */}
             <section className="space-y-4">
               <h3 className="text-xs uppercase tracking-[0.2em] font-medium text-muted-foreground">
-                Basic information
+                {isAr ? "المعلومات الأساسية" : "Basic information"}
               </h3>
               <div className="grid sm:grid-cols-2 gap-4">
-                <Field label="Product name *" error={errors.name}>
+                <Field label={`${t("productName")} *`} error={errors.name}>
                   <Input
                     value={form.name}
                     onChange={(e) => update("name", e.target.value)}
-                    placeholder="e.g. Noir Tailored Blazer Dress"
+                    placeholder={t("productNamePlaceholder")}
                   />
                 </Field>
-                <Field label="Subtitle *" error={errors.subtitle}>
+                <Field label={`${t("productSubtitleLabel")} *`} error={errors.subtitle}>
                   <Input
                     value={form.subtitle}
                     onChange={(e) => update("subtitle", e.target.value)}
@@ -247,7 +251,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                   />
                 </Field>
               </div>
-              <Field label="Description *" error={errors.description}>
+              <Field label={`${t("descriptionLabel")} *`} error={errors.description}>
                 <Textarea
                   value={form.description}
                   onChange={(e) => update("description", e.target.value)}
@@ -255,11 +259,11 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                   placeholder="A sharply tailored blazer dress cut from…"
                 />
               </Field>
-              <Field label="URL slug (optional)" hint="Auto-generated from name if left blank">
+              <Field label={t("slugLabel")} hint={isAr ? "يتم توليده تلقائياً من الاسم إذا ترك فارغاً" : "Auto-generated from name if left blank"}>
                 <Input
                   value={form.slug}
                   onChange={(e) => update("slug", e.target.value)}
-                  placeholder="auto-generated from name"
+                  placeholder="auto-generated-slug"
                 />
               </Field>
             </section>
@@ -269,10 +273,10 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
             {/* ============ Pricing & inventory ============ */}
             <section className="space-y-4">
               <h3 className="text-xs uppercase tracking-[0.2em] font-medium text-muted-foreground">
-                Pricing & inventory
+                {isAr ? "الأسعار والمخزون" : "Pricing & inventory"}
               </h3>
               <div className="grid sm:grid-cols-4 gap-4">
-                <Field label="Price ($) *" error={errors.price}>
+                <Field label={`${t("priceLabel")} *`} error={errors.price}>
                   <Input
                     type="number"
                     min={0}
@@ -281,7 +285,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                     onChange={(e) => update("price", Number(e.target.value))}
                   />
                 </Field>
-                <Field label="Compare-at ($)" hint="Original price for sale items">
+                <Field label={t("compareAtPriceLabel")} hint={isAr ? "السعر الأصلي قبل التخفيض" : "Original price for sale items"}>
                   <Input
                     type="number"
                     min={0}
@@ -295,7 +299,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                     }
                   />
                 </Field>
-                <Field label="Inventory *" error={errors.inventory}>
+                <Field label={`${t("inventoryCol")} *`} error={errors.inventory}>
                   <Input
                     type="number"
                     min={0}
@@ -304,7 +308,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                     onChange={(e) => update("inventory", Number(e.target.value))}
                   />
                 </Field>
-                <Field label="Currency">
+                <Field label={t("currencyLabel")}>
                   <Input
                     value={form.currency}
                     onChange={(e) => update("currency", e.target.value)}
@@ -319,10 +323,10 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
             {/* ============ Organization ============ */}
             <section className="space-y-4">
               <h3 className="text-xs uppercase tracking-[0.2em] font-medium text-muted-foreground">
-                Organization
+                {isAr ? "التصنيف والتنظيم" : "Organization"}
               </h3>
               <div className="grid sm:grid-cols-2 gap-4">
-                <Field label="Category *" error={errors.category}>
+                <Field label={`${t("categoryLabel")} *`} error={errors.category}>
                   <select
                     value={form.category}
                     onChange={(e) => update("category", e.target.value)}
@@ -333,7 +337,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                     ))}
                   </select>
                 </Field>
-                <Field label="Collection *" error={errors.collection}>
+                <Field label={`${t("collectionLabel")} *`} error={errors.collection}>
                   <select
                     value={form.collection}
                     onChange={(e) => update("collection", e.target.value)}
@@ -347,7 +351,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
               </div>
 
               {/* Tags */}
-              <Field label="Tags" hint="Used for search & filtering (lowercase, hyphenated)">
+              <Field label={t("tagsLabel")} hint={isAr ? "تستخدم للبحث والفلترة (أحرف صغيرة)" : "Used for search & filtering"}>
                 <div className="flex gap-2">
                   <Input
                     value={newTag}
@@ -361,7 +365,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                     placeholder="e.g. evening, silk, tailored"
                   />
                   <Button type="button" variant="outline" size="sm" onClick={addTag}>
-                    <Plus className="h-3 w-3 mr-1" /> Add
+                    <Plus className="h-3 w-3 mr-1" /> {t("addNew")}
                   </Button>
                 </div>
                 {form.tags.length > 0 && (
@@ -382,7 +386,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
               </Field>
 
               {/* Badges */}
-              <Field label="Badges" hint="Display labels like 'New', 'Best Seller', 'Premium'">
+              <Field label={t("badgesLabel")} hint={isAr ? "شارات مميزة مثل 'Best Seller', 'New'" : "Display labels like 'New', 'Best Seller'"}>
                 <div className="flex gap-2">
                   <Input
                     value={newBadge}
@@ -396,7 +400,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                     placeholder="e.g. Best Seller"
                   />
                   <Button type="button" variant="outline" size="sm" onClick={addBadge}>
-                    <Plus className="h-3 w-3 mr-1" /> Add
+                    <Plus className="h-3 w-3 mr-1" /> {t("addNew")}
                   </Button>
                 </div>
                 {form.badges && form.badges.length > 0 && (
@@ -422,11 +426,11 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
             {/* ============ Variants ============ */}
             <section className="space-y-4">
               <h3 className="text-xs uppercase tracking-[0.2em] font-medium text-muted-foreground">
-                Variants
+                {isAr ? "خيارات المنتج (الألوان والمقاسات)" : "Variants"}
               </h3>
 
               {/* Colors */}
-              <Field label="Colors *" error={errors.colors}>
+              <Field label={`${t("colorsLabel")} *`} error={errors.colors}>
                 <div className="space-y-2">
                   {form.colors.map((color, idx) => (
                     <div key={idx} className="flex items-center gap-2">
@@ -460,13 +464,13 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                     size="sm"
                     onClick={addColor}
                   >
-                    <Plus className="h-3 w-3 mr-1" /> Add color
+                    <Plus className="h-3 w-3 mr-1" /> {isAr ? "إضافة لون" : "Add color"}
                   </Button>
                 </div>
               </Field>
 
               {/* Sizes */}
-              <Field label="Sizes *" error={errors.sizes} hint="Click to toggle availability">
+              <Field label={`${t("sizesLabel")} *`} error={errors.sizes} hint={isAr ? "انقر لتحديد المقاسات المتاحة" : "Click to toggle availability"}>
                 <div className="flex flex-wrap gap-2">
                   {ALL_SIZES.map((size) => {
                     const selected = form.sizes.includes(size);
@@ -495,12 +499,12 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
             {/* ============ Media ============ */}
             <section className="space-y-4">
               <h3 className="text-xs uppercase tracking-[0.2em] font-medium text-muted-foreground">
-                Media
+                {isAr ? "الوسائط والصور" : "Media"}
               </h3>
               <Field
-                label="Image URLs *"
+                label={`${t("imagesLabel")} *`}
                 error={errors.images}
-                hint="Paste full image URLs. First image is used as the thumbnail."
+                hint={isAr ? "الصورة الأولى هي التي ستظهر كغلاف للمنتج" : "First image is used as the thumbnail."}
               >
                 <div className="flex gap-2">
                   <Input
@@ -515,7 +519,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                     placeholder="https://images.unsplash.com/…"
                   />
                   <Button type="button" variant="outline" size="sm" onClick={addImage}>
-                    <Plus className="h-3 w-3 mr-1" /> Add
+                    <Plus className="h-3 w-3 mr-1" /> {t("addNew")}
                   </Button>
                 </div>
                 {form.images.length > 0 && (
@@ -535,7 +539,7 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                         />
                         {idx === 0 && (
                           <span className="absolute top-1 left-1 bg-foreground text-background text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm">
-                            Cover
+                            {isAr ? "الغلاف" : "Cover"}
                           </span>
                         )}
                         <button
@@ -557,17 +561,17 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
             {/* ============ Material & care ============ */}
             <section className="space-y-4">
               <h3 className="text-xs uppercase tracking-[0.2em] font-medium text-muted-foreground">
-                Material & care
+                {isAr ? "المادة والخامة والاعتناء" : "Material & care"}
               </h3>
               <div className="grid sm:grid-cols-2 gap-4">
-                <Field label="Material *" error={errors.material}>
+                <Field label={`${t("materialLabel")} *`} error={errors.material}>
                   <Input
                     value={form.material}
                     onChange={(e) => update("material", e.target.value)}
                     placeholder="e.g. 100% Italian Virgin Wool"
                   />
                 </Field>
-                <Field label="Care instructions *" error={errors.care}>
+                <Field label={`${t("careLabel")} *`} error={errors.care}>
                   <Input
                     value={form.care}
                     onChange={(e) => update("care", e.target.value)}
@@ -582,30 +586,30 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
             {/* ============ Status flags ============ */}
             <section className="space-y-4">
               <h3 className="text-xs uppercase tracking-[0.2em] font-medium text-muted-foreground">
-                Visibility & merchandising
+                {isAr ? "علامات العرض والترويج" : "Visibility & merchandising"}
               </h3>
               <div className="grid sm:grid-cols-2 gap-3">
                 <FlagRow
-                  label="New arrival"
-                  hint="Shows in 'New Arrivals' on homepage"
+                  label={t("isNewFlag")}
+                  hint={isAr ? "يظهر في قسم 'المنتجات الجديدة' على الصفحة الرئيسية" : "Shows in 'New Arrivals' on homepage"}
                   checked={!!form.isNew}
                   onChange={(v) => update("isNew", v)}
                 />
                 <FlagRow
-                  label="Best seller"
-                  hint="Shows in 'Best Sellers' on homepage"
+                  label={t("isBestSellerFlag")}
+                  hint={isAr ? "يظهر في قسم 'الأكثر مبيعاً' على الصفحة الرئيسية" : "Shows in 'Best Sellers' on homepage"}
                   checked={!!form.isBestSeller}
                   onChange={(v) => update("isBestSeller", v)}
                 />
                 <FlagRow
-                  label="Trending"
-                  hint="Shows in 'Trending Now' on homepage"
+                  label={t("isTrendingFlag")}
+                  hint={isAr ? "يظهر في قسم 'الرائج الآن' على الصفحة الرئيسية" : "Shows in 'Trending Now' on homepage"}
                   checked={!!form.isTrending}
                   onChange={(v) => update("isTrending", v)}
                 />
                 <FlagRow
-                  label="Limited drop"
-                  hint="Shows in 'Limited Drop' feature on homepage"
+                  label={t("isLimitedFlag")}
+                  hint={isAr ? "يظهر في قسم 'التشكيلة المحدودة' على الصفحة الرئيسية" : "Shows in 'Limited Drop' feature on homepage"}
                   checked={!!form.isLimited}
                   onChange={(v) => update("isLimited", v)}
                 />
@@ -618,15 +622,15 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
           <div className="flex items-center justify-between w-full gap-2">
             <p className="text-xs text-muted-foreground hidden sm:block">
               {isEdit
-                ? "Changes are saved to the live storefront instantly."
-                : "New product will appear on the storefront immediately."}
+                ? isAr ? "تتم المزامنة وحفظ التعديلات فوراً على المتجر المباشر." : "Changes are saved to the live storefront instantly."
+                : isAr ? "سيظهر المنتج الجديد في المتجر مباشرة بعد الحفظ." : "New product will appear on the storefront immediately."}
             </p>
             <div className="flex gap-2 ml-auto">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
+                {t("cancelBtn")}
               </Button>
               <Button onClick={handleSubmit}>
-                {isEdit ? "Save changes" : "Create product"}
+                {isEdit ? t("saveProductBtn") : t("createProductBtn")}
               </Button>
             </div>
           </div>
