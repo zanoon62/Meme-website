@@ -1,25 +1,26 @@
 "use client";
 
 import * as React from "react";
+import { useHomepageConfig } from "@/components/providers/homepage-store";
+import { useLang } from "@/components/layout/language-toggle";
 
-// Cloned from dream-stock3 reference sponsor-logos marquee.
-// Renders a horizontally scrolling row of brand wordmarks.
 const brands = [
-  "ZARA",
-  "H&M",
-  "LACOSTE",
-  "ADIDAS",
-  "HOLLISTER",
-  "PULL&BEAR",
-  "BERSHKA",
-  "HUGO BOSS",
-  "URBERRY",
-  "AMERICAN EAGLE",
-  "STWD",
-  "MEME ATELIER",
+  "ZARA", "H&M", "LACOSTE", "ADIDAS", "HOLLISTER",
+  "PULL&BEAR", "BERSHKA", "HUGO BOSS", "URBERRY",
+  "AMERICAN EAGLE", "STWD", "MEME ATELIER",
 ];
 
 export function SponsorLogos() {
+  const config = useHomepageConfig();
+  const [lang] = useLang();
+  const section = config.sponsors;
+
+  if (!section.visible) return null;
+
+  const isRtl = lang === "ar";
+  const eyebrow = isRtl ? section.eyebrow.ar : section.eyebrow.en;
+  const subtext = isRtl ? section.subtext.ar : section.subtext.en;
+
   return (
     <section
       aria-label="Our brands"
@@ -27,11 +28,9 @@ export function SponsorLogos() {
     >
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-8 lg:py-10 text-center">
         <p className="text-[11px] uppercase tracking-[0.3em] text-[#f6ec91]/80 mb-2">
-          30+ Brands · One Store
+          {eyebrow}
         </p>
-        <p className="text-sm text-muted-foreground mb-7">
-          Authentic premium brands — shipped fast across Egypt
-        </p>
+        <p className="text-sm text-muted-foreground mb-7">{subtext}</p>
       </div>
       {/* Marquee row */}
       <div className="relative overflow-hidden pb-8">

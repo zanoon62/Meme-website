@@ -22,6 +22,7 @@ import {
   Plus,
   Boxes,
   ChevronDown,
+  LayoutTemplate,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,7 +56,8 @@ export type AdminSection =
   | "reviews"
   | "analytics"
   | "settings"
-  | "guide";
+  | "guide"
+  | "homepage";
 
 export function AdminShell({
   section,
@@ -104,6 +106,12 @@ export function AdminShell({
         items: [
           { id: "guide" as AdminSection, icon: BookOpen, label: t("guide") },
           { id: "settings" as AdminSection, icon: Settings, label: t("settings") },
+        ],
+      },
+      {
+        label: t("homepage"),
+        items: [
+          { id: "homepage" as AdminSection, icon: LayoutTemplate, label: t("homepage") },
         ],
       },
     ],

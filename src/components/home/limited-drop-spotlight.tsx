@@ -8,14 +8,28 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Product } from "@/components/providers/ui-provider";
 import { formatPrice, calculateDiscount } from "@/lib/format";
+import { useHomepageConfig } from "@/components/providers/homepage-store";
+import { useLang } from "@/components/layout/language-toggle";
 
 /**
  * Spotlight for a single limited-drop product.
  * Full-bleed dark editorial layout — image on one side, copy + price on the other.
  */
 export function LimitedDropSpotlight({ product }: { product: Product }) {
+  const config = useHomepageConfig();
+  const [lang] = useLang();
+  const isRtl = lang === "ar";
+
+  if (!config.limitedDrop.visible) return null;
   if (!product) return null;
+
   const discount = calculateDiscount(product.price, product.compareAtPrice);
+  const shopLabel = isRtl ? "تسوق التشكيلة" : "Shop the drop";
+  const viewAllLabel = isRtl ? "عرض كل القطع المحدودة" : "View all limited";
+  const editionLabel = isRtl ? "إصدار مرقم من الأتيليه" : "Atelier Numbered Edition";
+  const piecesLabel = isRtl ? "قطعة" : "pieces";
+  const limitedLabel = isRtl ? "تشكيلة محدودة" : "Limited drop";
+
   return (
     <section className="border-t border-border/60">
       <div className="relative overflow-hidden bg-foreground text-background">
@@ -36,7 +50,7 @@ export function LimitedDropSpotlight({ product }: { product: Product }) {
             />
             <div className="absolute top-6 left-6 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/10 backdrop-blur text-background text-[10px] uppercase tracking-[0.25em] font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-background animate-pulse" />
-              Limited drop · {product.inventory} pieces
+              {limitedLabel} · {product.inventory} {piecesLabel}
             </div>
           </motion.div>
           <div className="p-8 sm:p-12 lg:p-16 flex flex-col justify-center">
@@ -47,7 +61,7 @@ export function LimitedDropSpotlight({ product }: { product: Product }) {
               transition={{ duration: 0.8, delay: 0.1 }}
             >
               <p className="text-[11px] uppercase tracking-[0.3em] text-background/60 mb-5">
-                Atelier Numbered Edition
+                {editionLabel}
               </p>
               <h2 className="font-display text-4xl lg:text-6xl tracking-tight leading-[1.05] mb-4">
                 {product.name}
@@ -64,7 +78,7 @@ export function LimitedDropSpotlight({ product }: { product: Product }) {
                 )}
                 {discount && (
                   <span className="text-[11px] uppercase tracking-wider px-2 py-1 rounded-sm bg-background/10 ml-2">
-                    Save {discount}%
+                    {isRtl ? `وفّر ${discount}٪` : `Save ${discount}%`}
                   </span>
                 )}
               </div>
@@ -74,7 +88,7 @@ export function LimitedDropSpotlight({ product }: { product: Product }) {
               <div className="flex flex-wrap gap-3">
                 <Button asChild size="lg" className="rounded-full h-12 px-8 group bg-background text-foreground hover:bg-background/90">
                   <Link href={`/product/${product.slug}`}>
-                    Shop the drop
+                    {shopLabel}
                     <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </Button>
@@ -84,7 +98,7 @@ export function LimitedDropSpotlight({ product }: { product: Product }) {
                   variant="outline"
                   className="rounded-full h-12 px-8 border-background/30 text-background hover:bg-background/10"
                 >
-                  <Link href="/shop?filter=limited">View all limited</Link>
+                  <Link href="/shop?filter=limited">{viewAllLabel}</Link>
                 </Button>
               </div>
             </motion.div>

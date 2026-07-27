@@ -547,6 +547,20 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["analytics_events"]["Insert"]>;
           Relationships: [];
       };
+      homepage_settings: {
+        Row: {
+          id: string;
+          config: import("@/lib/supabase/database.types").Json;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          config?: import("@/lib/supabase/database.types").Json;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["homepage_settings"]["Insert"]>;
+        Relationships: [];
+      };
     };
   };
 };

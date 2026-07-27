@@ -15,6 +15,7 @@ import { ReviewsSection } from "@/components/admin/sections/reviews-section";
 import { AnalyticsSection } from "@/components/admin/sections/analytics-section";
 import { SettingsSection } from "@/components/admin/sections/settings-section";
 import { AdminGuideSection } from "@/components/admin/admin-guide";
+import { HomepageSection } from "@/components/admin/sections/homepage-section";
 import { ProductFormDialog } from "@/components/admin/product-form-dialog";
 import { useProductStore } from "@/components/providers/product-store";
 import type { Product } from "@/components/providers/ui-provider";
@@ -32,6 +33,7 @@ const VALID_SECTIONS: AdminSection[] = [
   "analytics",
   "settings",
   "guide",
+  "homepage",
 ];
 
 export default function AdminPage() {
@@ -97,6 +99,7 @@ export default function AdminPage() {
         {section === "analytics" && <AnalyticsSection />}
         {section === "settings" && <SettingsSection />}
         {section === "guide" && <AdminGuideSection />}
+        {section === "homepage" && <HomepageSection />}
       </AdminShell>
 
       <ProductFormDialog
