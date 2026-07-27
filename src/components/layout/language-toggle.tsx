@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSyncExternalStore } from "react";
 import { Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,47 +12,78 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-type Lang = "en" | "ar";
+export type Lang = "en" | "ar";
 
 const LANGS: { code: Lang; label: string; native: string; flag: string }[] = [
   { code: "en", label: "English", native: "English", flag: "EN" },
   { code: "ar", label: "Arabic", native: "العربية", flag: "AR" },
 ];
 
-// Lightweight language state shared across the storefront.
-// In production, this would sync with next-intl or a cookie.
 const LANG_KEY = "meme-lang";
-let currentLang: Lang = "en";
-const listeners = new Set<(l: Lang) => void>();
 
-export function setLang(l: Lang) {
-  currentLang = l;
+function getStoredLang(): Lang {
   if (typeof window !== "undefined") {
-    localStorage.setItem(LANG_KEY, l);
+    try {
+      const stored = localStorage.getItem(LANG_KEY);
+      if (stored === "ar" || stored === "en") return stored;
+    } catch {}
+  }
+  return "en";
+}
+
+let currentLang: Lang = getStoredLang();
+const listeners = new Set<() => void>();
+
+function syncDocument(l: Lang) {
+  if (typeof document !== "undefined") {
     document.documentElement.lang = l;
     document.documentElement.dir = l === "ar" ? "rtl" : "ltr";
   }
-  listeners.forEach((fn) => fn(l));
+}
+
+// Immediate initial sync on client evaluation
+if (typeof window !== "undefined") {
+  syncDocument(currentLang);
+}
+
+export function setLang(l: Lang) {
+  if (currentLang === l) return;
+  currentLang = l;
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(LANG_KEY, l);
+    } catch {}
+    syncDocument(l);
+  }
+  listeners.forEach((fn) => fn());
 }
 
 export function getLang(): Lang {
   return currentLang;
 }
 
+function subscribe(callback: () => void) {
+  listeners.add(callback);
+  return () => {
+    listeners.delete(callback);
+  };
+}
+
+function getSnapshot(): Lang {
+  return currentLang;
+}
+
+function getServerSnapshot(): Lang {
+  return "en";
+}
+
 export function useLang(): [Lang, (l: Lang) => void] {
-  const [lang, set] = React.useState<Lang>(currentLang);
+  const lang = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
   React.useEffect(() => {
-    const stored = (typeof window !== "undefined" && localStorage.getItem(LANG_KEY)) as Lang | null;
-    if (stored && stored !== currentLang) {
-      setLang(stored);
-      set(stored);
-    }
-    const fn = (l: Lang) => set(l);
-    listeners.add(fn);
-    return () => {
-      listeners.delete(fn);
-    };
-  }, []);
+    syncDocument(lang);
+  }, [lang]);
+
   return [lang, setLang];
 }
 
