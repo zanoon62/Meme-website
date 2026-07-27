@@ -14,6 +14,24 @@ import {
   Upload,
   Image as ImageIcon,
   X,
+  Megaphone,
+  Sparkles,
+  Award,
+  ShoppingBag,
+  LayoutGrid,
+  Flame,
+  ShieldCheck,
+  MessageSquareQuote,
+  Instagram as InstagramIcon,
+  HelpCircle,
+  FileText,
+  Monitor,
+  Check,
+  ArrowRight,
+  Star,
+  Truck,
+  Shield,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -35,7 +53,6 @@ import { useAdminT } from "@/components/admin/admin-i18n";
 import {
   useHomepageStore,
   useHomepageConfig,
-  DEFAULT_HOMEPAGE_CONFIG,
   type HomepageConfig,
   type HeroSlide,
   type BiLang,
@@ -44,34 +61,121 @@ import { SmartImage as Image } from "@/components/ui/smart-image";
 import { cn } from "@/lib/utils";
 
 // ─────────────────────────────────────────────
-// MAIN SECTION
+// MAIN SECTION (VISUAL PAGE BUILDER)
 // ─────────────────────────────────────────────
 
 export function HomepageSection() {
   const { t, isAr } = useAdminT();
   const config = useHomepageConfig();
   const { toggleVisibility, resetToDefaults, saving } = useHomepageStore();
-  const [expandedKey, setExpandedKey] = React.useState<keyof HomepageConfig | null>(null);
+  const [expandedKey, setExpandedKey] = React.useState<keyof HomepageConfig | null>("hero");
+  const [builderMode, setBuilderMode] = React.useState<"builder" | "list">("builder");
 
   const sections: Array<{
     key: keyof HomepageConfig;
     label: string;
     description: string;
+    icon: React.ElementType;
+    previewType: string;
   }> = [
-    { key: "announcement", label: t("announcementBar"), description: isAr ? "شريط الإعلانات المتحرك في أعلى الموقع" : "The scrolling marquee bar at the top of every page" },
-    { key: "hero", label: t("heroCarousel"), description: isAr ? "شرائح البانر الرئيسي الكبير" : "The large full-screen hero carousel slides" },
-    { key: "sponsors", label: t("sponsorLogos"), description: isAr ? "شريط الماركات المتحرك تحت البانر" : "Scrolling brand logos strip below the hero" },
-    { key: "bestSellers", label: t("bestSellersSection"), description: isAr ? "قسم الأكثر مبيعاً" : "Best Sellers product showcase" },
-    { key: "editorialPremium", label: t("premiumBrandsEditorial"), description: isAr ? "قسم الماركات الفاخرة المقسوم (صورة + نص)" : "Premium Brands split editorial (image + text)" },
-    { key: "newArrivals", label: t("newArrivalsSection"), description: isAr ? "قسم المنتجات الجديدة" : "New Arrivals product showcase" },
-    { key: "limitedDrop", label: t("limitedDropSpotlight"), description: isAr ? "قسم التشكيلة المحدودة" : "Limited drop product spotlight" },
-    { key: "trending", label: t("trendingSection"), description: isAr ? "قسم الرائج الآن" : "Trending products showcase" },
-    { key: "editorialStory", label: t("brandStoryEditorial"), description: isAr ? "قسم قصة الماركة (صورة + نص داكن)" : "Brand story dark editorial (image + text)" },
-    { key: "valueProps", label: t("valuePropSection"), description: isAr ? "شريط مميزات الخدمة الأربعة" : "4-column service value propositions strip" },
-    { key: "reviews", label: t("reviewsSection"), description: isAr ? "تقييمات العملاء" : "Customer reviews showcase" },
-    { key: "instagram", label: t("instagramSection"), description: isAr ? "شريط صور انستاغرام" : "Instagram photo grid strip" },
-    { key: "faq", label: t("faqSection"), description: isAr ? "قسم الأسئلة الشائعة" : "FAQ accordion" },
-    { key: "manifesto", label: t("manifestoSection"), description: isAr ? "البيان والنشرة البريدية في الأسفل" : "Bottom manifesto & newsletter block" },
+    {
+      key: "announcement",
+      label: t("announcementBar"),
+      description: isAr ? "شريط الإعلانات المتحرك في أعلى الموقع" : "The scrolling marquee bar at the top of every page",
+      icon: Megaphone,
+      previewType: "marquee",
+    },
+    {
+      key: "hero",
+      label: t("heroCarousel"),
+      description: isAr ? "شرائح البانر الرئيسي الكبير" : "The large full-screen hero carousel slides",
+      icon: Sparkles,
+      previewType: "hero",
+    },
+    {
+      key: "sponsors",
+      label: t("sponsorLogos"),
+      description: isAr ? "شريط الماركات المتحرك تحت البانر" : "Scrolling brand logos strip below the hero",
+      icon: Award,
+      previewType: "sponsors",
+    },
+    {
+      key: "bestSellers",
+      label: t("bestSellersSection"),
+      description: isAr ? "قسم الأكثر مبيعاً" : "Best Sellers product showcase",
+      icon: ShoppingBag,
+      previewType: "grid",
+    },
+    {
+      key: "editorialPremium",
+      label: t("premiumBrandsEditorial"),
+      description: isAr ? "قسم الماركات الفاخرة المقسوم (صورة + نص)" : "Premium Brands split editorial (image + text)",
+      icon: LayoutGrid,
+      previewType: "split",
+    },
+    {
+      key: "newArrivals",
+      label: t("newArrivalsSection"),
+      description: isAr ? "قسم المنتجات الجديدة" : "New Arrivals product showcase",
+      icon: ShoppingBag,
+      previewType: "grid",
+    },
+    {
+      key: "limitedDrop",
+      label: t("limitedDropSpotlight"),
+      description: isAr ? "قسم التشكيلة المحدودة" : "Limited drop product spotlight",
+      icon: Flame,
+      previewType: "spotlight",
+    },
+    {
+      key: "trending",
+      label: t("trendingSection"),
+      description: isAr ? "قسم الرائج الآن" : "Trending products showcase",
+      icon: Flame,
+      previewType: "grid",
+    },
+    {
+      key: "editorialStory",
+      label: t("brandStoryEditorial"),
+      description: isAr ? "قسم قصة الماركة (صورة + نص داكن)" : "Brand story dark editorial (image + text)",
+      icon: LayoutGrid,
+      previewType: "split",
+    },
+    {
+      key: "valueProps",
+      label: t("valuePropSection"),
+      description: isAr ? "شريط مميزات الخدمة الأربعة" : "4-column service value propositions strip",
+      icon: ShieldCheck,
+      previewType: "valueProps",
+    },
+    {
+      key: "reviews",
+      label: t("reviewsSection"),
+      description: isAr ? "تقييمات العملاء" : "Customer reviews showcase",
+      icon: MessageSquareQuote,
+      previewType: "reviews",
+    },
+    {
+      key: "instagram",
+      label: t("instagramSection"),
+      description: isAr ? "شريط صور انستاغرام" : "Instagram photo grid strip",
+      icon: InstagramIcon,
+      previewType: "instagram",
+    },
+    {
+      key: "faq",
+      label: t("faqSection"),
+      description: isAr ? "قسم الأسئلة الشائعة" : "FAQ accordion",
+      icon: HelpCircle,
+      previewType: "faq",
+    },
+    {
+      key: "manifesto",
+      label: t("manifestoSection"),
+      description: isAr ? "البيان والنشرة البريدية في الأسفل" : "Bottom manifesto & newsletter block",
+      icon: FileText,
+      previewType: "manifesto",
+    },
   ];
 
   const handleReset = () => {
@@ -80,87 +184,466 @@ export function HomepageSection() {
     toast.success(isAr ? "تم إعادة الضبط الافتراضي" : "Reset to factory defaults");
   };
 
+  const activeSectionInfo = sections.find((s) => s.key === expandedKey);
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      {/* Header & Mode Switcher */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-5">
         <div>
-          <h2 className="font-display text-2xl">{t("homepageSections")}</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="font-display text-2xl tracking-tight">{t("homepageSections")}</h2>
+            <Badge variant="outline" className="text-xs border-[#f6ec91]/50 text-[#f6ec91] bg-[#f6ec91]/10">
+              {isAr ? "مُحرّر واجهة الأتيليه التفاعلي" : "Visual Page Builder"}
+            </Badge>
+          </div>
           <p className="text-sm text-muted-foreground mt-1">{t("manageHomepage")}</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleReset}
-          className="shrink-0"
-        >
-          <RotateCcw className="h-4 w-4 mr-1.5" />
-          {t("resetDefaults")}
-        </Button>
+
+        <div className="flex items-center gap-3">
+          {/* Builder / List View Toggle */}
+          <div className="inline-flex p-1 rounded-lg bg-accent/40 border border-border/60">
+            <button
+              onClick={() => setBuilderMode("builder")}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                builderMode === "builder"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Monitor className="h-3.5 w-3.5" />
+              {isAr ? "المعاينة التفاعلية المباشرة" : "Visual Page Builder"}
+            </button>
+            <button
+              onClick={() => setBuilderMode("list")}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                builderMode === "list"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              {isAr ? "عرض قائمة الأقسام" : "Section List"}
+            </button>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleReset}
+            className="shrink-0"
+          >
+            <RotateCcw className="h-4 w-4 mr-1.5" />
+            {t("resetDefaults")}
+          </Button>
+        </div>
       </div>
 
       {/* Saving indicator */}
       {saving && (
-        <p className="text-xs text-muted-foreground animate-pulse">
-          {isAr ? "جاري الحفظ…" : "Saving changes to Supabase…"}
+        <p className="text-xs text-muted-foreground animate-pulse flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-[#f6ec91] animate-ping" />
+          {isAr ? "جاري حفظ التغييرات وتحديث المتجر المباشر…" : "Saving changes and updating live storefront…"}
         </p>
       )}
 
-      {/* Section cards */}
-      <div className="space-y-3">
-        {sections.map(({ key, label, description }) => {
-          const section = config[key] as { visible: boolean };
-          const isExpanded = expandedKey === key;
+      {/* Mode 1: Split-Screen Visual Builder */}
+      {builderMode === "builder" ? (
+        <div className="grid lg:grid-cols-12 gap-6 items-start">
+          {/* Left Column: Interactive Live Homepage Viewport */}
+          <div className="lg:col-span-5 space-y-3 sticky top-4 max-h-[85vh] overflow-y-auto pr-1">
+            <div className="flex items-center justify-between px-2 mb-1">
+              <p className="text-xs uppercase tracking-[0.2em] font-medium text-muted-foreground">
+                {isAr ? "خريطة الموقع التفاعلية (انقر للتعديل)" : "Live Page Outline (Click section to edit)"}
+              </p>
+              <Badge variant="secondary" className="text-[10px]">14 {isAr ? "أقسام" : "sections"}</Badge>
+            </div>
 
-          return (
-            <Card key={key} className="overflow-hidden">
-              {/* Card header row */}
-              <div className="flex items-center gap-4 px-5 py-4">
-                {/* Visibility toggle */}
-                <Switch
-                  id={`toggle-${key}`}
-                  checked={section.visible}
-                  onCheckedChange={() => toggleVisibility(key)}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium">{label}</p>
-                    <Badge
-                      variant={section.visible ? "default" : "secondary"}
-                      className="text-[10px] shrink-0"
-                    >
-                      {section.visible ? t("sectionVisible") : t("sectionHidden")}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{description}</p>
-                </div>
-                {/* Expand/collapse edit */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setExpandedKey(isExpanded ? null : key)}
-                  className="shrink-0"
+            {sections.map(({ key, label, description, icon: Icon, previewType }) => {
+              const sectionConfig = config[key] as { visible: boolean };
+              const isSelected = expandedKey === key;
+
+              return (
+                <div
+                  key={key}
+                  onClick={() => setExpandedKey(key)}
+                  className={cn(
+                    "group relative p-3.5 rounded-xl border transition-all cursor-pointer overflow-hidden",
+                    isSelected
+                      ? "border-[#f6ec91] bg-card shadow-lg ring-1 ring-[#f6ec91]/50"
+                      : "border-border/60 bg-card/50 hover:border-border hover:bg-card/80"
+                  )}
                 >
-                  <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                  {t("editSection")}
-                  {isExpanded
-                    ? <ChevronUp className="h-3.5 w-3.5 ml-1" />
-                    : <ChevronDown className="h-3.5 w-3.5 ml-1" />}
-                </Button>
-              </div>
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                      isSelected ? "bg-[#f6ec91] text-zinc-950" : "bg-muted text-muted-foreground group-hover:text-foreground"
+                    )}>
+                      <Icon className="h-4 w-4" />
+                    </div>
 
-              {/* Inline editor */}
-              {isExpanded && (
-                <div className="border-t border-border/60 px-5 pb-6 pt-4 bg-accent/20">
-                  <SectionEditor sectionKey={key} onSaved={() => setExpandedKey(null)} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold truncate">{label}</p>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge
+                            variant={sectionConfig.visible ? "default" : "secondary"}
+                            className="text-[9px] px-1.5 py-0"
+                          >
+                            {sectionConfig.visible ? t("sectionVisible") : t("sectionHidden")}
+                          </Badge>
+                          <Switch
+                            id={`builder-toggle-${key}`}
+                            checked={sectionConfig.visible}
+                            onCheckedChange={() => toggleVisibility(key)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground truncate mt-0.5">{description}</p>
+                    </div>
+                  </div>
+
+                  {/* Visual Wireframe Graphic Preview Badge */}
+                  <div className="mt-2.5 pt-2 border-t border-border/40 flex items-center justify-between">
+                    <SectionMiniWireframe type={previewType} isVisible={sectionConfig.visible} />
+                    {isSelected && (
+                      <span className="text-[10px] text-[#f6ec91] font-medium flex items-center gap-1">
+                        <Pencil className="h-3 w-3" />
+                        {isAr ? "قيد التعديل الآن" : "Editing now"}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              )}
-            </Card>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+
+          {/* Right Column: Visual Section Live Preview + Form Editor */}
+          <div className="lg:col-span-7 space-y-4">
+            {expandedKey ? (
+              <Card className="overflow-hidden border-border/80 shadow-xl bg-card">
+                {/* Editor Header Banner */}
+                <div className="bg-zinc-900 text-white p-5 border-b border-zinc-800 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {activeSectionInfo && (
+                      <div className="w-10 h-10 rounded-lg bg-[#f6ec91] text-zinc-950 flex items-center justify-center shrink-0">
+                        <activeSectionInfo.icon className="h-5 w-5" />
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-display text-lg tracking-tight text-white">
+                          {activeSectionInfo?.label}
+                        </h3>
+                        <Badge
+                          variant={(config[expandedKey] as { visible: boolean }).visible ? "default" : "secondary"}
+                          className="text-[10px]"
+                        >
+                          {(config[expandedKey] as { visible: boolean }).visible ? t("sectionVisible") : t("sectionHidden")}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-zinc-400 mt-0.5">{activeSectionInfo?.description}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      checked={(config[expandedKey] as { visible: boolean }).visible}
+                      onCheckedChange={() => toggleVisibility(expandedKey)}
+                    />
+                  </div>
+                </div>
+
+                {/* Real-time Interactive Section Live Preview Card */}
+                <div className="p-4 bg-black/90 border-b border-zinc-800">
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-[#f6ec91]">
+                      {isAr ? "معاينة القسم المباشرة" : "Live Section Preview"}
+                    </span>
+                    <span className="text-[10px] text-zinc-400">
+                      {isAr ? "تتغير المحتويات تلقائياً عند الكتابة" : "Updates in real-time as you edit"}
+                    </span>
+                  </div>
+
+                  <div className="rounded-lg border border-zinc-800 overflow-hidden bg-background">
+                    <LiveSectionPreview sectionKey={expandedKey} />
+                  </div>
+                </div>
+
+                {/* Form Fields Editor */}
+                <div className="p-6">
+                  <SectionEditor sectionKey={expandedKey} onSaved={() => {}} />
+                </div>
+              </Card>
+            ) : (
+              <Card className="p-12 text-center text-muted-foreground border-dashed">
+                <Monitor className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+                <p className="text-sm font-medium">{isAr ? "اختر أي قسم من القائمة على اليسار لتعديله مباشرة" : "Select any section from the left list to edit"}</p>
+              </Card>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Mode 2: Enhanced Section List View */
+        <div className="space-y-3">
+          {sections.map(({ key, label, description, icon: Icon, previewType }) => {
+            const section = config[key] as { visible: boolean };
+            const isExpanded = expandedKey === key;
+
+            return (
+              <Card key={key} className={cn(
+                "overflow-hidden transition-all",
+                isExpanded && "ring-1 ring-[#f6ec91]/60 border-[#f6ec91]/50"
+              )}>
+                {/* Card header row */}
+                <div className="flex items-center gap-4 px-5 py-4">
+                  <Switch
+                    id={`list-toggle-${key}`}
+                    checked={section.visible}
+                    onCheckedChange={() => toggleVisibility(key)}
+                  />
+                  <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center shrink-0">
+                    <Icon className="h-4 w-4 text-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">{label}</p>
+                      <Badge
+                        variant={section.visible ? "default" : "secondary"}
+                        className="text-[10px] shrink-0"
+                      >
+                        {section.visible ? t("sectionVisible") : t("sectionHidden")}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{description}</p>
+                  </div>
+                  {/* Expand/collapse edit */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setExpandedKey(isExpanded ? null : key)}
+                    className="shrink-0"
+                  >
+                    <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                    {t("editSection")}
+                    {isExpanded
+                      ? <ChevronUp className="h-3.5 w-3.5 ml-1" />
+                      : <ChevronDown className="h-3.5 w-3.5 ml-1" />}
+                  </Button>
+                </div>
+
+                {/* Inline editor + Live Preview */}
+                {isExpanded && (
+                  <div className="border-t border-border/60 px-5 pb-6 pt-4 bg-accent/15 space-y-5">
+                    {/* Live preview header */}
+                    <div className="rounded-lg border border-border/80 overflow-hidden bg-black/90 p-4">
+                      <p className="text-[10px] uppercase tracking-[0.2em] font-semibold text-[#f6ec91] mb-2">
+                        {isAr ? "معاينة القسم المباشرة" : "Live Section Preview"}
+                      </p>
+                      <div className="rounded border border-zinc-800 bg-background overflow-hidden">
+                        <LiveSectionPreview sectionKey={key} />
+                      </div>
+                    </div>
+
+                    <SectionEditor sectionKey={key} onSaved={() => setExpandedKey(null)} />
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
+}
+
+// ─────────────────────────────────────────────
+// MINI SECTION WIREFRAME GRAPHIC BADGES
+// ─────────────────────────────────────────────
+
+function SectionMiniWireframe({ type, isVisible }: { type: string; isVisible: boolean }) {
+  if (!isVisible) {
+    return <span className="text-[10px] text-muted-foreground italic">مخفي من الصفحة الرئيسية</span>;
+  }
+
+  switch (type) {
+    case "hero":
+      return (
+        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <span className="w-12 h-3 rounded bg-amber-400/30 border border-amber-400/50 block" />
+          <span>بانر رئيسي ملء الشاشة</span>
+        </div>
+      );
+    case "marquee":
+      return (
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <span className="w-16 h-2 rounded bg-[#f6ec91]/40 block" />
+          <span>شريط متحرك</span>
+        </div>
+      );
+    case "grid":
+      return (
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <div className="grid grid-cols-4 gap-0.5 w-12">
+            {[1, 2, 3, 4].map((i) => (
+              <span key={i} className="h-2 bg-muted rounded-xs block" />
+            ))}
+          </div>
+          <span>عرض منتجات</span>
+        </div>
+      );
+    case "split":
+      return (
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <span className="w-5 h-3 bg-muted rounded-xs block" />
+          <span className="w-6 h-2 bg-muted-foreground/30 rounded-xs block" />
+          <span>مقسوم (صورة + نص)</span>
+        </div>
+      );
+    case "valueProps":
+      return (
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <span className="w-3 h-3 rounded-full bg-emerald-400/30 block" />
+          <span className="w-3 h-3 rounded-full bg-emerald-400/30 block" />
+          <span className="w-3 h-3 rounded-full bg-emerald-400/30 block" />
+          <span>المميزات</span>
+        </div>
+      );
+    default:
+      return <span className="text-[10px] text-muted-foreground">قسم تفاعلي</span>;
+  }
+}
+
+// ─────────────────────────────────────────────
+// REAL-TIME INTERACTIVE LIVE SECTION PREVIEW
+// ─────────────────────────────────────────────
+
+function LiveSectionPreview({ sectionKey }: { sectionKey: keyof HomepageConfig }) {
+  const config = useHomepageConfig();
+  const { isAr } = useAdminT();
+
+  switch (sectionKey) {
+    case "announcement": {
+      const items = config.announcement.items.filter((i) => i.visible);
+      return (
+        <div className="bg-black text-[#f6ec91] text-xs py-2.5 px-4 font-mono truncate text-center">
+          {items.map((it) => (isAr ? it.ar : it.en)).join("  •  ") || "—"}
+        </div>
+      );
+    }
+    case "hero": {
+      const slide = config.hero.slides[0];
+      if (!slide) return null;
+      return (
+        <div className="relative aspect-[21/9] bg-zinc-950 text-white flex flex-col justify-end p-5 overflow-hidden">
+          {slide.image && (
+            <Image src={slide.image} alt="Hero" fill sizes="600px" className="object-cover opacity-50" />
+          )}
+          <div className="relative z-10">
+            <p className="text-[9px] uppercase tracking-[0.2em] text-[#f6ec91] mb-1">
+              {isAr ? slide.eyebrow.ar : slide.eyebrow.en}
+            </p>
+            <h4 className="font-display text-xl sm:text-2xl leading-tight">
+              {isAr ? slide.headline.ar : slide.headline.en}{" "}
+              <span className="italic font-light text-[#f6ec91]">
+                {isAr ? slide.italicTail.ar : slide.italicTail.en}
+              </span>
+            </h4>
+          </div>
+        </div>
+      );
+    }
+    case "sponsors": {
+      const s = config.sponsors;
+      return (
+        <div className="bg-black text-white p-4 text-center">
+          <p className="text-[9px] uppercase tracking-[0.2em] text-[#f6ec91]">
+            {isAr ? s.eyebrow.ar : s.eyebrow.en}
+          </p>
+          <p className="text-xs text-zinc-400 mt-1">{isAr ? s.subtext.ar : s.subtext.en}</p>
+        </div>
+      );
+    }
+    case "bestSellers":
+    case "newArrivals":
+    case "trending": {
+      const s = config[sectionKey];
+      return (
+        <div className="p-4 bg-background text-foreground space-y-3">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+            {isAr ? s.eyebrow.ar : s.eyebrow.en}
+          </p>
+          <h4 className="font-display text-lg">
+            {isAr ? s.title.ar : s.title.en}{" "}
+            <span className="italic font-light opacity-80">
+              {isAr ? s.italicTail.ar : s.italicTail.en}
+            </span>
+          </h4>
+          <div className="grid grid-cols-4 gap-2 pt-1">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="aspect-[3/4] bg-muted rounded-sm flex items-center justify-center text-[10px] text-muted-foreground">
+                منتج {i}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    case "editorialPremium":
+    case "editorialStory": {
+      const s = config[sectionKey];
+      const isDark = sectionKey === "editorialStory";
+      return (
+        <div className={cn("p-5 grid grid-cols-2 gap-4 items-center", isDark ? "bg-zinc-950 text-white" : "bg-background text-foreground")}>
+          <div className="relative aspect-[4/3] rounded overflow-hidden bg-muted">
+            {s.image && <Image src={s.image} alt="Preview" fill sizes="300px" className="object-cover" />}
+          </div>
+          <div>
+            <p className="text-[9px] uppercase tracking-[0.2em] opacity-70 mb-1">
+              {isAr ? s.eyebrow.ar : s.eyebrow.en}
+            </p>
+            <h4 className="font-display text-lg leading-tight mb-2">
+              {isAr ? s.title.ar : s.title.en}
+            </h4>
+            <p className="text-xs opacity-80 line-clamp-2">
+              {isAr ? s.body.ar[0] : s.body.en[0]}
+            </p>
+          </div>
+        </div>
+      );
+    }
+    case "valueProps": {
+      const items = config.valueProps.items.filter((i) => i.visible);
+      return (
+        <div className="p-4 bg-accent/30 grid grid-cols-4 gap-2">
+          {items.map((it, idx) => (
+            <div key={idx} className="p-2 border border-border/50 rounded bg-background text-center space-y-1">
+              <ShieldCheck className="h-4 w-4 mx-auto text-[#f6ec91]" />
+              <p className="text-[10px] font-medium truncate">{isAr ? it.ar : it.en}</p>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    case "manifesto": {
+      const s = config.manifesto;
+      return (
+        <div className="bg-black text-white p-6 text-center">
+          <p className="text-[9px] uppercase tracking-[0.2em] text-[#f6ec91] mb-1">
+            {isAr ? s.eyebrow.ar : s.eyebrow.en}
+          </p>
+          <h4 className="font-display text-xl leading-tight">
+            {isAr ? s.headline.ar : s.headline.en}
+          </h4>
+        </div>
+      );
+    }
+    default:
+      return <div className="p-4 text-xs text-center text-muted-foreground">معاينة تفاعلية قسم الصفحة الرئيسية</div>;
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -300,8 +783,8 @@ function ImageUploadField({
         />
       </div>
       {value && (
-        <div className="relative w-24 h-16 rounded overflow-hidden border border-border/60">
-          <Image src={value} alt="Preview" fill sizes="96px" className="object-cover" />
+        <div className="relative w-28 h-16 rounded overflow-hidden border border-border/60">
+          <Image src={value} alt="Preview" fill sizes="112px" className="object-cover" />
         </div>
       )}
     </div>
@@ -312,7 +795,7 @@ function SaveRow({ onSave, onCancel }: { onSave: () => void; onCancel: () => voi
   const { t } = useAdminT();
   return (
     <div className="flex gap-2 pt-4 border-t border-border/40">
-      <Button size="sm" onClick={onSave}>
+      <Button size="sm" onClick={onSave} className="bg-[#f6ec91] text-zinc-950 hover:bg-[#f6ec91]/90 font-medium">
         <Save className="h-3.5 w-3.5 mr-1.5" />
         {t("saveSection")}
       </Button>
@@ -408,7 +891,7 @@ function AnnouncementEditor({ onSaved }: { onSaved: () => void }) {
 }
 
 // ─────────────────────────────────────────────
-// HERO CAROUSEL EDITOR (full CRUD per slide)
+// HERO CAROUSEL EDITOR
 // ─────────────────────────────────────────────
 
 const EMPTY_SLIDE = (): HeroSlide => ({
@@ -429,7 +912,7 @@ function HeroEditor({ onSaved }: { onSaved: () => void }) {
   const config = useHomepageConfig();
   const { updateSection } = useHomepageStore();
   const [slides, setSlides] = React.useState<HeroSlide[]>(config.hero.slides);
-  const [expandedSlide, setExpandedSlide] = React.useState<string | null>(null);
+  const [expandedSlide, setExpandedSlide] = React.useState<string | null>(slides[0]?.id ?? null);
 
   const updateSlide = (idx: number, patch: Partial<HeroSlide>) => {
     const next = [...slides];
@@ -457,15 +940,15 @@ function HeroEditor({ onSaved }: { onSaved: () => void }) {
         {isAr ? "أضف أو أزل أو رتب شرائح البانر الرئيسي. كل شريحة يمكن إخفاؤها بشكل مستقل." : "Add, remove, or reorder hero carousel slides. Each slide can be individually hidden."}
       </p>
       {slides.map((slide, i) => (
-        <Card key={slide.id} className="overflow-hidden">
+        <Card key={slide.id} className="overflow-hidden border-border/60">
           {/* Slide header */}
-          <div className="flex items-center gap-3 px-4 py-3">
+          <div className="flex items-center gap-3 px-4 py-3 bg-card/60">
             <Switch
               checked={slide.visible}
               onCheckedChange={(v) => updateSlide(i, { visible: v })}
             />
             <p className="text-sm font-medium flex-1 truncate">
-              {t("slideN")} {i + 1}: {slide.headline.en || "—"}
+              {t("slideN")} {i + 1}: {slide.headline.en || (isAr ? "شريحة جديدة" : "New Slide")}
             </p>
             <div className="flex items-center gap-1">
               <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => moveSlide(i, -1)} disabled={i === 0}>
@@ -580,7 +1063,7 @@ function SponsorsEditor({ onSaved }: { onSaved: () => void }) {
 }
 
 // ─────────────────────────────────────────────
-// SHOWCASE SECTION EDITOR (bestSellers, newArrivals, trending)
+// SHOWCASE SECTION EDITOR
 // ─────────────────────────────────────────────
 
 type ShowcaseKey = "bestSellers" | "newArrivals" | "trending";
@@ -614,7 +1097,7 @@ function ShowcaseEditor({ sectionKey, onSaved }: { sectionKey: ShowcaseKey; onSa
 }
 
 // ─────────────────────────────────────────────
-// EDITORIAL EDITOR (editorialPremium, editorialStory)
+// EDITORIAL EDITOR
 // ─────────────────────────────────────────────
 
 type EditorialKey = "editorialPremium" | "editorialStory";
@@ -657,7 +1140,6 @@ function EditorialEditor({ sectionKey, onSaved }: { sectionKey: EditorialKey; on
       <BiLangField label={t("headline")} value={title} onChange={setTitle} />
       <BiLangField label={t("italicTail")} value={italicTail} onChange={setItalicTail} />
 
-      {/* Body paragraphs */}
       <div className="space-y-2">
         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("bodyText")} (English)</Label>
         {bodyEn.map((para, i) => (
@@ -713,7 +1195,6 @@ function EditorialEditor({ sectionKey, onSaved }: { sectionKey: EditorialKey; on
         <Input value={ctaHref} onChange={(e) => setCtaHref(e.target.value)} className="mt-1 text-xs" placeholder="/shop" />
       </div>
 
-      {/* Stats */}
       <div className="space-y-2">
         <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Stats</Label>
         {stats.map((s, i) => (
@@ -994,7 +1475,7 @@ function ManifestoEditor({ onSaved }: { onSaved: () => void }) {
 }
 
 // ─────────────────────────────────────────────
-// SIMPLE VISIBILITY (limitedDrop — no editable text)
+// SIMPLE VISIBILITY
 // ─────────────────────────────────────────────
 
 function SimpleVisibilityEditor({ sectionKey, onSaved }: { sectionKey: keyof HomepageConfig; onSaved: () => void }) {
