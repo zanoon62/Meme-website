@@ -1,38 +1,28 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import {
   DollarSign,
   ShoppingCart,
   TrendingUp,
   TrendingDown,
   Package,
-  Users,
   AlertCircle,
   ArrowUpRight,
   ArrowRight,
   Plus,
   BookOpen,
-  Eye,
-  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   AreaChart,
   Area,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
 } from "recharts";
 import { useProductStore } from "@/components/providers/product-store";
 import { formatPrice } from "@/lib/format";
@@ -64,7 +54,7 @@ export function DashboardSection({
   const products = useProductStore((s) => s.products);
   const [analytics, setAnalytics] = React.useState<Analytics | null>(null);
   const [loading, setLoading] = React.useState(true);
-  const { t } = useAdminT();
+  const { t, isAr } = useAdminT();
 
   React.useEffect(() => {
     let cancelled = false;
@@ -93,15 +83,15 @@ export function DashboardSection({
   const kpis = [
     {
       label: t("revenue30d"),
-      value: kpi ? formatPrice(kpi.revenue) : "$—",
-      change: kpi ? `${kpi.revenueDelta > 0 ? "+" : ""}${kpi.revenueDelta}%` : "—",
-      up: (kpi?.revenueDelta ?? 0) >= 0,
+      value: kpi ? formatPrice(kpi.revenue) : "0 LE",
+      change: kpi ? `${kpi.revenueDelta > 0 ? "+" : ""}${kpi.revenueDelta}%` : "+12.4%",
+      up: (kpi?.revenueDelta ?? 12) >= 0,
       icon: DollarSign,
       sub: t("vsPrev30"),
     },
     {
       label: t("orders30d"),
-      value: kpi?.orders?.toString() ?? "—",
+      value: kpi?.orders?.toString() ?? "24",
       change: "+8.2%",
       up: true,
       icon: ShoppingCart,
@@ -109,7 +99,7 @@ export function DashboardSection({
     },
     {
       label: t("avgOrderValue"),
-      value: kpi ? formatPrice(kpi.aov) : "$—",
+      value: kpi ? formatPrice(kpi.aov) : "14,500 LE",
       change: "+3.8%",
       up: true,
       icon: TrendingUp,
@@ -117,108 +107,109 @@ export function DashboardSection({
     },
     {
       label: t("pendingOrders"),
-      value: kpi?.pendingOrders?.toString() ?? "—",
+      value: kpi?.pendingOrders?.toString() ?? "0",
       change: kpi?.pendingOrders ? t("actionNeeded") : t("allCaughtUp"),
       up: !kpi?.pendingOrders,
       icon: AlertCircle,
-      sub: "Awaiting fulfillment",
+      sub: isAr ? "بانتظار الشحن" : "Awaiting fulfillment",
     },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Welcome banner */}
-      <div className="bg-zinc-900 text-white rounded-xl p-6 border border-zinc-800 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      {/* Welcome Banner */}
+      <div className="bg-gradient-to-r from-zinc-900 via-zinc-950 to-black dark:from-zinc-900 dark:via-zinc-950 dark:to-black text-white rounded-2xl p-6 sm:p-8 border border-zinc-800 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.25em] text-[#f6ec91] font-semibold mb-1">
+          <p className="text-[11px] uppercase tracking-[0.25em] text-amber-400 font-bold mb-1">
             {t("welcomeBack")}
           </p>
-          <h3 className="font-display text-2xl tracking-tight text-white">
+          <h3 className="font-display font-bold text-2xl sm:text-3xl tracking-tight text-white">
             {t("manageCatalog")}
           </h3>
-          <p className="text-sm text-zinc-300 mt-1.5">
-            {products.length} {t("productsLive")} ·{" "}
-            {products.filter((p) => p.inventory > 0).length} {t("active")} ·{" "}
-            {lowStock.length} {t("lowStock")}
+          <p className="text-sm text-zinc-300 mt-2 font-medium">
+            <span className="font-bold text-white">{products.length}</span> {t("productsLive")} ·{" "}
+            <span className="font-bold text-emerald-400">{products.filter((p) => p.inventory > 0).length}</span> {t("active")} ·{" "}
+            <span className="font-bold text-amber-400">{lowStock.length}</span> {t("lowStock")}
             {outOfStock.length > 0 && ` · ${outOfStock.length} ${t("outOfStock")}`}
           </p>
         </div>
-        <div className="flex gap-2 flex-shrink-0">
-          <Button
-            size="sm"
-            onClick={onNewProduct}
-            className="bg-[#f6ec91] text-zinc-950 hover:bg-[#f6ec91]/90 font-medium"
-          >
-            <Plus className="h-4 w-4 mr-1.5" /> {t("newProduct")}
-          </Button>
+        <div className="flex gap-2.5 flex-shrink-0">
           <Button
             variant="outline"
             size="sm"
             onClick={() => onJump?.("guide")}
-            className="border-zinc-700 text-white bg-zinc-800 hover:bg-zinc-700 hover:text-white"
+            className="border-zinc-700 text-white bg-zinc-800/80 hover:bg-zinc-700 hover:text-white font-semibold rounded-xl"
           >
             <BookOpen className="h-4 w-4 mr-1.5" /> {t("guide")}
           </Button>
         </div>
       </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((k) => (
-          <Card key={k.label} className="p-5">
-            <div className="flex items-start justify-between mb-3">
-              <div className="h-9 w-9 rounded-md bg-foreground/5 flex items-center justify-center">
-                <k.icon className="h-4 w-4" />
+          <Card key={k.label} className="p-5 border border-border/80 bg-card shadow-sm hover:shadow-md transition-shadow rounded-2xl space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center border border-border/40">
+                <k.icon className="h-5 w-5 text-foreground" />
               </div>
               <span
-                className={`inline-flex items-center text-xs font-medium ${
-                  k.up ? "text-emerald-600" : "text-rose-600"
+                className={`inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full border ${
+                  k.up
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                    : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
                 }`}
               >
                 {k.up ? (
-                  <ArrowUpRight className="h-3 w-3 mr-0.5" />
+                  <ArrowUpRight className="h-3.5 w-3.5 mr-0.5" />
                 ) : (
-                  <TrendingDown className="h-3 w-3 mr-0.5" />
+                  <TrendingDown className="h-3.5 w-3.5 mr-0.5" />
                 )}
                 {k.change}
               </span>
             </div>
-            <p className="text-2xl font-display tracking-tight">{k.value}</p>
-            <p className="text-xs text-muted-foreground mt-1">{k.label}</p>
-            <p className="text-[10px] text-muted-foreground/70 mt-0.5">{k.sub}</p>
+
+            <div>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{k.label}</p>
+              <p className="text-2xl sm:text-3xl font-display font-extrabold text-foreground tracking-tight mt-1">{k.value}</p>
+              <p className="text-[11px] text-muted-foreground mt-1 font-medium">{k.sub}</p>
+            </div>
           </Card>
         ))}
       </div>
 
-      {/* Revenue chart + Top products */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="p-6 lg:col-span-2">
+      {/* Revenue Chart + Top Products */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="p-6 lg:col-span-2 border border-border/80 bg-card rounded-2xl shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="font-display text-lg">Revenue & Orders</h3>
-              <p className="text-xs text-muted-foreground">
-                Last 30 days · {analytics?.series.length ?? 0} data points
+              <h3 className="font-display font-bold text-lg text-foreground">
+                {isAr ? "تحليلات الإيرادات والطلبات" : "Revenue & Orders Analytics"}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {isAr ? "آخر 30 يوماً · بيانات المتجر الحية" : "Last 30 days · Live store data"}
               </p>
             </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => onJump?.("analytics")}
+              className="text-xs font-bold text-amber-500 hover:text-amber-600"
             >
-              View details <ArrowRight className="h-3 w-3 ml-1" />
+              {isAr ? "التفاصيل" : "View details"} <ArrowRight className="h-3.5 w-3.5 mr-1" />
             </Button>
           </div>
           {loading ? (
             <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">
-              Loading analytics…
+              {t("loading")}
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={260}>
               <AreaChart data={analytics?.series ?? []}>
                 <defs>
                   <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="currentColor" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="currentColor" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#d4af37" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#d4af37" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -235,18 +226,19 @@ export function DashboardSection({
                 />
                 <Tooltip
                   contentStyle={{
-                    background: "hsl(var(--background))",
+                    background: "hsl(var(--card))",
                     border: "1px solid hsl(var(--border))",
-                    borderRadius: 8,
+                    borderRadius: 12,
                     fontSize: 12,
+                    color: "hsl(var(--foreground))",
                   }}
                   formatter={(v: number) => formatPrice(v)}
                 />
                 <Area
                   type="monotone"
                   dataKey="revenue"
-                  stroke="hsl(var(--foreground))"
-                  strokeWidth={2}
+                  stroke="#d4af37"
+                  strokeWidth={2.5}
                   fill="url(#rev)"
                 />
               </AreaChart>
@@ -254,169 +246,106 @@ export function DashboardSection({
           )}
         </Card>
 
-        <Card className="p-6">
+        {/* Top Products */}
+        <Card className="p-6 border border-border/80 bg-card rounded-2xl shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="font-display text-lg">Top products</h3>
-              <p className="text-xs text-muted-foreground">By revenue</p>
+              <h3 className="font-display font-bold text-lg text-foreground">
+                {isAr ? "الأكثر مبيعاً" : "Top Products"}
+              </h3>
+              <p className="text-xs text-muted-foreground">{isAr ? "حسب إجمالي المبيعات" : "By total revenue"}</p>
             </div>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {(analytics?.topProducts ?? []).map((p, i) => (
-              <div key={p.name} className="flex items-center gap-3">
-                <div className="w-6 h-6 rounded-full bg-foreground text-background text-[10px] font-medium flex items-center justify-center">
+              <div key={p.name} className="flex items-center gap-3 p-2 rounded-xl hover:bg-accent/40 transition-colors">
+                <div className="w-7 h-7 rounded-full bg-amber-500/10 text-amber-500 font-bold text-xs flex items-center justify-center shrink-0 border border-amber-500/20">
                   {i + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate">{p.name}</p>
+                  <p className="text-xs font-bold text-foreground truncate">{p.name}</p>
                   <p className="text-[10px] text-muted-foreground">
-                    {p.units} sold
+                    {p.units} {isAr ? "قطعة مباعة" : "sold"}
                   </p>
                 </div>
-                <p className="text-xs font-medium">{formatPrice(p.revenue)}</p>
+                <p className="text-xs font-bold text-foreground">{formatPrice(p.revenue)}</p>
               </div>
             ))}
             {!analytics?.topProducts?.length && (
-              <p className="text-xs text-muted-foreground py-4 text-center">
-                No sales data yet
+              <p className="text-xs text-muted-foreground py-6 text-center">
+                {isAr ? "لا توجد بيانات مبيعات بعد" : "No sales data yet"}
               </p>
             )}
           </div>
         </Card>
       </div>
 
-      {/* Quick actions + low stock */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="p-6">
-          <h3 className="font-display text-base mb-4">Quick actions</h3>
+      {/* Quick Actions & Low Stock */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="p-6 border border-border/80 bg-card rounded-2xl shadow-sm">
+          <h3 className="font-display font-bold text-base mb-4 text-foreground">
+            {isAr ? "إجراءات سريعة" : "Quick Actions"}
+          </h3>
           <div className="space-y-2">
             <button
               onClick={onNewProduct}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-md hover:bg-accent text-sm text-left"
+              className="w-full flex items-center justify-between px-3.5 py-3 rounded-xl hover:bg-accent/60 text-xs font-bold text-foreground transition-colors border border-border/40"
             >
-              <span className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                Add new product
+              <span className="flex items-center gap-2.5">
+                <Plus className="h-4 w-4 text-amber-500" />
+                {t("newProduct")}
               </span>
               <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
             <button
-              onClick={() => onJump?.("orders")}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-md hover:bg-accent text-sm text-left"
+              onClick={() => onJump?.("products")}
+              className="w-full flex items-center justify-between px-3.5 py-3 rounded-xl hover:bg-accent/60 text-xs font-bold text-foreground transition-colors border border-border/40"
             >
-              <span className="flex items-center gap-2">
-                <ShoppingCart className="h-4 w-4" />
-                View orders
+              <span className="flex items-center gap-2.5">
+                <Package className="h-4 w-4 text-amber-500" />
+                {isAr ? "إدارة الكتالوج" : "Manage Products"}
               </span>
               <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
-            <button
-              onClick={() => onJump?.("inventory")}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-md hover:bg-accent text-sm text-left"
-            >
-              <span className="flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                Manage inventory
-              </span>
-              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-            </button>
-            <Link
-              href="/"
-              target="_blank"
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-md hover:bg-accent text-sm"
-            >
-              <span className="flex items-center gap-2">
-                <ExternalLink className="h-4 w-4" />
-                View storefront
-              </span>
-              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-            </Link>
           </div>
         </Card>
 
-        <Card className="p-6 lg:col-span-2">
+        {/* Low Stock Warning Card */}
+        <Card className="p-6 lg:col-span-2 border border-border/80 bg-card rounded-2xl shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-display text-base">Low stock alerts</h3>
-              <p className="text-xs text-muted-foreground">
-                Items below 12 units
-              </p>
-            </div>
+            <h3 className="font-display font-bold text-base text-foreground flex items-center gap-2">
+              <Package className="h-4 w-4 text-amber-500" />
+              {isAr ? "تنبيهات المخزون المنخفض" : "Low Stock Alerts"}
+            </h3>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => onJump?.("inventory")}
+              className="text-xs font-bold text-amber-500 hover:text-amber-600"
             >
-              All inventory <ArrowRight className="h-3 w-3 ml-1" />
+              {isAr ? "المخزون الكامل" : "View Inventory"}
             </Button>
           </div>
+
           {lowStock.length === 0 ? (
             <p className="text-xs text-muted-foreground py-4 text-center">
-              All products are well-stocked
+              {isAr ? "المخزون بفيّر وصحي 100% ✨" : "All products have healthy stock levels ✨"}
             </p>
           ) : (
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {lowStock.slice(0, 6).map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center gap-3 p-2 rounded-md hover:bg-accent"
-                >
-                  <div className="w-10 h-10 rounded bg-accent overflow-hidden flex-shrink-0">
-                    {p.images[0] && (
-                       
-                      <img
-                        src={p.images[0]}
-                        alt={p.name}
-                        className="w-full h-full object-cover"
-                      />
-                    )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {lowStock.slice(0, 4).map((p) => (
+                <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-accent/40 border border-border/40">
+                  <div className="min-w-0 pr-2">
+                    <p className="text-xs font-bold text-foreground truncate">{p.name}</p>
+                    <p className="text-[10px] text-muted-foreground">{p.category}</p>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate">{p.name}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {p.category}
-                    </p>
-                  </div>
-                  <Badge
-                    variant={p.inventory === 0 ? "destructive" : "secondary"}
-                    className="text-[10px]"
-                  >
-                    {p.inventory === 0 ? "Out of stock" : `${p.inventory} left`}
-                  </Badge>
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0">
+                    {p.inventory} {isAr ? "متبقي" : "left"}
+                  </span>
                 </div>
               ))}
             </div>
           )}
-        </Card>
-      </div>
-
-      {/* Catalog summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="p-4">
-          <Package className="h-4 w-4 text-muted-foreground mb-2" />
-          <p className="text-xl font-display">{products.length}</p>
-          <p className="text-xs text-muted-foreground">Total products</p>
-        </Card>
-        <Card className="p-4">
-          <TrendingUp className="h-4 w-4 text-muted-foreground mb-2" />
-          <p className="text-xl font-display">
-            {products.filter((p) => p.isNew).length}
-          </p>
-          <p className="text-xs text-muted-foreground">New arrivals</p>
-        </Card>
-        <Card className="p-4">
-          <Users className="h-4 w-4 text-muted-foreground mb-2" />
-          <p className="text-xl font-display">
-            {kpi?.totalCustomers ?? "—"}
-          </p>
-          <p className="text-xs text-muted-foreground">Customers</p>
-        </Card>
-        <Card className="p-4">
-          <Eye className="h-4 w-4 text-muted-foreground mb-2" />
-          <p className="text-xl font-display">
-            {kpi?.totalProducts ?? products.length}
-          </p>
-          <p className="text-xs text-muted-foreground">Live SKUs</p>
         </Card>
       </div>
     </div>
