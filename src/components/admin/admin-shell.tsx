@@ -67,7 +67,7 @@ export function AdminShell({
 }) {
   const router = useRouter();
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
-  const { t, dir } = useAdminT();
+  const { t, isAr, dir } = useAdminT();
 
   const navGroups = React.useMemo(
     () => [
@@ -95,7 +95,7 @@ export function AdminShell({
         ],
       },
       {
-        label: t("growth"),
+        label: isAr ? "التسويق والنظام" : "Growth & System",
         items: [
           { id: "marketing" as AdminSection, icon: Megaphone, label: t("marketing") },
           { id: "homepage" as AdminSection, icon: LayoutTemplate, label: t("homepage") },
