@@ -16,7 +16,7 @@ import { AnalyticsSection } from "@/components/admin/sections/analytics-section"
 import { SettingsSection } from "@/components/admin/sections/settings-section";
 import { AdminGuideSection } from "@/components/admin/admin-guide";
 import { HomepageSection } from "@/components/admin/sections/homepage-section";
-import { ProductFormDialog } from "@/components/admin/product-form-dialog";
+import { ProductFormView } from "@/components/admin/product-form-view";
 import { useProductStore } from "@/components/providers/product-store";
 import type { Product } from "@/components/providers/ui-provider";
 
@@ -37,16 +37,15 @@ const VALID_SECTIONS: AdminSection[] = [
 ];
 
 export default function AdminPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get("tab") as AdminSection | null) ?? "dashboard";
   const [section, setSection] = React.useState<AdminSection>(
     VALID_SECTIONS.includes(initialTab) ? initialTab : "dashboard"
   );
-  const [formOpen, setFormOpen] = React.useState(false);
-  const [editingProduct, setEditingProduct] = React.useState<Product | null>(
-    null
-  );
+
+  // Full-page workspace state for adding/editing products
+  const [isProductFormActive, setIsProductFormActive] = React.useState(false);
+  const [editingProduct, setEditingProduct] = React.useState<Product | null>(null);
 
   // Pull latest products from Supabase on mount (no-op if not configured)
   const refreshFromServer = useProductStore((s) => s.refreshFromServer);
@@ -58,6 +57,7 @@ export default function AdminPage() {
   const handleSectionChange = React.useCallback(
     (s: AdminSection) => {
       setSection(s);
+      setIsProductFormActive(false);
       if (typeof window !== "undefined") {
         const params = new URLSearchParams(window.location.search);
         params.set("tab", s);
@@ -69,44 +69,49 @@ export default function AdminPage() {
 
   const openAdd = () => {
     setEditingProduct(null);
-    setFormOpen(true);
+    setIsProductFormActive(true);
   };
   const openEdit = (p: Product) => {
     setEditingProduct(p);
-    setFormOpen(true);
+    setIsProductFormActive(true);
+  };
+  const closeForm = () => {
+    setIsProductFormActive(false);
+    setEditingProduct(null);
   };
 
-  return (
-    <>
-      <AdminShell
-        section={section}
-        onSection={handleSectionChange}
-        onNewProduct={openAdd}
-      >
-        {section === "dashboard" && (
-          <DashboardSection onNewProduct={openAdd} onJump={handleSectionChange} />
-        )}
-        {section === "products" && (
-          <ProductsSection onAdd={openAdd} onEdit={openEdit} />
-        )}
-        {section === "orders" && <OrdersSection />}
-        {section === "customers" && <CustomersSection />}
-        {section === "inventory" && <InventorySection />}
-        {section === "categories" && <CategoriesSection />}
-        {section === "collections" && <CollectionsSection />}
-        {section === "marketing" && <MarketingSection />}
-        {section === "reviews" && <ReviewsSection />}
-        {section === "analytics" && <AnalyticsSection />}
-        {section === "settings" && <SettingsSection />}
-        {section === "guide" && <AdminGuideSection />}
-        {section === "homepage" && <HomepageSection />}
-      </AdminShell>
+  // If full-page product form is active, render full-page spacious ProductFormView with free scrolling
+  if (isProductFormActive) {
+    return (
+      <main className="min-h-screen bg-background text-foreground">
+        <ProductFormView product={editingProduct} onBack={closeForm} />
+      </main>
+    );
+  }
 
-      <ProductFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        product={editingProduct}
-      />
-    </>
+  return (
+    <AdminShell
+      section={section}
+      onSection={handleSectionChange}
+      onNewProduct={openAdd}
+    >
+      {section === "dashboard" && (
+        <DashboardSection onNewProduct={openAdd} onJump={handleSectionChange} />
+      )}
+      {section === "products" && (
+        <ProductsSection onAdd={openAdd} onEdit={openEdit} />
+      )}
+      {section === "orders" && <OrdersSection />}
+      {section === "customers" && <CustomersSection />}
+      {section === "inventory" && <InventorySection />}
+      {section === "categories" && <CategoriesSection />}
+      {section === "collections" && <CollectionsSection />}
+      {section === "marketing" && <MarketingSection />}
+      {section === "reviews" && <ReviewsSection />}
+      {section === "analytics" && <AnalyticsSection />}
+      {section === "settings" && <SettingsSection />}
+      {section === "guide" && <AdminGuideSection />}
+      {section === "homepage" && <HomepageSection />}
+    </AdminShell>
   );
 }
