@@ -63,7 +63,8 @@ export function Header() {
             </SheetTrigger>
             <SheetContent side="left" className="w-[85vw] sm:w-[380px] p-0 bg-background">
               <SheetHeader className="p-6 border-b border-white/5">
-                <SheetTitle className="font-display text-2xl tracking-[0.18em] text-gold-gradient">
+                <SheetTitle className="font-display text-2xl tracking-[0.18em] text-gold-gradient flex items-center gap-2.5">
+                  <img src="/logo.svg" alt="MEME" className="h-6 w-6 rounded-md object-contain" />
                   MEME
                 </SheetTitle>
               </SheetHeader>
@@ -93,7 +94,8 @@ export function Header() {
           </Sheet>
 
           {/* Logo — centered on mobile, left on desktop */}
-          <Link href="/" className="flex-shrink-0 flex items-center gap-2 lg:mr-8">
+          <Link href="/" className="flex-shrink-0 flex items-center gap-2.5 lg:mr-8 group">
+            <img src="/logo.svg" alt="MEME" className="h-7 w-7 rounded-md object-contain group-hover:scale-105 transition-transform duration-300" />
             <span className="font-display text-2xl lg:text-[26px] tracking-[0.18em] font-bold leading-none text-gold-gradient">
               MEME
             </span>

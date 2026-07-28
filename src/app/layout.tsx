@@ -66,7 +66,14 @@ export const metadata: Metadata = {
       "Top brands, one store. Shipped fast across Egypt. Cash on Delivery available.",
   },
   icons: {
-    icon: "/logo.svg",
+    icon: [
+      { url: "/logo.svg", type: "image/svg+xml" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: ["/logo.svg"],
+    apple: [
+      { url: "/logo.svg" },
+    ],
   },
 };
 
