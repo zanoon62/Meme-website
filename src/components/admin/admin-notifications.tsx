@@ -15,8 +15,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuHeader,
-  DropdownMenuTitle,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
