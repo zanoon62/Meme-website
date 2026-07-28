@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Lightweight i18n dictionary for the storefront.
+ * Lightweight i18n dictionary for the storefront and admin panel.
  *
  * Usage:
  *   const t = useT();
@@ -41,7 +41,36 @@ const DICT: Dict = {
   "section.view_all": { en: "View all", ar: "عرض الكل" },
   "section.shop_all": { en: "Shop all", ar: "تسوق الكل" },
 
-  // Product card
+  // Shop Page
+  "shop.all_products": { en: "All Products", ar: "جميع المنتجات" },
+  "shop.tagline": { en: "SHOP", ar: "المتجر" },
+  "shop.category": { en: "CATEGORY", ar: "الفئة" },
+  "shop.all": { en: "All", ar: "الكل" },
+  "shop.sort_by": { en: "Sort by", ar: "ترتيب حسب" },
+  "shop.featured": { en: "Featured", ar: "المميزة" },
+  "shop.price_low_high": { en: "Price: Low to High", ar: "السعر: من الأقل للأعلى" },
+  "shop.price_high_low": { en: "Price: High to Low", ar: "السعر: من الأعلى للأقل" },
+  "shop.newest": { en: "Newest", ar: "الأحدث" },
+  "shop.price": { en: "PRICE", ar: "السعر" },
+  "shop.pieces": { en: "pieces", ar: "منتج" },
+  "shop.clear_filters": { en: "Clear filters", ar: "مسح التصفية" },
+  "shop.no_products": { en: "No products match your filters.", ar: "لا توجد منتجات تطابق اختياراتك." },
+
+  // Categories
+  "cat.all": { en: "All", ar: "الكل" },
+  "cat.Dresses": { en: "Dresses", ar: "فساتين" },
+  "cat.Tailoring": { en: "Tailoring", ar: "بدل وبليزر" },
+  "cat.Outerwear": { en: "Outerwear", ar: "ملابس خارجية وجاكيتات" },
+  "cat.Knitwear": { en: "Knitwear", ar: "تريكو وصوف" },
+  "cat.Hoodies & Sweatshirts": { en: "Hoodies & Sweatshirts", ar: "هوديز وسويت شيرت" },
+  "cat.Hoodies": { en: "Hoodies", ar: "هوديز" },
+  "cat.Tops": { en: "Tops", ar: "بلوزات وتوب" },
+  "cat.Skirts": { en: "Skirts", ar: "تنانير" },
+  "cat.Pants": { en: "Pants", ar: "بنطلونات" },
+  "cat.Footwear": { en: "Footwear", ar: "أحذية" },
+  "cat.Accessories": { en: "Accessories", ar: "إكسسوارات" },
+
+  // Product Card & Detail
   "product.add_to_cart": { en: "Add to cart", ar: "أضف للسلة" },
   "product.quick_add": { en: "Quick add", ar: "إضافة سريعة" },
   "product.add_to_wishlist": { en: "Add to wishlist", ar: "أضف للمفضلة" },
@@ -49,6 +78,10 @@ const DICT: Dict = {
   "product.limited": { en: "LIMITED", ar: "محدود" },
   "product.best_seller": { en: "Best Seller", ar: "الأكثر مبيعاً" },
   "product.save": { en: "Save", ar: "وفّر" },
+  "product.in_stock": { en: "In Stock", ar: "متوفر بالمخزون" },
+  "product.out_of_stock": { en: "Out of Stock", ar: "غير متوفر" },
+  "product.select_size": { en: "Select Size", ar: "اختر المقاس" },
+  "product.select_color": { en: "Color", ar: "اللون" },
 
   // Cart
   "cart.title": { en: "Your Cart", ar: "سلتك" },
@@ -72,6 +105,40 @@ const DICT: Dict = {
   "footer.privacy": { en: "Privacy Policy", ar: "سياسة الخصوصية" },
   "footer.terms": { en: "Terms of Service", ar: "شروط الخدمة" },
   "footer.cookies": { en: "Cookies", ar: "ملفات الارتباط" },
+
+  // Admin Panel General & Sections
+  "admin.dashboard": { en: "Dashboard", ar: "لوحة التحكم" },
+  "admin.analytics": { en: "Analytics", ar: "التحليلات" },
+  "admin.products": { en: "Products", ar: "المنتجات" },
+  "admin.inventory": { en: "Inventory", ar: "المخزون" },
+  "admin.categories": { en: "Categories", ar: "الفئات" },
+  "admin.collections": { en: "Collections", ar: "المجموعات" },
+  "admin.orders": { en: "Orders", ar: "الطلبات" },
+  "admin.customers": { en: "Customers", ar: "العملاء" },
+  "admin.reviews": { en: "Reviews", ar: "التقييمات" },
+  "admin.marketing": { en: "Marketing", ar: "التسويق" },
+  "admin.guide": { en: "Admin Guide", ar: "دليل المشرف" },
+  "admin.settings": { en: "Settings", ar: "الإعدادات" },
+  "admin.homepage": { en: "Homepage Editor", ar: "الصفحة الرئيسية" },
+
+  "admin.new_product": { en: "New product", ar: "منتج جديد" },
+  "admin.new_category": { en: "New category", ar: "فئة جديدة" },
+  "admin.new_collection": { en: "New collection", ar: "مجموعة جديدة" },
+  "admin.new_coupon": { en: "New coupon", ar: "كوبون جديد" },
+
+  "admin.search_categories": { en: "Search categories…", ar: "البحث عن الفئات..." },
+  "admin.search_products": { en: "Search products…", ar: "البحث عن المنتجات..." },
+  "admin.search_orders": { en: "Search orders…", ar: "البحث عن الطلبات..." },
+  "admin.search_customers": { en: "Search customers…", ar: "البحث عن العملاء..." },
+
+  "admin.active": { en: "Active", ar: "نشط" },
+  "admin.hidden": { en: "Hidden", ar: "مخفي" },
+  "admin.products_count": { en: "products", ar: "منتج" },
+  "admin.loading": { en: "Loading…", ar: "جاري التحميل..." },
+  "admin.save_changes": { en: "Save changes", ar: "حفظ التغييرات" },
+  "admin.create_category": { en: "Create category", ar: "إنشاء الفئة" },
+  "admin.edit_category": { en: "Edit category", ar: "تعديل الفئة" },
+  "admin.cancel": { en: "Cancel", ar: "إلغاء" },
 
   // Account
   "account.welcome": { en: "Welcome back", ar: "مرحباً بعودتك" },

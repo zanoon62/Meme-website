@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FolderTree, Plus, Pencil, Trash2, Search } from "lucide-react";
+import { FolderTree, Plus, Pencil, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useProductStore } from "@/components/providers/product-store";
 import { categories as seedCategories } from "@/data/products";
+import { useT, useLangDir } from "@/lib/i18n";
 
 type Category = {
   id: string;
@@ -35,6 +36,8 @@ export function CategoriesSection() {
   const [search, setSearch] = React.useState("");
   const [editing, setEditing] = React.useState<Category | null>(null);
   const [creating, setCreating] = React.useState(false);
+  const t = useT();
+  const dir = useLangDir();
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -42,8 +45,29 @@ export function CategoriesSection() {
       const res = await fetch("/api/admin/categories");
       if (res.ok) {
         const data = await res.json();
-        setCategories(data.categories ?? []);
+        const list = data.categories && data.categories.length > 0
+          ? data.categories
+          : seedCategories.map((c, i) => ({
+              id: `cat-seed-${i}`,
+              slug: c.slug,
+              name: c.name,
+              description: `All ${c.name} products`,
+              sort_order: i,
+              is_active: true,
+            }));
+        setCategories(list);
       }
+    } catch {
+      setCategories(
+        seedCategories.map((c, i) => ({
+          id: `cat-seed-${i}`,
+          slug: c.slug,
+          name: c.name,
+          description: `All ${c.name} products`,
+          sort_order: i,
+          is_active: true,
+        }))
+      );
     } finally {
       setLoading(false);
     }
@@ -54,32 +78,38 @@ export function CategoriesSection() {
   }, [load]);
 
   const filtered = categories.filter((c) =>
-    !search ? true : c.name.toLowerCase().includes(search.toLowerCase())
+    !search ? true : c.name.toLowerCase().includes(search.toLowerCase()) || c.slug.toLowerCase().includes(search.toLowerCase())
   );
 
   const productCount = (catName: string) =>
-    products.filter((p) => p.category === catName).length;
+    products.filter((p) => p.category === catName || p.category.toLowerCase() === catName.toLowerCase()).length;
+
+  const getCategoryLabel = (name: string) => {
+    const key = `cat.${name}`;
+    const translated = t(key);
+    return translated !== key ? translated : name;
+  };
 
   return (
-    <div className="space-y-6">
+    <div dir={dir} className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search categories…"
+            placeholder={t("admin.search_categories")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 h-9 bg-background"
           />
         </div>
         <Button size="sm" onClick={() => setCreating(true)}>
-          <Plus className="h-4 w-4 mr-1" /> New category
+          <Plus className="h-4 w-4 mr-1" /> {t("admin.new_category")}
         </Button>
       </div>
 
       {loading ? (
         <Card className="p-12 text-center text-sm text-muted-foreground">
-          Loading…
+          {t("admin.loading")}
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -100,7 +130,7 @@ export function CategoriesSection() {
                   </Button>
                 </div>
               </div>
-              <p className="font-medium text-sm">{c.name}</p>
+              <p className="font-medium text-sm">{getCategoryLabel(c.name)}</p>
               <p className="text-xs text-muted-foreground font-mono mt-0.5">
                 /{c.slug}
               </p>
@@ -111,13 +141,13 @@ export function CategoriesSection() {
               )}
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/40">
                 <Badge variant="secondary" className="text-[10px]">
-                  {productCount(c.name)} products
+                  {productCount(c.name)} {t("admin.products_count")}
                 </Badge>
                 <Badge
                   variant={c.is_active ? "default" : "secondary"}
                   className="text-[10px]"
                 >
-                  {c.is_active ? "Active" : "Hidden"}
+                  {c.is_active ? t("admin.active") : t("admin.hidden")}
                 </Badge>
               </div>
             </Card>
@@ -153,6 +183,7 @@ function CategoryDialog({
   const [slug, setSlug] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [saving, setSaving] = React.useState(false);
+  const t = useT();
 
   React.useEffect(() => {
     if (category) {
@@ -186,7 +217,7 @@ function CategoryDialog({
         const err = await res.json();
         throw new Error(err.error || "Failed");
       }
-      toast.success(category ? "Category updated" : "Category created");
+      toast.success(category ? "Category updated" : "Category created successfully!");
       onSaved();
       onClose();
     } catch (e) {
@@ -201,7 +232,7 @@ function CategoryDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {category ? "Edit category" : "New category"}
+            {category ? t("admin.edit_category") : t("admin.new_category")}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
@@ -243,10 +274,10 @@ function CategoryDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t("admin.cancel")}
           </Button>
           <Button onClick={save} disabled={saving}>
-            {saving ? "Saving…" : category ? "Save changes" : "Create category"}
+            {saving ? t("admin.loading") : category ? t("admin.save_changes") : t("admin.create_category")}
           </Button>
         </DialogFooter>
       </DialogContent>

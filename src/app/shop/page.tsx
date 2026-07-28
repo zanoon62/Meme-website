@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
-import { SlidersHorizontal, X, ChevronDown, Check } from "lucide-react";
+import { SlidersHorizontal, X, ChevronDown } from "lucide-react";
 import { ProductCard } from "@/components/shop/product-card";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -18,14 +18,7 @@ import { useLiveProducts } from "@/components/providers/product-store";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ProductSize } from "@/components/providers/ui-provider";
-
-const sortOptions = [
-  { value: "featured", label: "Featured" },
-  { value: "newest", label: "Newest" },
-  { value: "price-asc", label: "Price: Low to High" },
-  { value: "price-desc", label: "Price: High to Low" },
-  { value: "rating", label: "Top Rated" },
-];
+import { useT, useLangDir } from "@/lib/i18n";
 
 export default function ShopPage() {
   return (
@@ -55,6 +48,8 @@ function ShopContent() {
   const filter = searchParams.get("filter") || "";
 
   const products = useLiveProducts();
+  const t = useT();
+  const dir = useLangDir();
 
   const [category, setCategory] = React.useState(initialCategory);
   const [selectedColors, setSelectedColors] = React.useState<string[]>([]);
@@ -63,6 +58,14 @@ function ShopContent() {
   const [sort, setSort] = React.useState("featured");
   const [visible, setVisible] = React.useState(12);
   const [mobileFiltersOpen, setMobileFiltersOpen] = React.useState(false);
+
+  const sortOptions = [
+    { value: "featured", label: t("shop.featured") },
+    { value: "newest", label: t("shop.newest") },
+    { value: "price-asc", label: t("shop.price_low_high") },
+    { value: "price-desc", label: t("shop.price_high_low") },
+    { value: "rating", label: t("product.best_seller") },
+  ];
 
   // Reset category when URL changes
   React.useEffect(() => {
@@ -130,22 +133,28 @@ function ShopContent() {
     setCategory("all");
   };
 
+  const getCategoryLabel = (name: string) => {
+    const key = `cat.${name}`;
+    const translated = t(key);
+    return translated !== key ? translated : name;
+  };
+
   const FiltersContent = (
     <div className="space-y-8">
       {/* Category */}
       <div>
-        <h3 className="text-xs uppercase tracking-[0.2em] font-medium mb-4">Category</h3>
+        <h3 className="text-xs uppercase tracking-[0.2em] font-medium mb-4">{t("shop.category")}</h3>
         <div className="space-y-2.5">
           {categories.map((cat) => (
             <button
               key={cat.slug}
               onClick={() => setCategory(cat.slug)}
               className={cn(
-                "block text-sm py-1 transition-colors",
+                "block text-sm py-1 transition-colors text-start w-full",
                 category === cat.slug ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {cat.name}
+              {getCategoryLabel(cat.name)}
             </button>
           ))}
         </div>
@@ -153,7 +162,7 @@ function ShopContent() {
 
       {/* Price */}
       <div>
-        <h3 className="text-xs uppercase tracking-[0.2em] font-medium mb-4">Price</h3>
+        <h3 className="text-xs uppercase tracking-[0.2em] font-medium mb-4">{t("shop.price")}</h3>
         <div className="space-y-4">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>{formatPrice(priceRange.min)}</span>
@@ -171,7 +180,7 @@ function ShopContent() {
 
       {/* Colors */}
       <div>
-        <h3 className="text-xs uppercase tracking-[0.2em] font-medium mb-4">Color</h3>
+        <h3 className="text-xs uppercase tracking-[0.2em] font-medium mb-4">{t("product.select_color")}</h3>
         <div className="space-y-2.5">
           {allColors.map((color) => (
             <label key={color} className="flex items-center gap-3 cursor-pointer group">
@@ -191,7 +200,7 @@ function ShopContent() {
 
       {/* Sizes */}
       <div>
-        <h3 className="text-xs uppercase tracking-[0.2em] font-medium mb-4">Size</h3>
+        <h3 className="text-xs uppercase tracking-[0.2em] font-medium mb-4">{t("product.select_size")}</h3>
         <div className="grid grid-cols-3 gap-2">
           {allSizes.map((size) => (
             <button
@@ -216,24 +225,24 @@ function ShopContent() {
 
       {activeFilterCount > 0 && (
         <Button variant="outline" className="w-full" onClick={clearAll}>
-          Clear all filters ({activeFilterCount})
+          {t("shop.clear_filters")} ({activeFilterCount})
         </Button>
       )}
     </div>
   );
 
   return (
-    <main className="flex-1 mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 py-10 lg:py-16">
+    <main dir={dir} className="flex-1 mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 py-10 lg:py-16">
       {/* Header */}
       <div className="mb-8 lg:mb-12">
         <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mb-3">
-          {query ? `Search: "${query}"` : "Shop"}
+          {query ? `${t("nav.search")}: "${query}"` : t("shop.tagline")}
         </p>
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <h1 className="font-display text-4xl lg:text-6xl tracking-tight">
-            {category === "all" ? "All Products" : category}
+            {category === "all" ? t("shop.all_products") : getCategoryLabel(category)}
           </h1>
-          <p className="text-sm text-muted-foreground">{filtered.length} pieces</p>
+          <p className="text-sm text-muted-foreground">{filtered.length} {t("shop.pieces")}</p>
         </div>
       </div>
 
@@ -251,7 +260,7 @@ function ShopContent() {
               <SheetTrigger asChild>
                 <Button variant="outline" size="sm" className="lg:hidden rounded-full">
                   <SlidersHorizontal className="h-4 w-4 mr-2" />
-                  Filters
+                  {t("shop.category")}
                   {activeFilterCount > 0 && (
                     <span className="ml-2 bg-foreground text-background rounded-full text-[10px] px-1.5 py-0.5">
                       {activeFilterCount}
@@ -261,7 +270,7 @@ function ShopContent() {
               </SheetTrigger>
               <SheetContent side="left" className="w-[85vw] sm:w-[380px] overflow-y-auto">
                 <SheetHeader className="mb-4">
-                  <SheetTitle>Filters</SheetTitle>
+                  <SheetTitle>{t("shop.category")}</SheetTitle>
                 </SheetHeader>
                 {FiltersContent}
               </SheetContent>
@@ -287,7 +296,7 @@ function ShopContent() {
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground hidden sm:inline">Sort by</span>
+              <span className="text-xs text-muted-foreground hidden sm:inline">{t("shop.sort_by")}</span>
               <div className="relative">
                 <select
                   value={sort}
@@ -295,10 +304,10 @@ function ShopContent() {
                   className="appearance-none bg-transparent border border-border rounded-full pl-4 pr-9 py-2 text-xs font-medium cursor-pointer hover:border-foreground transition-colors"
                 >
                   {sortOptions.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
+                    <option key={o.value} value={o.value} className="bg-background text-foreground">{o.label}</option>
                   ))}
                 </select>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3 w-3 pointer-events-none" />
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3 w-3 pointer-events-none text-muted-foreground" />
               </div>
             </div>
           </div>
@@ -306,10 +315,9 @@ function ShopContent() {
           {/* Grid */}
           {visibleProducts.length === 0 ? (
             <div className="py-20 text-center">
-              <p className="text-lg font-medium">No products found</p>
-              <p className="text-sm text-muted-foreground mt-2">Try adjusting your filters.</p>
+              <p className="text-lg font-medium">{t("shop.no_products")}</p>
               <Button variant="outline" className="mt-4 rounded-full" onClick={clearAll}>
-                Clear all filters
+                {t("shop.clear_filters")}
               </Button>
             </div>
           ) : (
@@ -328,7 +336,7 @@ function ShopContent() {
                     className="rounded-full h-12 px-8"
                     onClick={() => setVisible((v) => v + 8)}
                   >
-                    Load more ({filtered.length - visible} remaining)
+                    {t("section.view_all")} ({filtered.length - visible})
                   </Button>
                 </div>
               )}

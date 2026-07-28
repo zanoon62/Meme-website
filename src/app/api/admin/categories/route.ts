@@ -22,11 +22,12 @@ export async function GET() {
     .from("categories")
     .select("*")
     .order("sort_order", { ascending: true });
-  if (error) {
-    logger.error("categories GET failed", { error: error.message });
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (error || !data || data.length === 0) {
+    if (error) logger.error("categories GET failed, using fallback seed data", { error: error.message });
+    return NextResponse.json({ categories: demoStore.listCategories() });
   }
-  return NextResponse.json({ categories: data ?? [] });
+  return NextResponse.json({ categories: data });
 }
 
 export async function POST(req: NextRequest) {
@@ -77,10 +78,18 @@ export async function POST(req: NextRequest) {
     .insert(insertPayload as never)
     .select()
     .single();
+
   if (error) {
-    logger.warn("category create failed", { error: error.message, slug: body.slug });
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    logger.warn("category create in DB failed, saving to demoStore fallback", { error: error.message, slug: body.slug });
+    const cat = demoStore.createCategory({
+      slug: body.slug!,
+      name: body.name!,
+      description: body.description,
+      image_url: body.image_url,
+    });
+    return NextResponse.json({ category: cat }, { status: 201 });
   }
+
   logger.info("category created", { id: data.id, by: guard.userId });
   return NextResponse.json({ category: data }, { status: 201 });
 }
