@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { useProductStore } from "@/components/providers/product-store";
 import { collections as seedCollections } from "@/data/products";
 import { useT, useLangDir } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 type Collection = {
   id: string;
