@@ -51,7 +51,6 @@ export type AdminSection =
   | "customers"
   | "inventory"
   | "categories"
-  | "collections"
   | "marketing"
   | "reviews"
   | "analytics"
@@ -89,7 +88,6 @@ export function AdminShell({
           { id: "products" as AdminSection, icon: Package, label: t("products") },
           { id: "inventory" as AdminSection, icon: Boxes, label: t("inventory") },
           { id: "categories" as AdminSection, icon: FolderTree, label: t("categories") },
-          { id: "collections" as AdminSection, icon: Layers, label: t("collections") },
         ],
       },
       {

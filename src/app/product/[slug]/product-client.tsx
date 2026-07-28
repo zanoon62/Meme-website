@@ -18,7 +18,14 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { getDefaultSizeChart } from "@/lib/size-charts";
+import { useT, useLangDir } from "@/lib/i18n";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +52,9 @@ export default function ProductPageClient({ slug }: { slug: string }) {
   const [quantity, setQuantity] = React.useState(1);
   const [zoomed, setZoomed] = React.useState(false);
   const [stickyVisible, setStickyVisible] = React.useState(false);
+  const [sizeChartOpen, setSizeChartOpen] = React.useState(false);
+  const t = useT();
+  const dir = useLangDir();
 
   React.useEffect(() => {
     const onScroll = () => setStickyVisible(window.scrollY > 600);
@@ -261,8 +271,12 @@ export default function ProductPageClient({ slug }: { slug: string }) {
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs uppercase tracking-[0.2em] font-medium">Size</p>
-                <button className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-                  <Ruler className="h-3 w-3" /> Size guide
+                <button
+                  type="button"
+                  onClick={() => setSizeChartOpen(true)}
+                  className="text-xs font-semibold text-amber-500 hover:underline inline-flex items-center gap-1.5"
+                >
+                  <Ruler className="h-3.5 w-3.5" /> {dir === "rtl" ? "جدول المقاسات 📏" : "Size guide 📏"}
                 </button>
               </div>
               <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
@@ -509,6 +523,48 @@ export default function ProductPageClient({ slug }: { slug: string }) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Interactive Size Chart Modal */}
+      <Dialog open={sizeChartOpen} onOpenChange={setSizeChartOpen}>
+        <DialogContent dir={dir} className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl font-bold flex items-center gap-2">
+              <Ruler className="h-5 w-5 text-amber-500" />
+              {dir === "rtl" ? `جدول المقاسات - ${product.category}` : `Size Guide - ${product.category}`}
+            </DialogTitle>
+          </DialogHeader>
+
+          {(() => {
+            const chart = product.sizeChart || getDefaultSizeChart(product.category);
+            return (
+              <div className="border border-border rounded-xl overflow-hidden shadow-sm my-2">
+                <table className="w-full text-xs border-collapse text-center">
+                  <thead>
+                    <tr className="bg-accent/60 border-b border-border">
+                      {chart.headers.map((h, i) => (
+                        <th key={i} className="p-3 font-bold text-foreground">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {chart.rows.map((row, rIdx) => (
+                      <tr key={rIdx} className="hover:bg-accent/20">
+                        {chart.headers.map((h, cIdx) => (
+                          <td key={cIdx} className="p-3 font-medium text-foreground">
+                            {row[h]}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

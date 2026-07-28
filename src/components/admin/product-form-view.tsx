@@ -9,16 +9,17 @@ import {
   X,
   Eye,
   Edit3,
-  HelpCircle,
   Sparkles,
-  Folder,
-  Layers,
-  Link2,
-  Info,
   ArrowLeft,
   ArrowRight,
-  CheckCircle2,
   Save,
+  Upload,
+  Ruler,
+  Grid,
+  FileText,
+  ShoppingBag,
+  RotateCcw,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,29 +28,34 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import type { Product, ProductColor, ProductSize } from "@/components/providers/ui-provider";
+import type { Product, ProductColor, ProductSize, SizeChartData } from "@/components/providers/ui-provider";
 import { useProductStore, type ProductInput } from "@/components/providers/product-store";
 import { useAdminT } from "@/components/admin/admin-i18n";
+import { getDefaultSizeChart } from "@/lib/size-charts";
 
 const ALL_SIZES: ProductSize[] = ["XS", "S", "M", "L", "XL", "XXL", "ONE SIZE"];
 
-const CATEGORY_OPTIONS = [
-  "Dresses",
-  "Tailoring",
-  "Outerwear",
-  "Knitwear",
-  "Hoodies & Sweatshirts",
-  "Tops",
-  "Skirts",
-  "Pants",
-  "Footwear",
-  "Accessories",
+const CATEGORY_OPTIONS: Array<{ value: string; en: string; ar: string }> = [
+  { value: "Dresses", en: "Dresses", ar: "فساتين" },
+  { value: "Tailoring", en: "Tailoring", ar: "بدل وبليزر" },
+  { value: "Outerwear", en: "Outerwear", ar: "ملابس خارجية وجاكيتات" },
+  { value: "Knitwear", en: "Knitwear", ar: "تريكو وصوف" },
+  { value: "Hoodies & Sweatshirts", en: "Hoodies & Sweatshirts", ar: "هوديز وسويت شيرت" },
+  { value: "Tops", en: "Tops", ar: "بلوزات وتوب" },
+  { value: "Skirts", en: "Skirts", ar: "تنانير" },
+  { value: "Pants", en: "Pants", ar: "بنطلونات" },
+  { value: "Footwear", en: "Footwear", ar: "أحذية" },
+  { value: "Accessories", en: "Accessories", ar: "إكسسوارات" },
 ];
-
-const COLLECTION_OPTIONS = ["Atelier Noir", "Core Essentials", "Premium Brands"];
 
 const DEFAULT_NEW_PRODUCT: ProductInput = {
   slug: "",
@@ -78,6 +84,7 @@ const DEFAULT_NEW_PRODUCT: ProductInput = {
   isTrending: false,
   isLimited: false,
   tags: [],
+  sizeChart: getDefaultSizeChart("Dresses"),
 };
 
 type Props = {
@@ -92,36 +99,69 @@ export function ProductFormView({ product, onBack }: Props) {
 
   const isEdit = !!product;
   const [form, setForm] = React.useState<ProductInput>(DEFAULT_NEW_PRODUCT);
-  const [newBadge, setNewBadge] = React.useState("");
-  const [newTag, setNewTag] = React.useState("");
-  const [newImage, setNewImage] = React.useState("");
   const [errors, setErrors] = React.useState<Record<string, string>>({});
-  const [activeMobileTab, setActiveMobileTab] = React.useState<"form" | "preview" | "guide">("form");
-  const [focusedField, setFocusedField] = React.useState<string | null>(null);
+  const [previewMode, setPreviewMode] = React.useState<"outer" | "inner">("inner");
+  const [selectedPreviewImage, setSelectedPreviewImage] = React.useState(0);
+  const [selectedPreviewColor, setSelectedPreviewColor] = React.useState(0);
+  const [selectedPreviewSize, setSelectedPreviewSize] = React.useState<ProductSize>("M");
+  const [sizeGuideModalOpen, setSizeGuideModalOpen] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Hydrate form when product changes
   React.useEffect(() => {
     if (product) {
-      setForm({ ...product });
+      setForm({
+        ...product,
+        sizeChart: product.sizeChart || getDefaultSizeChart(product.category),
+      });
     } else {
       setForm({ ...DEFAULT_NEW_PRODUCT });
     }
     setErrors({});
-    setNewBadge("");
-    setNewTag("");
-    setNewImage("");
-    setActiveMobileTab("form");
-    setFocusedField(null);
   }, [product]);
 
   const update = <K extends keyof ProductInput>(key: K, value: ProductInput[K]) => {
     setForm((f) => {
       const next = { ...f, [key]: value };
-      if (key === "name" && (!f.slug || f.slug === f.name.toLowerCase().replace(/\s+/g, "-"))) {
+      if (key === "name") {
         next.slug = String(value).toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
       }
       return next;
     });
+  };
+
+  // Handle Category Change -> Auto-load default category size chart if not customized
+  const handleCategoryChange = (newCat: string) => {
+    setForm((f) => ({
+      ...f,
+      category: newCat,
+      sizeChart: getDefaultSizeChart(newCat),
+    }));
+  };
+
+  // Image Upload File Handler
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        if (result) {
+          setForm((f) => ({
+            ...f,
+            images: [...f.images, result],
+          }));
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeImage = (idx: number) => {
+    update("images", form.images.filter((_, i) => i !== idx));
   };
 
   const validate = (): boolean => {
@@ -131,17 +171,16 @@ export function ProductFormView({ product, onBack }: Props) {
     if (!form.description.trim()) e.description = isAr ? "الوصف مطلوب" : "Description is required";
     if (!form.price || form.price <= 0) e.price = isAr ? "يجب أن يكون السعر أكبر من صفر" : "Price must be greater than 0";
     if (!form.category) e.category = isAr ? "الفئة مطلوبة" : "Category is required";
-    if (!form.collection) e.collection = isAr ? "المجموعة مطلوبة" : "Collection is required";
     if (!form.colors.length) e.colors = isAr ? "أضف لوناً واحداً على الأقل" : "Add at least one color";
     if (!form.sizes.length) e.sizes = isAr ? "اختر مقاساً واحداً على الأقل" : "Select at least one size";
-    if (!form.images.length) e.images = isAr ? "أضف رابط صورة واحد على الأقل" : "Add at least one image URL";
+    if (!form.images.length) e.images = isAr ? "قم برفع صورة واحدة على الأقل" : "Upload at least one image";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleSubmit = () => {
     if (!validate()) {
-      toast.error(isAr ? "يرجى تصحيح الأخطاء قبل الحفظ" : "Please fix the errors before saving");
+      toast.error(isAr ? "يرجى تصحيح الأخطاء قبل الحفظ" : "Please fix errors before saving");
       return;
     }
     const finalSlug = form.slug || form.name.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
@@ -151,19 +190,7 @@ export function ProductFormView({ product, onBack }: Props) {
       updateProduct(product.id, payload);
       toast.success(isAr ? `تم تحديث "${form.name}" بنجاح!` : `Updated "${form.name}" successfully!`);
     } else {
-      const isDefaultImg =
-        form.images.length === 2 &&
-        form.images[0].includes("New%20Atelier%20Piece");
-      const finalForm = isDefaultImg
-        ? {
-            ...payload,
-            images: [
-              img(form.name || "Atelier Piece", form.category, form.colors[0]?.name || "noir", 0),
-              img(form.name || "Atelier Piece", form.category, form.colors[0]?.name || "noir", 1),
-            ],
-          }
-        : payload;
-      addProduct(finalForm);
+      addProduct(payload);
       toast.success(isAr ? `تمت إضافة المنتج الجديد "${form.name}" بنجاح!` : `Added new product "${form.name}" successfully!`);
     }
     onBack();
@@ -193,50 +220,30 @@ export function ProductFormView({ product, onBack }: Props) {
     );
   };
 
-  // Images
-  const addImage = () => {
-    if (!newImage.trim()) return;
-    update("images", [...form.images, newImage.trim()]);
-    setNewImage("");
-  };
-  const removeImage = (idx: number) => {
-    update("images", form.images.filter((_, i) => i !== idx));
+  // Size Chart Cell Editor
+  const updateSizeChartCell = (rowIndex: number, headerKey: string, val: string) => {
+    if (!form.sizeChart) return;
+    const newRows = [...form.sizeChart.rows];
+    newRows[rowIndex] = { ...newRows[rowIndex], [headerKey]: val };
+    update("sizeChart", { ...form.sizeChart, rows: newRows });
   };
 
-  // Badges
-  const addBadge = () => {
-    const v = newBadge.trim();
-    if (!v) return;
-    if (form.badges?.includes(v)) return;
-    update("badges", [...(form.badges ?? []), v]);
-    setNewBadge("");
-  };
-  const removeBadge = (b: string) => {
-    update("badges", (form.badges ?? []).filter((x) => x !== b));
+  const resetSizeChart = () => {
+    update("sizeChart", getDefaultSizeChart(form.category));
+    toast.success(isAr ? "تم إعادة ضبط جدول المقاسات حسب الفئة" : "Reset size chart to category defaults");
   };
 
-  // Tags
-  const addTag = () => {
-    const v = newTag.trim().toLowerCase().replace(/\s+/g, "-");
-    if (!v) return;
-    if (form.tags.includes(v)) return;
-    update("tags", [...form.tags, v]);
-    setNewTag("");
-  };
-  const removeTag = (t: string) => {
-    update("tags", form.tags.filter((x) => x !== t));
-  };
-
-  // Discount percentage calculation
   const discountPercent =
     form.compareAtPrice && form.compareAtPrice > form.price
       ? Math.round(((form.compareAtPrice - form.price) / form.compareAtPrice) * 100)
       : null;
 
+  const currentCategoryLabel = CATEGORY_OPTIONS.find((c) => c.value === form.category);
+
   return (
-    <div dir={dir} className="w-full min-h-screen pb-20 space-y-6">
+    <div dir={dir} className="w-full min-h-screen pb-20 space-y-6 bg-background">
       
-      {/* Top Navigation Bar with Back Button & Actions */}
+      {/* Top Bar with Back Button & Actions */}
       <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border/60 py-4 px-4 sm:px-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Button
@@ -252,50 +259,20 @@ export function ProductFormView({ product, onBack }: Props) {
           <div className="h-4 w-[1px] bg-border hidden sm:block" />
           <div>
             <h1 className="font-display font-bold text-xl sm:text-2xl text-foreground tracking-tight flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-amber-500 animate-pulse" />
-              {isEdit ? (isAr ? `تعديل المنتج: ${product?.name}` : `Edit Product: ${product?.name}`) : (isAr ? "صفحة إضافة منتج جديد مع المعاينة الحية" : "Add New Product Page with Live Preview")}
+              <Sparkles className="h-5 w-5 text-amber-500" />
+              {isEdit ? (isAr ? `تعديل المنتج: ${product?.name}` : `Edit Product: ${product?.name}`) : (isAr ? "إضافة منتج جديد" : "Add New Product")}
             </h1>
-            <p className="text-xs text-muted-foreground">
-              {isAr ? "مساحة عمل كاملة مع التمرير الحر والمعاينة التفاعلية المباشرة للمتجر." : "Full-screen workspace with unconstrained scrolling & real-time storefront preview."}
-            </p>
           </div>
         </div>
 
-        {/* Action Buttons & Mobile Tabs */}
-        <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
-          {/* Mobile view switcher */}
-          <div className="flex items-center gap-1 bg-muted p-1 rounded-lg border border-border lg:hidden">
-            <Button
-              type="button"
-              variant={activeMobileTab === "form" ? "default" : "ghost"}
-              size="sm"
-              className="h-7 text-xs px-2.5"
-              onClick={() => setActiveMobileTab("form")}
-            >
-              <Edit3 className="h-3.5 w-3.5 mr-1" />
-              {isAr ? "النموذج" : "Form"}
-            </Button>
-            <Button
-              type="button"
-              variant={activeMobileTab === "preview" ? "default" : "ghost"}
-              size="sm"
-              className="h-7 text-xs px-2.5"
-              onClick={() => setActiveMobileTab("preview")}
-            >
-              <Eye className="h-3.5 w-3.5 mr-1" />
-              {isAr ? "المعاينة" : "Preview"}
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={onBack} className="h-9">
-              {t("cancelBtn")}
-            </Button>
-            <Button type="button" size="sm" onClick={handleSubmit} className="h-9 bg-amber-500 hover:bg-amber-600 text-black font-semibold px-5">
-              <Save className="h-4 w-4 mr-1.5" />
-              {isEdit ? t("saveProductBtn") : t("createProductBtn")}
-            </Button>
-          </div>
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={onBack} className="h-9">
+            {t("cancelBtn")}
+          </Button>
+          <Button type="button" size="sm" onClick={handleSubmit} className="h-9 bg-amber-500 hover:bg-amber-600 text-black font-semibold px-6 shadow">
+            <Save className="h-4 w-4 mr-1.5" />
+            {isEdit ? t("saveProductBtn") : t("createProductBtn")}
+          </Button>
         </div>
       </div>
 
@@ -303,66 +280,34 @@ export function ProductFormView({ product, onBack }: Props) {
       <div className="px-4 sm:px-8 max-w-[1700px] mx-auto">
         <div className="grid lg:grid-cols-12 gap-8 items-start">
           
-          {/* LEFT COLUMN: Input Form (Spacious, Free Scrolling) */}
-          <div className={cn(
-            "lg:col-span-7 space-y-8 bg-card border border-border/80 rounded-2xl p-6 sm:p-8 shadow-xl",
-            activeMobileTab === "preview" ? "hidden lg:block" : "block"
-          )}>
+          {/* LEFT COLUMN: Clean Input Form */}
+          <div className="lg:col-span-7 space-y-8 bg-card border border-border/80 rounded-2xl p-6 sm:p-8 shadow-xl">
             
-            {/* Visual Guide Header Banner */}
-            <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 flex items-start gap-3.5">
-              <div className="p-2 rounded-lg bg-amber-500/20 text-amber-500 font-bold">
-                <Info className="h-5 w-5" />
-              </div>
-              <div className="space-y-1 text-xs text-muted-foreground leading-relaxed">
-                <h3 className="font-bold text-sm text-foreground">
-                  {isAr ? "💡 كيف تم تنظيم شاشة إضافة المنتجات لك ولإداري المتجر؟" : "💡 How store categories and collections work"}
-                </h3>
-                <p>
-                  {isAr
-                    ? "• **الفئة (Category)**: تظهر في صفحة المتجر (/shop) لفلترة وتصنيف المنتجات حسب نوعها (فساتين، بدل، ملابس خارجية).\n• **المجموعة (Collection)**: المعرض الترويجي المميز المعروض مباشرة على الصفحة الرئيسية للمتجر."
-                    : "• Category filters items on /shop page.\n• Collection places items into homepage featured showcases."}
-                </p>
-              </div>
-            </div>
-
             {/* ============ Section 1: Basic Information ============ */}
             <section className="space-y-4">
               <div className="flex items-center gap-2 border-b border-border/60 pb-2">
                 <div className="h-6 w-1 rounded bg-amber-500" />
                 <h2 className="text-sm uppercase tracking-[0.2em] font-bold text-foreground">
-                  {isAr ? "1. المعلومات الأساسية للمنتج" : "1. Basic product information"}
+                  {isAr ? "1. البيانات الأساسية" : "1. Basic information"}
                 </h2>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-5">
-                <Field
-                  label={`${t("productName")} *`}
-                  error={errors.name}
-                  hint={isAr ? "اسم المنتج الرئيسي الظاهر في الكارت وفي الصفحة" : "Main product title"}
-                >
+                <Field label={`${t("productName")} *`} error={errors.name}>
                   <Input
                     value={form.name}
-                    onFocus={() => setFocusedField("name")}
-                    onBlur={() => setFocusedField(null)}
                     onChange={(e) => update("name", e.target.value)}
-                    placeholder={t("productNamePlaceholder")}
-                    className={cn("h-10 text-sm", focusedField === "name" && "border-amber-500 ring-1 ring-amber-500")}
+                    placeholder={isAr ? "مثال: فستان بليزر أسود فاخر" : "e.g. Noir Tailored Blazer Dress"}
+                    className="h-10 text-sm font-medium"
                   />
                 </Field>
 
-                <Field
-                  label={`${t("productSubtitleLabel")} *`}
-                  error={errors.subtitle}
-                  hint={isAr ? "سطر تعريفي موجز أسفل اسم المنتج" : "Short subtext line"}
-                >
+                <Field label={`${t("productSubtitleLabel")} *`} error={errors.subtitle}>
                   <Input
                     value={form.subtitle}
-                    onFocus={() => setFocusedField("subtitle")}
-                    onBlur={() => setFocusedField(null)}
                     onChange={(e) => update("subtitle", e.target.value)}
-                    placeholder="e.g. Single-button blazer dress in Italian wool"
-                    className={cn("h-10 text-sm", focusedField === "subtitle" && "border-amber-500 ring-1 ring-amber-500")}
+                    placeholder={isAr ? "سطر تعريفي موجز للمنتج" : "e.g. Single-button blazer dress in Italian wool"}
+                    className="h-10 text-sm"
                   />
                 </Field>
               </div>
@@ -370,75 +315,73 @@ export function ProductFormView({ product, onBack }: Props) {
               <Field label={`${t("descriptionLabel")} *`} error={errors.description}>
                 <Textarea
                   value={form.description}
-                  onFocus={() => setFocusedField("description")}
-                  onBlur={() => setFocusedField(null)}
                   onChange={(e) => update("description", e.target.value)}
                   rows={4}
-                  placeholder="A sharply tailored blazer dress cut from…"
+                  placeholder={isAr ? "الوصف التفصيلي الكامل للمنتج والخامات والقَصّة..." : "Full detailed description..."}
                   className="text-sm leading-relaxed"
                 />
-              </Field>
-
-              {/* Slug with visual link explanation */}
-              <Field
-                label={t("slugLabel")}
-                hint={
-                  isAr
-                    ? `🔗 رابط الإنترنت المستهدف: https://meme-eg.store/product/${form.slug || "auto-generated-slug"}`
-                    : `🔗 Target URL: https://meme-eg.store/product/${form.slug || "auto-generated-slug"}`
-                }
-              >
-                <div className="relative">
-                  <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    value={form.slug}
-                    onFocus={() => setFocusedField("slug")}
-                    onBlur={() => setFocusedField(null)}
-                    onChange={(e) => update("slug", e.target.value)}
-                    placeholder="auto-generated-slug"
-                    className="pl-9 h-10 font-mono text-xs"
-                  />
-                </div>
               </Field>
             </section>
 
             <Separator />
 
-            {/* ============ Section 2: Pricing & Inventory ============ */}
+            {/* ============ Section 2: Category Selection (Translated) ============ */}
             <section className="space-y-4">
               <div className="flex items-center gap-2 border-b border-border/60 pb-2">
                 <div className="h-6 w-1 rounded bg-amber-500" />
                 <h2 className="text-sm uppercase tracking-[0.2em] font-bold text-foreground">
-                  {isAr ? "2. الأسعار والمخزون والتخفيضات" : "2. Pricing & inventory"}
+                  {isAr ? "2. فئة المنتج (الفئات مترجمة)" : "2. Product Category"}
                 </h2>
               </div>
 
-              <div className="grid sm:grid-cols-4 gap-4">
+              <Field label={isAr ? "اختر الفئة الرئيسية للمنتج *" : "Select Category *"} error={errors.category}>
+                <select
+                  value={form.category}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
+                  className="w-full h-11 rounded-lg border border-input bg-background px-4 text-base font-semibold text-foreground cursor-pointer shadow-sm hover:border-amber-500 transition-colors"
+                >
+                  {CATEGORY_OPTIONS.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {isAr ? c.ar : c.en}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </section>
+
+            <Separator />
+
+            {/* ============ Section 3: Pricing & Inventory ============ */}
+            <section className="space-y-4">
+              <div className="flex items-center gap-2 border-b border-border/60 pb-2">
+                <div className="h-6 w-1 rounded bg-amber-500" />
+                <h2 className="text-sm uppercase tracking-[0.2em] font-bold text-foreground">
+                  {isAr ? "3. الأسعار والمخزون والتخفيضات" : "3. Pricing & Inventory"}
+                </h2>
+              </div>
+
+              <div className="grid sm:grid-cols-3 gap-4">
                 <Field label={`${t("priceLabel")} (ج.م) *`} error={errors.price}>
                   <Input
                     type="number"
                     min={0}
                     step={1}
                     value={form.price || ""}
-                    onFocus={() => setFocusedField("price")}
-                    onBlur={() => setFocusedField(null)}
                     onChange={(e) => update("price", Number(e.target.value))}
                     placeholder="14500"
-                    className="h-10 text-sm font-semibold"
+                    className="h-10 text-sm font-bold"
                   />
                 </Field>
 
                 <Field
                   label={t("compareAtPriceLabel")}
-                  hint={discountPercent ? (isAr ? `تخفيض -${discountPercent}%` : `Save -${discountPercent}%`) : (isAr ? "السعر قبل الخصم" : "Original price")}
+                  hint={discountPercent ? (isAr ? `خصم -${discountPercent}%` : `Save -${discountPercent}%`) : (isAr ? "السعر قبل الخصم" : "Original price")}
                 >
                   <Input
                     type="number"
                     min={0}
                     step={1}
                     value={form.compareAtPrice ?? ""}
-                    onFocus={() => setFocusedField("compareAtPrice")}
-                    onBlur={() => setFocusedField(null)}
                     onChange={(e) =>
                       update(
                         "compareAtPrice",
@@ -460,144 +403,6 @@ export function ProductFormView({ product, onBack }: Props) {
                     className="h-10 text-sm"
                   />
                 </Field>
-
-                <Field label={t("currencyLabel")}>
-                  <Input
-                    value={form.currency}
-                    onChange={(e) => update("currency", e.target.value)}
-                    placeholder="EGP"
-                    className="h-10 text-sm"
-                  />
-                </Field>
-              </div>
-            </section>
-
-            <Separator />
-
-            {/* ============ Section 3: Organization (Category & Collection EXPLAINED) ============ */}
-            <section className="space-y-4">
-              <div className="flex items-center gap-2 border-b border-border/60 pb-2">
-                <div className="h-6 w-1 rounded bg-amber-500" />
-                <h2 className="text-sm uppercase tracking-[0.2em] font-bold text-foreground">
-                  {isAr ? "3. الفئة والمجموعة (موضحة بالكامل)" : "3. Category & Collection Organization"}
-                </h2>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-5">
-                {/* Category Field Box */}
-                <div className="space-y-2.5 p-4 rounded-xl border border-border/80 bg-accent/10">
-                  <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-                    <Folder className="h-4 w-4 text-amber-500" />
-                    <span>{t("categoryLabel")} *</span>
-                  </div>
-                  <select
-                    value={form.category}
-                    onFocus={() => setFocusedField("category")}
-                    onBlur={() => setFocusedField(null)}
-                    onChange={(e) => update("category", e.target.value)}
-                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm font-medium"
-                  >
-                    {CATEGORY_OPTIONS.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {isAr
-                      ? "📌 **الفئة (Category)**: تظهر في القائمة الجانبية لصفحة المتجر (`/shop`). تمكن العميل من تصفية المنتجات حسب النوع (مثل: فساتين، بدل، ملابس خارجية)."
-                      : "📌 **Category**: Filters products on the `/shop` grid by product type."}
-                  </p>
-                </div>
-
-                {/* Collection Field Box */}
-                <div className="space-y-2.5 p-4 rounded-xl border border-border/80 bg-accent/10">
-                  <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-                    <Layers className="h-4 w-4 text-amber-500" />
-                    <span>{t("collectionLabel")} *</span>
-                  </div>
-                  <select
-                    value={form.collection}
-                    onFocus={() => setFocusedField("collection")}
-                    onBlur={() => setFocusedField(null)}
-                    onChange={(e) => update("collection", e.target.value)}
-                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm font-medium"
-                  >
-                    {COLLECTION_OPTIONS.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {isAr
-                      ? "🌟 **المجموعة (Collection)**: المعرض الترويجي المميز المعروض مباشرة على الصفحة الرئيسية للمتجر (مثل: Atelier Noir أو Core Essentials)."
-                      : "🌟 **Collection**: Featured promotional showcase sections displayed directly on the homepage."}
-                  </p>
-                </div>
-              </div>
-
-              {/* Tags & Badges */}
-              <div className="grid sm:grid-cols-2 gap-4 pt-2">
-                <Field label={t("tagsLabel")} hint={isAr ? "وسوم للبحث والتصفية (أحرف صغيرة)" : "Search tags"}>
-                  <div className="flex gap-2">
-                    <Input
-                      value={newTag}
-                      onChange={(e) => setNewTag(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addTag();
-                        }
-                      }}
-                      placeholder="e.g. evening, silk"
-                      className="h-9 text-sm"
-                    />
-                    <Button type="button" variant="outline" size="sm" onClick={addTag} className="h-9">
-                      <Plus className="h-3.5 w-3.5 mr-1" /> {t("addNew")}
-                    </Button>
-                  </div>
-                  {form.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {form.tags.map((t) => (
-                        <Badge key={t} variant="secondary" className="text-xs">
-                          {t}
-                          <button onClick={() => removeTag(t)} className="ml-1 hover:text-destructive">
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </Field>
-
-                <Field label={t("badgesLabel")} hint={isAr ? "شارات ترويجية مثل 'Best Seller'" : "Promotional badges"}>
-                  <div className="flex gap-2">
-                    <Input
-                      value={newBadge}
-                      onChange={(e) => setNewBadge(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addBadge();
-                        }
-                      }}
-                      placeholder="e.g. Best Seller"
-                      className="h-9 text-sm"
-                    />
-                    <Button type="button" variant="outline" size="sm" onClick={addBadge} className="h-9">
-                      <Plus className="h-3.5 w-3.5 mr-1" /> {t("addNew")}
-                    </Button>
-                  </div>
-                  {form.badges && form.badges.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {form.badges.map((b) => (
-                        <Badge key={b} variant="outline" className="text-xs">
-                          {b}
-                          <button onClick={() => removeBadge(b)} className="ml-1 hover:text-destructive">
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </Field>
               </div>
             </section>
 
@@ -608,7 +413,7 @@ export function ProductFormView({ product, onBack }: Props) {
               <div className="flex items-center gap-2 border-b border-border/60 pb-2">
                 <div className="h-6 w-1 rounded bg-amber-500" />
                 <h2 className="text-sm uppercase tracking-[0.2em] font-bold text-foreground">
-                  {isAr ? "4. خيارات الألوان والمقاسات" : "4. Colors & Sizes"}
+                  {isAr ? "4. الألوان والمقاسات" : "4. Colors & Sizes"}
                 </h2>
               </div>
 
@@ -625,7 +430,7 @@ export function ProductFormView({ product, onBack }: Props) {
                       <Input
                         value={color.name}
                         onChange={(e) => updateColor(idx, { name: e.target.value })}
-                        placeholder="Color name"
+                        placeholder={isAr ? "اسم اللون" : "Color name"}
                         className="flex-1 h-10 text-sm"
                       />
                       <Button
@@ -641,7 +446,7 @@ export function ProductFormView({ product, onBack }: Props) {
                     </div>
                   ))}
                   <Button type="button" variant="outline" size="sm" onClick={addColor} className="h-9">
-                    <Plus className="h-3.5 w-3.5 mr-1" /> {isAr ? "إضافة لون" : "Add color"}
+                    <Plus className="h-3.5 w-3.5 mr-1" /> {isAr ? "إضافة لون جديد" : "Add color"}
                   </Button>
                 </div>
               </Field>
@@ -656,7 +461,7 @@ export function ProductFormView({ product, onBack }: Props) {
                         type="button"
                         onClick={() => toggleSize(size)}
                         className={cn(
-                          "h-10 min-w-10 px-3.5 rounded border text-xs font-semibold transition-all",
+                          "h-10 min-w-10 px-4 rounded-lg border text-xs font-bold transition-all",
                           selected
                             ? "border-amber-500 bg-amber-500/10 text-amber-500"
                             : "border-border hover:border-foreground"
@@ -672,49 +477,117 @@ export function ProductFormView({ product, onBack }: Props) {
 
             <Separator />
 
-            {/* ============ Section 5: Media & Images ============ */}
+            {/* ============ Section 5: Smart Category-Based Size Chart Editor ============ */}
+            <section className="space-y-4">
+              <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="h-6 w-1 rounded bg-amber-500" />
+                  <h2 className="text-sm uppercase tracking-[0.2em] font-bold text-foreground flex items-center gap-2">
+                    <Ruler className="h-4 w-4 text-amber-500" />
+                    {isAr ? "5. جدول المقاسات الذكي (Size Chart)" : "5. Smart Category Size Chart"}
+                  </h2>
+                </div>
+
+                <Button type="button" variant="ghost" size="sm" onClick={resetSizeChart} className="h-7 text-xs text-muted-foreground">
+                  <RotateCcw className="h-3 w-3 mr-1" />
+                  {isAr ? "إعادة الضبط للفئة" : "Reset for category"}
+                </Button>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                {isAr
+                  ? `جدول القياسات مخصص تلقائياً لفئة (${currentCategoryLabel?.ar || form.category}). يمكن التعديل المباشر على قيم المقاسات.`
+                  : `Size measurements customized for ${currentCategoryLabel?.en || form.category}. Edit cell values directly.`}
+              </p>
+
+              {form.sizeChart && (
+                <div className="border border-border rounded-xl overflow-hidden shadow-sm bg-background">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-accent/50 border-b border-border">
+                          {form.sizeChart.headers.map((h, i) => (
+                            <th key={i} className="p-3 text-start font-bold text-foreground">
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/60">
+                        {form.sizeChart.rows.map((row, rIdx) => (
+                          <tr key={rIdx} className="hover:bg-accent/20 transition-colors">
+                            {form.sizeChart!.headers.map((h, cIdx) => (
+                              <td key={cIdx} className="p-2">
+                                <Input
+                                  value={row[h] || ""}
+                                  onChange={(e) => updateSizeChartCell(rIdx, h, e.target.value)}
+                                  className="h-8 text-xs font-medium bg-transparent border-border/60 focus:border-amber-500"
+                                />
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <Separator />
+
+            {/* ============ Section 6: Image Upload (File Uploader) ============ */}
             <section className="space-y-4">
               <div className="flex items-center gap-2 border-b border-border/60 pb-2">
                 <div className="h-6 w-1 rounded bg-amber-500" />
                 <h2 className="text-sm uppercase tracking-[0.2em] font-bold text-foreground">
-                  {isAr ? "5. صور وتصاميم المنتج" : "5. Product Images"}
+                  {isAr ? "6. رفع صور المنتج من الجهاز" : "6. Product Image File Uploader"}
                 </h2>
               </div>
 
               <Field label={`${t("imagesLabel")} *`} error={errors.images}>
-                <div className="flex gap-2">
-                  <Input
-                    value={newImage}
-                    onChange={(e) => setNewImage(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addImage();
-                      }
-                    }}
-                    placeholder="https://images.unsplash.com/…"
-                    className="h-10 text-sm"
-                  />
-                  <Button type="button" variant="outline" size="sm" onClick={addImage} className="h-10">
-                    <Plus className="h-3.5 w-3.5 mr-1" /> {t("addNew")}
-                  </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+
+                {/* Drag and drop upload zone */}
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-border hover:border-amber-500/80 rounded-xl p-8 text-center cursor-pointer bg-accent/20 hover:bg-accent/40 transition-all space-y-2 group"
+                >
+                  <div className="w-12 h-12 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
+                    <Upload className="h-6 w-6" />
+                  </div>
+                  <p className="font-bold text-sm text-foreground">
+                    {isAr ? "انقر لرفع صور المنتج من جهازك" : "Click or drop product image files here"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {isAr ? "يدعم صور (PNG, JPG, WEBP). يمكنك تحديد صور متعددة." : "Supports PNG, JPG, WEBP."}
+                  </p>
                 </div>
+
+                {/* Image Gallery Cards */}
                 {form.images.length > 0 && (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mt-3">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mt-4">
                     {form.images.map((imgUrl, idx) => (
-                      <div key={idx} className="relative group aspect-[3/4] rounded-lg border border-border overflow-hidden">
+                      <div key={idx} className="relative group aspect-[3/4] rounded-xl border border-border/80 overflow-hidden shadow-sm">
                         <Image src={imgUrl} alt={`Img ${idx + 1}`} fill sizes="160px" className="object-cover" unoptimized />
                         {idx === 0 && (
-                          <span className="absolute top-1.5 left-1.5 bg-amber-500 text-black font-bold text-[9px] uppercase px-2 py-0.5 rounded shadow">
-                            {isAr ? "الغلاف" : "Cover"}
+                          <span className="absolute top-2 left-2 bg-amber-500 text-black font-bold text-[9px] uppercase px-2 py-0.5 rounded shadow">
+                            {isAr ? "الغلاف الرئيسي" : "Main Cover"}
                           </span>
                         )}
                         <button
                           type="button"
                           onClick={() => removeImage(idx)}
-                          className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-background/90 text-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-background/90 text-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
                         >
-                          <X className="h-3.5 w-3.5" />
+                          <X className="h-4 w-4" />
                         </button>
                       </div>
                     ))}
@@ -725,180 +598,298 @@ export function ProductFormView({ product, onBack }: Props) {
 
             <Separator />
 
-            {/* ============ Section 6: Homepage Merchandising Flags ============ */}
+            {/* ============ Section 7: Material & Care ============ */}
             <section className="space-y-4">
               <div className="flex items-center gap-2 border-b border-border/60 pb-2">
                 <div className="h-6 w-1 rounded bg-amber-500" />
                 <h2 className="text-sm uppercase tracking-[0.2em] font-bold text-foreground">
-                  {isAr ? "6. أماكن العرض الترويجي بالصفحة الرئيسية" : "6. Homepage merchandising"}
+                  {isAr ? "7. الخامات وتعليمات العناية" : "7. Material & Care"}
                 </h2>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-3">
-                <FlagRow
-                  label={t("isNewFlag")}
-                  hint={isAr ? "يظهر في قسم 'المنتجات الجديدة' بالصفحة الرئيسية" : "Shows in 'New Arrivals' on homepage"}
-                  checked={!!form.isNew}
-                  onChange={(v) => update("isNew", v)}
-                />
-                <FlagRow
-                  label={t("isBestSellerFlag")}
-                  hint={isAr ? "يظهر في قسم 'الأكثر مبيعاً' بالصفحة الرئيسية" : "Shows in 'Best Sellers' on homepage"}
-                  checked={!!form.isBestSeller}
-                  onChange={(v) => update("isBestSeller", v)}
-                />
-                <FlagRow
-                  label={t("isTrendingFlag")}
-                  hint={isAr ? "يظهر في قسم 'الرائج الآن' بالصفحة الرئيسية" : "Shows in 'Trending Now' on homepage"}
-                  checked={!!form.isTrending}
-                  onChange={(v) => update("isTrending", v)}
-                />
-                <FlagRow
-                  label={t("isLimitedFlag")}
-                  hint={isAr ? "يظهر في قسم 'التشكيلة المحدودة' بالصفحة الرئيسية" : "Shows in 'Limited Drop' on homepage"}
-                  checked={!!form.isLimited}
-                  onChange={(v) => update("isLimited", v)}
-                />
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Field label={isAr ? "المادة والخامة" : "Material"}>
+                  <Input
+                    value={form.material}
+                    onChange={(e) => update("material", e.target.value)}
+                    placeholder="e.g. 100% Italian Virgin Wool"
+                    className="h-10 text-sm"
+                  />
+                </Field>
+                <Field label={isAr ? "تعليمات الغسيل والعناية" : "Care Instructions"}>
+                  <Input
+                    value={form.care}
+                    onChange={(e) => update("care", e.target.value)}
+                    placeholder="e.g. Dry clean only"
+                    className="h-10 text-sm"
+                  />
+                </Field>
               </div>
             </section>
 
           </div>
 
-          {/* RIGHT COLUMN: Real-Time Live Visual Storefront Preview (Sticky & Full Scrollable) */}
-          <div className={cn(
-            "lg:col-span-5 space-y-6 sticky top-24 self-start bg-card border border-border/80 rounded-2xl p-6 shadow-xl",
-            activeMobileTab === "form" ? "hidden lg:block" : "block"
-          )}>
+          {/* RIGHT COLUMN: Interactive Real-Time Storefront Preview (Outer Card & Inner Product Page) */}
+          <div className="lg:col-span-5 space-y-6 sticky top-24 self-start bg-card border border-border/80 rounded-2xl p-6 shadow-xl">
+            
+            {/* Preview Mode Switcher Bar */}
             <div className="flex items-center justify-between border-b border-border/60 pb-4">
               <div className="flex items-center gap-2">
-                <Eye className="h-5 w-5 text-amber-500 animate-pulse" />
-                <span className="font-display font-bold text-base tracking-tight text-foreground">
-                  {isAr ? "المعاينة الحية التفاعلية للمتجر" : "Interactive Storefront Preview"}
+                <Eye className="h-5 w-5 text-amber-500" />
+                <span className="font-display font-bold text-sm text-foreground">
+                  {isAr ? "المعاينة الحية للمتجر" : "Live Store Preview"}
                 </span>
               </div>
-              <Badge variant="outline" className="text-[10px] font-bold border-amber-500/40 text-amber-500 bg-amber-500/10">
-                {isAr ? "تحديث مباشر Live" : "Real-time Live"}
-              </Badge>
+
+              <div className="flex items-center bg-accent/60 p-1 rounded-lg border border-border">
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode("inner")}
+                  className={cn(
+                    "px-2.5 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1",
+                    previewMode === "inner" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground"
+                  )}
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  {isAr ? "صفحة المنتج" : "Inner Page"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode("outer")}
+                  className={cn(
+                    "px-2.5 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1",
+                    previewMode === "outer" ? "bg-background text-foreground shadow-xs" : "text-muted-foreground"
+                  )}
+                >
+                  <Grid className="h-3.5 w-3.5" />
+                  {isAr ? "كارت المتجر" : "Grid Card"}
+                </button>
+              </div>
             </div>
 
-            {/* Visual Card Preview 1: Shop Grid Product Card */}
-            <div className="space-y-3">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                {isAr ? "1. كارت المنتج كما يظهر للعميل في المتجر:" : "1. Product Card in Shop Grid:"}
-              </p>
-              
-              <div className="bg-background border border-border/80 rounded-xl overflow-hidden shadow-2xl p-4 max-w-[340px] mx-auto transition-all duration-300 hover:border-amber-500/50">
-                {/* Image & Badges */}
-                <div className="relative aspect-[3/4] w-full rounded-lg overflow-hidden bg-muted mb-3 group">
-                  <Image
-                    src={form.images[0] || img("Preview", form.category, "noir", 0)}
-                    alt={form.name || "Preview"}
-                    fill
-                    sizes="340px"
-                    className="object-cover"
-                    unoptimized
-                  />
+            {/* PREVIEW OPTION 1: Inner Product Page Layout Preview */}
+            {previewMode === "inner" ? (
+              <div className="space-y-5 bg-background border border-border/80 rounded-xl p-5 shadow-inner">
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground font-mono">
+                  <span>meme-eg.store/product/{form.slug || "slug"}</span>
+                  <Badge variant="outline" className="text-[9px] border-amber-500/40 text-amber-500">
+                    {isAr ? currentCategoryLabel?.ar || form.category : currentCategoryLabel?.en || form.category}
+                  </Badge>
+                </div>
 
-                  {/* Top Badges */}
-                  <div className="absolute top-2.5 left-2.5 flex flex-col gap-1 z-10">
+                {/* Main Product Image Display & Thumbnails */}
+                <div className="space-y-2">
+                  <div className="relative aspect-[3/4] w-full rounded-xl overflow-hidden bg-muted border border-border">
+                    <Image
+                      src={form.images[selectedPreviewImage] || form.images[0] || img("Preview", form.category, "noir", 0)}
+                      alt={form.name || "Preview"}
+                      fill
+                      sizes="400px"
+                      className="object-cover"
+                      unoptimized
+                    />
                     {discountPercent && (
-                      <span className="bg-red-600 text-white font-bold text-[10px] px-2 py-0.5 rounded shadow">
+                      <span className="absolute top-3 left-3 bg-red-600 text-white font-bold text-xs px-2.5 py-1 rounded shadow">
+                        -{discountPercent}% OFF
+                      </span>
+                    )}
+                  </div>
+
+                  {form.images.length > 1 && (
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {form.images.map((imgUrl, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setSelectedPreviewImage(i)}
+                          className={cn(
+                            "relative aspect-[3/4] w-12 rounded border overflow-hidden shrink-0 transition-all",
+                            selectedPreviewImage === i ? "border-amber-500 ring-1 ring-amber-500" : "border-border opacity-70"
+                          )}
+                        >
+                          <Image src={imgUrl} alt="Thumb" fill sizes="48px" className="object-cover" unoptimized />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Title, Subtitle, Price */}
+                <div className="space-y-1">
+                  <h3 className="font-display font-bold text-xl text-foreground">
+                    {form.name || (isAr ? "اسم المنتج الفاخر" : "Product Title Here")}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {form.subtitle || (isAr ? "سطر تعريفي موجز" : "Subtitle text here")}
+                  </p>
+
+                  <div className="flex items-baseline gap-3 pt-2">
+                    <span className="font-bold text-lg text-foreground">
+                      {formatPrice(form.price || 0)}
+                    </span>
+                    {form.compareAtPrice && form.compareAtPrice > form.price && (
+                      <span className="text-sm text-muted-foreground line-through">
+                        {formatPrice(form.compareAtPrice)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Color Selector */}
+                <div className="space-y-1.5 pt-2 border-t border-border/60">
+                  <p className="text-xs font-semibold text-muted-foreground">
+                    {isAr ? "اللون:" : "Color:"} <span className="text-foreground">{form.colors[selectedPreviewColor]?.name}</span>
+                  </p>
+                  <div className="flex items-center gap-2">
+                    {form.colors.map((c, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setSelectedPreviewColor(i)}
+                        className={cn(
+                          "w-6 h-6 rounded-full border border-white/20 shadow-sm transition-transform",
+                          selectedPreviewColor === i && "ring-2 ring-amber-500 scale-110"
+                        )}
+                        style={{ backgroundColor: c.hex }}
+                        title={c.name}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Size Selector with Size Chart Modal Trigger */}
+                <div className="space-y-2 pt-2 border-t border-border/60">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground">{isAr ? "المقاس:" : "Size:"}</p>
+                    <button
+                      type="button"
+                      onClick={() => setSizeGuideModalOpen(true)}
+                      className="text-xs font-bold text-amber-500 hover:underline flex items-center gap-1"
+                    >
+                      <Ruler className="h-3.5 w-3.5" />
+                      {isAr ? "جدول المقاسات 📏" : "Size Guide 📏"}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {form.sizes.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setSelectedPreviewSize(s)}
+                        className={cn(
+                          "h-8 px-3 rounded text-xs font-bold border transition-all",
+                          selectedPreviewSize === s
+                            ? "border-amber-500 bg-amber-500 text-black"
+                            : "border-border text-foreground hover:border-foreground"
+                        )}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* CTA Button */}
+                <Button className="w-full h-11 bg-foreground text-background font-bold text-sm rounded-lg shadow mt-3">
+                  <ShoppingBag className="h-4 w-4 mr-2" />
+                  {isAr ? "أضف للسلة" : "Add to Cart"}
+                </Button>
+              </div>
+            ) : (
+              /* PREVIEW OPTION 2: Outer Shop Grid Card */
+              <div className="space-y-3">
+                <div className="bg-background border border-border/80 rounded-xl overflow-hidden shadow-2xl p-4 max-w-[340px] mx-auto">
+                  <div className="relative aspect-[3/4] w-full rounded-lg overflow-hidden bg-muted mb-3">
+                    <Image
+                      src={form.images[0] || img("Preview", form.category, "noir", 0)}
+                      alt={form.name || "Preview"}
+                      fill
+                      sizes="340px"
+                      className="object-cover"
+                      unoptimized
+                    />
+
+                    {discountPercent && (
+                      <span className="absolute top-2.5 left-2.5 bg-red-600 text-white font-bold text-[10px] px-2 py-0.5 rounded shadow">
                         -{discountPercent}%
                       </span>
                     )}
-                    {form.isNew && (
-                      <span className="bg-foreground text-background font-bold text-[10px] px-2 py-0.5 rounded shadow">
-                        NEW
-                      </span>
-                    )}
                   </div>
 
-                  {/* Collection Label Tag */}
-                  <div className="absolute bottom-2.5 left-2.5 bg-background/90 backdrop-blur-md text-foreground font-mono text-[9px] px-2.5 py-0.5 rounded border border-white/10">
-                    {form.collection}
-                  </div>
-                </div>
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">
+                      {isAr ? currentCategoryLabel?.ar : currentCategoryLabel?.en}
+                    </p>
+                    <h4 className="font-display font-bold text-base line-clamp-1 text-foreground">
+                      {form.name || (isAr ? "اسم المنتج سيظهر هنا" : "Product Title")}
+                    </h4>
+                    <p className="text-xs text-muted-foreground line-clamp-1">
+                      {form.subtitle || (isAr ? "العنوان الفرعي" : "Subtitle")}
+                    </p>
 
-                {/* Info Text */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-                    <span>{form.category}</span>
-                    <span>{form.inventory > 0 ? (isAr ? "متوفر" : "In Stock") : (isAr ? "نفد" : "Sold out")}</span>
-                  </div>
-
-                  <h4 className={cn(
-                    "font-display font-bold text-base line-clamp-1 text-foreground transition-colors",
-                    focusedField === "name" && "text-amber-500"
-                  )}>
-                    {form.name || (isAr ? "اسم المنتج سيظهر هنا" : "Product Title Here")}
-                  </h4>
-
-                  <p className="text-xs text-muted-foreground line-clamp-1">
-                    {form.subtitle || (isAr ? "العنوان الفرعي سيظهر هنا" : "Subtitle text here")}
-                  </p>
-
-                  <div className="flex items-center justify-between pt-2">
-                    <div className="flex items-baseline gap-2">
+                    <div className="flex items-center justify-between pt-2">
                       <span className="font-bold text-base text-foreground">
                         {formatPrice(form.price || 0)}
                       </span>
-                      {form.compareAtPrice && form.compareAtPrice > form.price && (
-                        <span className="text-xs text-muted-foreground line-through">
-                          {formatPrice(form.compareAtPrice)}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Colors preview */}
-                    <div className="flex items-center -space-x-1">
-                      {form.colors.map((c, i) => (
-                        <span
-                          key={i}
-                          className="w-4 h-4 rounded-full border border-white/20 shadow-sm"
-                          style={{ backgroundColor: c.hex }}
-                          title={c.name}
-                        />
-                      ))}
+                      <div className="flex items-center -space-x-1">
+                        {form.colors.map((c, i) => (
+                          <span
+                            key={i}
+                            className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-sm"
+                            style={{ backgroundColor: c.hex }}
+                          />
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Visual Preview 2: Live URL & Store Metadata */}
-            <div className="p-4 rounded-xl bg-background border border-border/80 space-y-3">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                {isAr ? "2. مظهر رابط وتصنيفات المنتج:" : "2. Live Product Link & Metadata:"}
-              </p>
-
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center justify-between p-2.5 rounded bg-card border border-border/50">
-                  <span className="text-muted-foreground">{isAr ? "رابط الصفحات:" : "Store URL:"}</span>
-                  <span className="font-mono text-amber-500 font-bold truncate max-w-[200px]">
-                    /product/{form.slug || "slug"}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between p-2.5 rounded bg-card border border-border/50">
-                  <span className="text-muted-foreground">{isAr ? "فئة التصفية (/shop):" : "Category Filter:"}</span>
-                  <Badge variant="secondary" className="font-bold text-[11px]">
-                    {form.category}
-                  </Badge>
-                </div>
-
-                <div className="flex items-center justify-between p-2.5 rounded bg-card border border-border/50">
-                  <span className="text-muted-foreground">{isAr ? "المجموعة الرئيسية:" : "Featured Collection:"}</span>
-                  <Badge variant="outline" className="font-bold text-[11px] border-amber-500/40 text-amber-500">
-                    {form.collection}
-                  </Badge>
-                </div>
-              </div>
-            </div>
+            )}
 
           </div>
 
         </div>
       </div>
+
+      {/* Pop-up Size Guide Preview Modal for Storefront */}
+      <Dialog open={sizeGuideModalOpen} onOpenChange={setSizeGuideModalOpen}>
+        <DialogContent dir={dir} className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl font-bold flex items-center gap-2">
+              <Ruler className="h-5 w-5 text-amber-500" />
+              {isAr ? `جدول المقاسات: ${currentCategoryLabel?.ar || form.category}` : `Size Guide: ${currentCategoryLabel?.en || form.category}`}
+            </DialogTitle>
+          </DialogHeader>
+
+          {form.sizeChart && (
+            <div className="border border-border rounded-xl overflow-hidden shadow-sm my-2">
+              <table className="w-full text-xs border-collapse text-center">
+                <thead>
+                  <tr className="bg-accent/60 border-b border-border">
+                    {form.sizeChart.headers.map((h, i) => (
+                      <th key={i} className="p-3 font-bold text-foreground">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {form.sizeChart.rows.map((row, rIdx) => (
+                    <tr key={rIdx} className="hover:bg-accent/20">
+                      {form.sizeChart!.headers.map((h, cIdx) => (
+                        <td key={cIdx} className="p-3 font-medium text-foreground">
+                          {row[h]}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -921,27 +912,5 @@ function Field({
       {hint && !error && <p className="text-xs text-muted-foreground leading-relaxed">{hint}</p>}
       {error && <p className="text-xs text-destructive font-semibold">{error}</p>}
     </div>
-  );
-}
-
-function FlagRow({
-  label,
-  hint,
-  checked,
-  onChange,
-}: {
-  label: string;
-  hint: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <label className="flex items-start gap-3 p-3.5 border border-border/80 rounded-xl cursor-pointer hover:bg-accent/40 transition-colors">
-      <Switch checked={checked} onCheckedChange={onChange} />
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-bold">{label}</p>
-        <p className="text-[11px] text-muted-foreground">{hint}</p>
-      </div>
-    </label>
   );
 }

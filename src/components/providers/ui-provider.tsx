@@ -12,6 +12,11 @@ export type ProductColor = {
 
 export type ProductSize = "XS" | "S" | "M" | "L" | "XL" | "XXL" | "ONE SIZE";
 
+export type SizeChartData = {
+  headers: string[];
+  rows: Array<Record<string, string>>;
+};
+
 export type Product = {
   id: string;
   slug: string;
@@ -37,6 +42,7 @@ export type Product = {
   isTrending?: boolean;
   isLimited?: boolean;
   tags: string[];
+  sizeChart?: SizeChartData;
 };
 
 export type CartLine = {
