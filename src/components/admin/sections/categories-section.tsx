@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { useProductStore } from "@/components/providers/product-store";
 import { categories as seedCategories } from "@/data/products";
 import { useT, useLangDir } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 type Category = {
   id: string;
@@ -102,7 +103,7 @@ export function CategoriesSection() {
             className="pl-9 h-9 bg-background"
           />
         </div>
-        <Button size="sm" onClick={() => setCreating(true)}>
+        <Button size="sm" onClick={() => setCreating(true)} className="font-semibold shadow-sm">
           <Plus className="h-4 w-4 mr-1" /> {t("admin.new_category")}
         </Button>
       </div>
@@ -112,40 +113,43 @@ export function CategoriesSection() {
           {t("admin.loading")}
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((c) => (
-            <Card key={c.id} className="p-4">
-              <div className="flex items-start justify-between mb-2">
-                <div className="h-9 w-9 rounded-md bg-foreground/5 flex items-center justify-center">
-                  <FolderTree className="h-4 w-4" />
+            <Card key={c.id} className="p-5 border border-border/80 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between mb-3">
+                <div className="h-10 w-10 rounded-lg bg-accent flex items-center justify-center border border-border/40">
+                  <FolderTree className="h-5 w-5 text-foreground" />
                 </div>
                 <div className="flex gap-1">
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-7 w-7"
+                    className="h-8 w-8 hover:bg-accent"
                     onClick={() => setEditing(c)}
                   >
-                    <Pencil className="h-3 w-3" />
+                    <Pencil className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
-              <p className="font-medium text-sm">{getCategoryLabel(c.name)}</p>
+              <p className="font-bold text-base text-foreground">{getCategoryLabel(c.name)}</p>
               <p className="text-xs text-muted-foreground font-mono mt-0.5">
                 /{c.slug}
               </p>
               {c.description && (
-                <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                <p className="text-xs text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
                   {c.description}
                 </p>
               )}
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/40">
-                <Badge variant="secondary" className="text-[10px]">
+              <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/60">
+                <Badge variant="secondary" className="text-[10px] font-semibold">
                   {productCount(c.name)} {t("admin.products_count")}
                 </Badge>
                 <Badge
                   variant={c.is_active ? "default" : "secondary"}
-                  className="text-[10px]"
+                  className={cn(
+                    "text-[10px] font-bold px-2.5 py-0.5",
+                    c.is_active ? "bg-emerald-600 dark:bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
+                  )}
                 >
                   {c.is_active ? t("admin.active") : t("admin.hidden")}
                 </Badge>

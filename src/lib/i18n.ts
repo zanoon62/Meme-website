@@ -1,16 +1,5 @@
 "use client";
 
-/**
- * Lightweight i18n dictionary for the storefront and admin panel.
- *
- * Usage:
- *   const t = useT();
- *   t("shop")
- *
- * Language is controlled by the LanguageToggle component (in language-toggle.tsx)
- * which stores the choice in localStorage and sets <html dir> and <html lang>.
- */
-
 import * as React from "react";
 import { useLang } from "@/components/layout/language-toggle";
 
@@ -69,6 +58,11 @@ const DICT: Dict = {
   "cat.Pants": { en: "Pants", ar: "بنطلونات" },
   "cat.Footwear": { en: "Footwear", ar: "أحذية" },
   "cat.Accessories": { en: "Accessories", ar: "إكسسوارات" },
+
+  // Collections
+  "col.Atelier Noir": { en: "Atelier Noir", ar: "أتيليه نوار" },
+  "col.Core Essentials": { en: "Core Essentials", ar: "الأساسيات" },
+  "col.Premium Brands": { en: "Premium Brands", ar: "الماركات الفاخرة" },
 
   // Product Card & Detail
   "product.add_to_cart": { en: "Add to cart", ar: "أضف للسلة" },
@@ -133,11 +127,14 @@ const DICT: Dict = {
 
   "admin.active": { en: "Active", ar: "نشط" },
   "admin.hidden": { en: "Hidden", ar: "مخفي" },
+  "admin.featured": { en: "Featured", ar: "مميزة" },
+  "admin.collections_count": { en: "collections", ar: "مجموعة" },
   "admin.products_count": { en: "products", ar: "منتج" },
   "admin.loading": { en: "Loading…", ar: "جاري التحميل..." },
   "admin.save_changes": { en: "Save changes", ar: "حفظ التغييرات" },
   "admin.create_category": { en: "Create category", ar: "إنشاء الفئة" },
   "admin.edit_category": { en: "Edit category", ar: "تعديل الفئة" },
+  "admin.create_collection": { en: "Create collection", ar: "إنشاء المجموعة" },
   "admin.cancel": { en: "Cancel", ar: "إلغاء" },
 
   // Account

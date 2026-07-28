@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Layers, Plus, Star, Calendar } from "lucide-react";
+import { Plus, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useProductStore } from "@/components/providers/product-store";
+import { collections as seedCollections } from "@/data/products";
+import { useT, useLangDir } from "@/lib/i18n";
 
 type Collection = {
   id: string;
@@ -35,6 +37,8 @@ export function CollectionsSection() {
   const [collections, setCollections] = React.useState<Collection[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [creating, setCreating] = React.useState(false);
+  const t = useT();
+  const dir = useLangDir();
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -42,8 +46,33 @@ export function CollectionsSection() {
       const res = await fetch("/api/admin/collections");
       if (res.ok) {
         const data = await res.json();
-        setCollections(data.collections ?? []);
+        const list = (data.collections && data.collections.length > 0)
+          ? data.collections
+          : seedCollections.map((c, i) => ({
+              id: `col-seed-${i}`,
+              slug: c.slug,
+              name: c.name,
+              tagline: c.tagline ?? null,
+              description: c.description ?? null,
+              image_url: c.image ?? null,
+              is_featured: i === 0,
+              is_active: true,
+            }));
+        setCollections(list);
       }
+    } catch {
+      setCollections(
+        seedCollections.map((c, i) => ({
+          id: `col-seed-${i}`,
+          slug: c.slug,
+          name: c.name,
+          tagline: c.tagline ?? null,
+          description: c.description ?? null,
+          image_url: c.image ?? null,
+          is_featured: i === 0,
+          is_active: true,
+        }))
+      );
     } finally {
       setLoading(false);
     }
@@ -54,31 +83,39 @@ export function CollectionsSection() {
   }, [load]);
 
   const productCount = (name: string) =>
-    products.filter((p) => p.collection === name).length;
+    products.filter((p) => p.collection === name || p.collection.toLowerCase() === name.toLowerCase()).length;
+
+  const getCollectionLabel = (name: string) => {
+    const key = `col.${name}`;
+    const translated = t(key);
+    return translated !== key ? translated : name;
+  };
 
   return (
-    <div className="space-y-6">
+    <div dir={dir} className="space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {collections.length} collections ·{" "}
-          {collections.filter((c) => c.is_featured).length} featured
+          <span className="font-semibold text-foreground">{collections.length}</span> {t("admin.collections_count")} ·{" "}
+          <span className="font-semibold text-amber-600 dark:text-amber-400">
+            {collections.filter((c) => c.is_featured).length}
+          </span>{" "}
+          {t("admin.featured")}
         </p>
         <Button size="sm" onClick={() => setCreating(true)}>
-          <Plus className="h-4 w-4 mr-1" /> New collection
+          <Plus className="h-4 w-4 mr-1" /> {t("admin.new_collection")}
         </Button>
       </div>
 
       {loading ? (
         <Card className="p-12 text-center text-sm text-muted-foreground">
-          Loading…
+          {t("admin.loading")}
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {collections.map((c) => (
-            <Card key={c.id} className="overflow-hidden">
+            <Card key={c.id} className="overflow-hidden border border-border/80 shadow-md hover:shadow-lg transition-shadow">
               <div className="aspect-[16/9] bg-accent relative">
                 {c.image_url && (
-                   
                   <img
                     src={c.image_url}
                     alt={c.name}
@@ -87,34 +124,37 @@ export function CollectionsSection() {
                 )}
                 {c.is_featured && (
                   <div className="absolute top-3 left-3">
-                    <Badge className="bg-foreground text-background text-[10px]">
-                      <Star className="h-2.5 w-2.5 mr-1" /> Featured
+                    <Badge className="bg-amber-500 text-black font-bold text-[10px] shadow">
+                      <Star className="h-2.5 w-2.5 mr-1 fill-black" /> {t("admin.featured")}
                     </Badge>
                   </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-                  <h3 className="font-display text-lg tracking-tight">{c.name}</h3>
+                  <h3 className="font-display font-bold text-xl tracking-tight">{getCollectionLabel(c.name)}</h3>
                   {c.tagline && (
                     <p className="text-xs opacity-90 mt-0.5">{c.tagline}</p>
                   )}
                 </div>
               </div>
-              <div className="p-4">
+              <div className="p-4 space-y-3">
                 {c.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
+                  <p className="text-xs text-muted-foreground line-clamp-2">
                     {c.description}
                   </p>
                 )}
-                <div className="flex items-center justify-between">
-                  <Badge variant="secondary" className="text-[10px]">
-                    {productCount(c.name)} products
+                <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                  <Badge variant="secondary" className="text-[10px] font-semibold">
+                    {productCount(c.name)} {t("admin.products_count")}
                   </Badge>
                   <Badge
                     variant={c.is_active ? "default" : "secondary"}
-                    className="text-[10px]"
+                    className={cn(
+                      "text-[10px] font-bold px-2.5 py-0.5",
+                      c.is_active ? "bg-emerald-600 dark:bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
+                    )}
                   >
-                    {c.is_active ? "Active" : "Hidden"}
+                    {c.is_active ? t("admin.active") : t("admin.hidden")}
                   </Badge>
                 </div>
               </div>
@@ -151,6 +191,8 @@ function CollectionDialog({
     is_active: true,
   });
   const [saving, setSaving] = React.useState(false);
+  const t = useT();
+  const dir = useLangDir();
 
   const save = async () => {
     if (!form.name) {
@@ -192,9 +234,9 @@ function CollectionDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent dir={dir} className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>New collection</DialogTitle>
+          <DialogTitle>{t("admin.new_collection")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
@@ -244,7 +286,7 @@ function CollectionDialog({
             />
           </div>
           <div className="flex items-center justify-between pt-2">
-            <Label className="text-xs">Featured on homepage</Label>
+            <Label className="text-xs">{t("admin.featured")}</Label>
             <Switch
               checked={form.is_featured}
               onCheckedChange={(v) => setForm((f) => ({ ...f, is_featured: v }))}
@@ -253,10 +295,10 @@ function CollectionDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t("admin.cancel")}
           </Button>
           <Button onClick={save} disabled={saving}>
-            {saving ? "Creating…" : "Create collection"}
+            {saving ? t("admin.loading") : t("admin.create_collection")}
           </Button>
         </DialogFooter>
       </DialogContent>
