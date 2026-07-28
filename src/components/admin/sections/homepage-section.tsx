@@ -210,7 +210,7 @@ export function HomepageSection() {
         <div>
           <div className="flex items-center gap-3">
             <h2 className="font-display text-2xl tracking-tight">{t("homepageSections")}</h2>
-            <Badge variant="outline" className="text-xs border-[#f6ec91]/50 text-[#f6ec91] bg-[#f6ec91]/10">
+            <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-500 bg-amber-500/10">
               {isAr ? "مُحرّر الأتيليه التفاعلي المباشر" : "Interactive Live Page Builder"}
             </Badge>
           </div>
@@ -289,14 +289,14 @@ export function HomepageSection() {
                   className={cn(
                     "group relative p-3.5 rounded-xl border transition-all cursor-pointer overflow-hidden",
                     isSelected
-                      ? "border-[#f6ec91] bg-card shadow-lg ring-1 ring-[#f6ec91]/50"
+                      ? "border-amber-500 bg-card shadow-lg ring-1 ring-amber-500/50"
                       : "border-border/60 bg-card/50 hover:border-border hover:bg-card/80"
                   )}
                 >
                   <div className="flex items-center gap-3">
                     <div className={cn(
                       "w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors",
-                      isSelected ? "bg-[#f6ec91] text-zinc-950" : "bg-muted text-muted-foreground group-hover:text-foreground"
+                      isSelected ? "bg-amber-500 text-black font-bold" : "bg-muted text-muted-foreground group-hover:text-foreground"
                     )}>
                       <Icon className="h-4 w-4" />
                     </div>

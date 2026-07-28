@@ -10,22 +10,16 @@ import {
   Users,
   BarChart3,
   Settings,
-  TrendingUp,
-  BookOpen,
   FolderTree,
-  Layers,
   Megaphone,
   Star,
   LogOut,
-  Bell,
-  Search,
-  Plus,
   Boxes,
   ChevronDown,
   LayoutTemplate,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -43,6 +37,8 @@ import { clearAdminSession } from "@/lib/auth/simple-auth";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { LanguageToggle } from "@/components/layout/language-toggle";
 import { useAdminT } from "@/components/admin/admin-i18n";
+import { AdminNotifications } from "@/components/admin/admin-notifications";
+import { motion, AnimatePresence } from "framer-motion";
 
 export type AdminSection =
   | "dashboard"
@@ -96,20 +92,14 @@ export function AdminShell({
           { id: "orders" as AdminSection, icon: ShoppingCart, label: t("orders") },
           { id: "customers" as AdminSection, icon: Users, label: t("customers") },
           { id: "reviews" as AdminSection, icon: Star, label: t("reviews") },
+        ],
+      },
+      {
+        label: t("growth"),
+        items: [
           { id: "marketing" as AdminSection, icon: Megaphone, label: t("marketing") },
-        ],
-      },
-      {
-        label: t("system"),
-        items: [
-          { id: "guide" as AdminSection, icon: BookOpen, label: t("guide") },
-          { id: "settings" as AdminSection, icon: Settings, label: t("settings") },
-        ],
-      },
-      {
-        label: t("homepage"),
-        items: [
           { id: "homepage" as AdminSection, icon: LayoutTemplate, label: t("homepage") },
+          { id: "settings" as AdminSection, icon: Settings, label: t("settings") },
         ],
       },
     ],
@@ -132,18 +122,19 @@ export function AdminShell({
     t("dashboard");
 
   return (
-    <main dir={dir} className="flex-1 bg-accent/20 min-h-screen">
+    <main dir={dir} className="flex-1 bg-background text-foreground min-h-screen">
       <div className="flex">
         {/* Sidebar — desktop */}
-        <aside className="hidden lg:flex flex-col w-64 border-r border-border/60 bg-background sticky top-0 h-screen">
+        <aside className="hidden lg:flex flex-col w-64 border-r border-border/80 bg-card sticky top-0 h-screen shadow-sm">
           <div className="p-6 pb-4">
             <Link
               href="/"
-              className="font-display text-2xl tracking-[0.18em] font-bold"
+              className="font-display text-2xl tracking-[0.18em] font-bold text-foreground flex items-center gap-2"
             >
+              <Sparkles className="h-5 w-5 text-amber-500" />
               MEME
             </Link>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-1">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-1 font-semibold">
               Atelier Admin
             </p>
           </div>
@@ -151,41 +142,44 @@ export function AdminShell({
           <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-5">
             {navGroups.map((group) => (
               <div key={group.label}>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground px-3 mb-2">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground px-3 mb-2 font-bold">
                   {group.label}
                 </p>
-                <div className="space-y-0.5">
-                  {group.items.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => onSection(item.id)}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                        section === item.id
-                          ? "bg-foreground text-background"
-                          : "text-foreground/70 hover:bg-accent"
-                      )}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {item.label}
-                    </button>
-                  ))}
+                <div className="space-y-1">
+                  {group.items.map((item) => {
+                    const active = section === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => onSection(item.id)}
+                        className={cn(
+                          "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all relative",
+                          active
+                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border-l-4 border-amber-500 shadow-xs"
+                            : "text-foreground/70 hover:text-foreground hover:bg-accent/60"
+                        )}
+                      >
+                        <item.icon className={cn("h-4 w-4", active ? "text-amber-500" : "text-muted-foreground")} />
+                        {item.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ))}
           </nav>
 
-          <div className="p-3 border-t border-border/60">
+          <div className="p-3 border-t border-border/80">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-accent text-left">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-foreground text-background text-xs">
+                <button className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-accent text-left transition-colors">
+                  <Avatar className="h-8 w-8 border border-border">
+                    <AvatarFallback className="bg-amber-500 text-black font-bold text-xs">
                       AD
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate">{t("atelierAdmin")}</p>
+                    <p className="text-xs font-bold truncate text-foreground">{t("atelierAdmin")}</p>
                     <p className="text-[10px] text-muted-foreground truncate">
                       admin@memeatelier.com
                     </p>
@@ -209,53 +203,43 @@ export function AdminShell({
           </div>
         </aside>
 
-        {/* Main */}
+        {/* Main Content Viewport */}
         <div className="flex-1 min-w-0">
           {/* Top bar */}
-          <header className="sticky top-0 z-10 glass border-b border-border/60 px-4 lg:px-8 py-4 flex items-center justify-between">
+          <header className="sticky top-0 z-20 bg-background/95 backdrop-blur-md border-b border-border/80 px-4 lg:px-8 py-3.5 flex items-center justify-between shadow-xs">
             <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
                 size="sm"
                 className="lg:hidden"
-                onClick={() => setMobileNavOpen((v) => !v)}
+                onClick={() => setMobileNavOpen(!mobileNavOpen)}
               >
-                <LayoutDashboard className="h-4 w-4" />
+                Navigation
               </Button>
               <div>
-                <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                  {t("admin")}
+                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold">
+                  Atelier Control
                 </p>
-                <h1 className="font-display text-xl lg:text-2xl tracking-tight">
+                <h1 className="font-display text-lg font-bold text-foreground tracking-tight">
                   {currentLabel}
                 </h1>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="relative hidden sm:block">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder={t("search")}
-                  className="pl-9 h-9 w-48 lg:w-64 bg-background"
-                />
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full relative"
-              >
-                <Bell className="h-4 w-4" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full" />
-              </Button>
+
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Interactive Notifications Center */}
+              <AdminNotifications onJumpSection={onSection} />
+
               <LanguageToggle />
               <ThemeToggle />
+
               {onNewProduct && (
                 <Button
                   size="sm"
-                  className="rounded-full hidden sm:inline-flex"
+                  className="rounded-lg hidden sm:inline-flex bg-amber-500 hover:bg-amber-600 text-black font-semibold shadow"
                   onClick={onNewProduct}
                 >
-                  <Plus className="h-4 w-4 mr-1" /> {t("newProduct")}
+                  + {t("newProduct")}
                 </Button>
               )}
             </div>
@@ -263,13 +247,13 @@ export function AdminShell({
 
           {/* Mobile nav drawer */}
           {mobileNavOpen && (
-            <div className="lg:hidden border-b border-border/60 bg-background p-4 space-y-4">
+            <div className="lg:hidden border-b border-border/80 bg-card p-4 space-y-4 shadow-lg">
               {navGroups.map((group) => (
                 <div key={group.label}>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2 font-bold">
                     {group.label}
                   </p>
-                  <div className="grid grid-cols-2 gap-1">
+                  <div className="grid grid-cols-2 gap-1.5">
                     {group.items.map((item) => (
                       <button
                         key={item.id}
@@ -278,13 +262,13 @@ export function AdminShell({
                           setMobileNavOpen(false);
                         }}
                         className={cn(
-                          "flex items-center gap-2 px-3 py-2 rounded-md text-xs",
+                          "flex items-center gap-2 p-2.5 rounded-lg text-xs font-semibold transition-colors",
                           section === item.id
-                            ? "bg-foreground text-background"
+                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold"
                             : "text-foreground/70 hover:bg-accent"
                         )}
                       >
-                        <item.icon className="h-3.5 w-3.5" />
+                        <item.icon className="h-4 w-4" />
                         {item.label}
                       </button>
                     ))}
@@ -294,7 +278,20 @@ export function AdminShell({
             </div>
           )}
 
-          <div className="p-4 lg:p-8">{children}</div>
+          {/* Main section panel with smooth fade-in transition */}
+          <div className="p-4 sm:p-8">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={section}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              >
+                {children}
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
       </div>
     </main>
