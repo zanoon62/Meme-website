@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Cairo, JetBrains_Mono, Playfair_Display } from "next/font/google";
+import { Plus_Jakarta_Sans, Cairo, Playfair_Display, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
@@ -8,7 +8,7 @@ import { StoreProvider } from "@/components/providers/store-provider";
 import { SiteShell } from "@/components/layout/site-shell";
 
 const plusJakarta = Plus_Jakarta_Sans({
-  variable: "--font-sans",
+  variable: "--font-inter",
   subsets: ["latin"],
   display: "swap",
   weight: ["300", "400", "500", "600", "700", "800"],
@@ -22,7 +22,7 @@ const cairo = Cairo({
 });
 
 const playfair = Playfair_Display({
-  variable: "--font-serif",
+  variable: "--font-display",
   subsets: ["latin"],
   display: "swap",
   weight: ["400", "500", "600", "700", "800", "900"],
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
     "EGP fashion",
   ],
   authors: [{ name: "MEME" }],
-  metadataBase: new URL("https://meme.example.com"),
+  metadataBase: new URL("https://meme-eg.store"),
   alternates: { canonical: "/" },
   openGraph: {
     title: "MEME — Premium Streetwear & Tailored Essentials · Egypt",
@@ -67,24 +67,38 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "MEME — Premium Streetwear & Tailored Essentials · Egypt",
+    description:
+      "Top brands, one store. Shipped fast across Egypt. Cash on Delivery available.",
+  },
   icons: {
     icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
       { url: "/logo.svg", type: "image/svg+xml" },
+      { url: "/icon.svg", type: "image/svg+xml" },
     ],
-    apple: [{ url: "/logo.svg", type: "image/svg+xml" }],
+    shortcut: ["/logo.svg"],
+    apple: [{ url: "/logo.svg" }],
   },
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${plusJakarta.variable} ${cairo.variable} ${playfair.variable} ${jetbrainsMono.variable}`}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${plusJakarta.variable} ${cairo.variable} ${playfair.variable} ${jetbrainsMono.variable}`}
+    >
       <body className="font-sans antialiased bg-background text-foreground min-h-screen flex flex-col">
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange={false}
+        >
           <StoreProvider>
             <SiteShell>{children}</SiteShell>
             <Toaster />
