@@ -130,7 +130,7 @@ export function AdminNotifications({
   };
 
   return (
-    <DropdownMenu dir={dir}>
+    <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
