@@ -246,6 +246,16 @@ export function HomepageSection() {
             </button>
           </div>
 
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl border border-border/60 bg-card/80 backdrop-blur-md hover:bg-accent hover:border-amber-500/40 hover:scale-105 active:scale-95 transition-all duration-200 shrink-0"
+          >
+            <Eye className="h-3.5 w-3.5 text-amber-500" />
+            {isAr ? "عرض المتجر المباشر" : "View Live Store"}
+            <ArrowRight className="h-3 w-3 text-muted-foreground" />
+          </a>
           <Button
             variant="outline"
             size="sm"
@@ -694,74 +704,106 @@ function SmartBiLangField({
   value,
   onChange,
   multiline = false,
+  hint,
 }: {
   label: string;
   value: BiLang;
   onChange: (v: BiLang) => void;
   multiline?: boolean;
+  hint?: string;
 }) {
   const { isAr } = useAdminT();
   const Field = multiline ? Textarea : Input;
 
-  const handleEnChange = (newEn: string) => {
-    // Smart Mirror: If AR is empty or identical to EN, auto-populate AR so user types ONCE!
-    const shouldMirror = !value.ar || value.ar === value.en;
-    onChange({
-      en: newEn,
-      ar: shouldMirror ? newEn : value.ar,
-    });
-  };
+  // EN is "auto-mirrored" when empty or identical to AR — user typed once in Arabic
+  const isAutoMirrored = !value.en || value.en === value.ar;
+  const [showEn, setShowEn] = React.useState(() => !!value.en && value.en !== value.ar);
 
   const handleArChange = (newAr: string) => {
     onChange({
-      ...value,
       ar: newAr,
+      // Keep EN in sync as long as it hasn't been independently customized
+      en: isAutoMirrored ? newAr : value.en,
     });
   };
 
-  const handleSmartSync = () => {
-    if (value.en && !value.ar) onChange({ ...value, ar: value.en });
-    else if (value.ar && !value.en) onChange({ ...value, en: value.ar });
-    else onChange({ ...value, ar: value.en });
-    toast.success(isAr ? "تم إكمال النص الثاني تلقائياً 🪄" : "Smart mirror synced 🪄");
+  const handleEnChange = (newEn: string) => {
+    onChange({ ...value, en: newEn });
+  };
+
+  const resetEnToAr = () => {
+    onChange({ ...value, en: value.ar });
+    toast.success(isAr ? "تمت مزامنة الإنجليزية مع العربية ✓" : "English reset to match Arabic ✓");
   };
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</Label>
-        <Button
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</Label>
+        <button
           type="button"
-          variant="ghost"
-          size="sm"
-          onClick={handleSmartSync}
-          className="h-6 px-2 text-[10px] text-[#f6ec91] hover:text-[#f6ec91]/80 hover:bg-[#f6ec91]/10 gap-1 font-medium"
+          onClick={() => setShowEn(!showEn)}
+          className={cn(
+            "flex items-center gap-1.5 text-[10px] font-medium px-2.5 py-1 rounded-full border transition-all duration-200",
+            isAutoMirrored
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:border-emerald-500/50"
+              : "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:border-amber-500/60"
+          )}
         >
-          <Wand2 className="h-3 w-3" />
-          {isAr ? "نسخ النص للغتين 🪄" : "Smart Mirror 🪄"}
-        </Button>
+          {isAutoMirrored ? (
+            <><Check className="h-2.5 w-2.5" />{isAr ? "EN مزامن تلقائياً" : "EN auto-synced"}</>
+          ) : (
+            <><Wand2 className="h-2.5 w-2.5" />{isAr ? "EN مخصص" : "EN customized"}</>
+          )}
+          {showEn ? <ChevronUp className="h-2.5 w-2.5 ml-0.5" /> : <ChevronDown className="h-2.5 w-2.5 ml-0.5" />}
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <span className="text-[10px] font-mono text-muted-foreground block mb-1">English (EN)</span>
+      {/* Primary: Arabic — always visible, full width */}
+      <div>
+        <span className="text-[10px] font-bold text-amber-500 dark:text-amber-400 block mb-1.5 flex items-center gap-1">
+          ★ {isAr ? "العربية — النص الرئيسي" : "Arabic — Primary Text"}
+        </span>
+        <Field
+          value={value.ar}
+          onChange={(e) => handleArChange(e.target.value)}
+          dir="rtl"
+          className={cn(
+            multiline ? "min-h-[90px] text-sm" : "h-10 text-sm",
+            "border-amber-500/30 focus:border-amber-500 bg-amber-500/[0.03]"
+          )}
+          placeholder={isAr ? "اكتب النص بالعربية..." : "Type Arabic text..."}
+        />
+      </div>
+
+      {/* Collapsible: English override */}
+      {showEn && (
+        <div className="rounded-xl border border-border/60 bg-accent/30 p-3 space-y-2 animate-in slide-in-from-top-1 duration-200">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono text-muted-foreground">
+              English (EN) — {isAutoMirrored ? (isAr ? "مزامن تلقائياً" : "Auto-mirrored") : (isAr ? "نسخة مخصصة" : "Custom override")}
+            </span>
+            {!isAutoMirrored && (
+              <button
+                type="button"
+                onClick={resetEnToAr}
+                className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+              >
+                <RotateCcw className="h-2.5 w-2.5" />
+                {isAr ? "إعادة مزامنة مع العربية" : "Reset to Arabic"}
+              </button>
+            )}
+          </div>
           <Field
             value={value.en}
             onChange={(e) => handleEnChange(e.target.value)}
             dir="ltr"
-            className={multiline ? "min-h-[70px] text-xs" : "h-9 text-xs"}
+            className={multiline ? "min-h-[90px] text-sm" : "h-10 text-sm"}
+            placeholder="English version..."
           />
         </div>
-        <div>
-          <span className="text-[10px] font-mono text-muted-foreground block mb-1">العربية (AR)</span>
-          <Field
-            value={value.ar}
-            onChange={(e) => handleArChange(e.target.value)}
-            dir="rtl"
-            className={multiline ? "min-h-[70px] text-xs" : "h-9 text-xs"}
-          />
-        </div>
-      </div>
+      )}
+      {hint && <p className="text-[10px] text-muted-foreground italic">{hint}</p>}
     </div>
   );
 }
@@ -836,14 +878,20 @@ function ImageUploadField({
 }
 
 function SaveRow({ onSave, onCancel }: { onSave: () => void; onCancel: () => void }) {
-  const { t } = useAdminT();
+  const { t, isAr } = useAdminT();
   return (
-    <div className="flex gap-2 pt-4 border-t border-border/40">
-      <Button size="sm" onClick={onSave} className="bg-[#f6ec91] text-zinc-950 hover:bg-[#f6ec91]/90 font-medium">
-        <Save className="h-3.5 w-3.5 mr-1.5" />
-        {t("saveSection")}
+    <div className="flex gap-3 pt-5 border-t border-border/40 mt-3">
+      <Button
+        size="default"
+        onClick={onSave}
+        className="flex-1 h-11 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-bold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 rounded-xl text-sm"
+      >
+        <Save className="h-4 w-4 mr-2" />
+        {t("saveSection")} — {isAr ? "نشر للمتجر المباشر ✓" : "Publish to live store ✓"}
       </Button>
-      <Button size="sm" variant="ghost" onClick={onCancel}>{t("cancel")}</Button>
+      <Button size="default" variant="outline" onClick={onCancel} className="h-11 px-5 rounded-xl">
+        {t("cancel")}
+      </Button>
     </div>
   );
 }
@@ -943,36 +991,15 @@ function AnnouncementEditor({
               </Button>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">English (EN)</Label>
-              <Input
-                value={item.en}
-                onChange={(e) => {
-                  const next = [...config.items];
-                  const newEn = e.target.value;
-                  const newAr = (!item.ar || item.ar === item.en) ? newEn : item.ar;
-                  next[i] = { ...next[i], en: newEn, ar: newAr };
-                  update({ ...config, items: next });
-                }}
-                dir="ltr"
-                className="mt-1 text-xs"
-              />
-            </div>
-            <div>
-              <Label className="text-xs">العربية (AR)</Label>
-              <Input
-                value={item.ar}
-                onChange={(e) => {
-                  const next = [...config.items];
-                  next[i] = { ...next[i], ar: e.target.value };
-                  update({ ...config, items: next });
-                }}
-                dir="rtl"
-                className="mt-1 text-xs"
-              />
-            </div>
-          </div>
+          <SmartBiLangField
+            label={isAr ? "نص الإعلان" : "Announcement text"}
+            value={{ en: item.en, ar: item.ar }}
+            onChange={(v) => {
+              const next = [...config.items];
+              next[i] = { ...next[i], en: v.en, ar: v.ar };
+              update({ ...config, items: next });
+            }}
+          />
         </Card>
       ))}
       <Button
@@ -1204,36 +1231,15 @@ function ValuePropsEditor({
               }}
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">English Headline</Label>
-              <Input
-                value={item.en}
-                onChange={(e) => {
-                  const next = [...config.items];
-                  const newEn = e.target.value;
-                  const newAr = (!item.ar || item.ar === item.en) ? newEn : item.ar;
-                  next[i] = { ...next[i], en: newEn, ar: newAr };
-                  update({ ...config, items: next });
-                }}
-                dir="ltr"
-                className="mt-1 text-xs"
-              />
-            </div>
-            <div>
-              <Label className="text-xs">العنوان بالعربية</Label>
-              <Input
-                value={item.ar}
-                onChange={(e) => {
-                  const next = [...config.items];
-                  next[i] = { ...next[i], ar: e.target.value };
-                  update({ ...config, items: next });
-                }}
-                dir="rtl"
-                className="mt-1 text-xs"
-              />
-            </div>
-          </div>
+          <SmartBiLangField
+            label={t("itemN") + " " + (i + 1)}
+            value={{ en: item.en, ar: item.ar }}
+            onChange={(v) => {
+              const next = [...config.items];
+              next[i] = { ...next[i], en: v.en, ar: v.ar };
+              update({ ...config, items: next });
+            }}
+          />
         </Card>
       ))}
       <SaveRow onSave={onSave} onCancel={onClose} />
@@ -1309,42 +1315,69 @@ function FAQEditor({
   onSave: () => void;
   onClose: () => void;
 }) {
+  const { t, isAr } = useAdminT();
+
   return (
     <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">
+        {isAr ? "أضف الأسئلة الشائعة. اكتب بالعربية والإنجليزية تُزامن تلقائياً." : "Add FAQ items. Type in Arabic — English auto-mirrors."}
+      </p>
       {config.items.map((item, i) => (
-        <Card key={i} className="p-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Question (EN)</Label>
-              <Input
-                value={item.qEn}
-                onChange={(e) => {
+        <Card key={i} className="p-4 space-y-4 border-border/60">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold text-foreground">{isAr ? `سؤال ${i + 1}` : `FAQ ${i + 1}`}</p>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={item.visible}
+                onCheckedChange={(v) => {
                   const next = [...config.items];
-                  const newEn = e.target.value;
-                  const newAr = (!item.qAr || item.qAr === item.qEn) ? newEn : item.qAr;
-                  next[i] = { ...next[i], qEn: newEn, qAr: newAr };
+                  next[i] = { ...next[i], visible: v };
                   update({ ...config, items: next });
                 }}
-                dir="ltr"
-                className="mt-1 text-xs"
               />
-            </div>
-            <div>
-              <Label className="text-xs">السؤال (AR)</Label>
-              <Input
-                value={item.qAr}
-                onChange={(e) => {
-                  const next = [...config.items];
-                  next[i] = { ...next[i], qAr: e.target.value };
-                  update({ ...config, items: next });
-                }}
-                dir="rtl"
-                className="mt-1 text-xs"
-              />
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => update({ ...config, items: config.items.filter((_, j) => j !== i) })}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
             </div>
           </div>
+          <SmartBiLangField
+            label={isAr ? "السؤال" : "Question"}
+            value={{ en: item.qEn, ar: item.qAr }}
+            onChange={(v) => {
+              const next = [...config.items];
+              next[i] = { ...next[i], qEn: v.en, qAr: v.ar };
+              update({ ...config, items: next });
+            }}
+          />
+          <SmartBiLangField
+            label={isAr ? "الإجابة" : "Answer"}
+            value={{ en: item.aEn, ar: item.aAr }}
+            onChange={(v) => {
+              const next = [...config.items];
+              next[i] = { ...next[i], aEn: v.en, aAr: v.ar };
+              update({ ...config, items: next });
+            }}
+            multiline
+          />
         </Card>
       ))}
+      <Button
+        variant="outline"
+        size="sm"
+        className="rounded-xl border-dashed hover:border-amber-500/40 hover:bg-amber-500/5 transition-all"
+        onClick={() => update({
+          ...config,
+          items: [...config.items, { qEn: "", qAr: "", aEn: "", aAr: "", visible: true }],
+        })}
+      >
+        <Plus className="h-3.5 w-3.5 mr-1.5 text-amber-500" />
+        {isAr ? "إضافة سؤال جديد" : "Add FAQ item"}
+      </Button>
       <SaveRow onSave={onSave} onCancel={onClose} />
     </div>
   );
