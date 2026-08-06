@@ -107,31 +107,31 @@ export function ProductsSection({
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          <span className="text-foreground font-medium">{products.length}</span>{" "}
+          <span className="text-foreground font-bold">{products.length}</span>{" "}
           {t("productsLive")} ·{" "}
-          <span className="text-foreground font-medium">
+          <span className="text-emerald-500 font-bold">
             {products.filter((p) => p.inventory > 0).length}
           </span>{" "}
           {t("active")} ·{" "}
-          <span className="text-amber-600 font-medium">
+          <span className="text-amber-500 font-bold">
             {products.filter((p) => p.inventory <= 12 && p.inventory > 0).length}
           </span>{" "}
           {t("lowStock")}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("searchProducts")}
-              className="pl-8 h-8 w-44 sm:w-56 text-xs"
+              className="pl-9 h-9 w-44 sm:w-56 text-xs rounded-xl bg-card/80 backdrop-blur-md border-border/80 focus:border-amber-500 transition-all"
             />
           </div>
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="h-8 rounded-md border border-input bg-background px-3 text-xs"
+            className="h-9 rounded-xl border border-border/80 bg-card/80 backdrop-blur-md px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all"
           >
             <option value="all">{t("filterByCategory")}</option>
             {categoryOptions.map((c) => (
@@ -143,17 +143,17 @@ export function ProductsSection({
           <Button
             variant="outline"
             size="sm"
-            className="h-8"
+            className="h-9 rounded-xl border-border/80 bg-card/80 backdrop-blur-md hover:bg-accent hover:scale-105 transition-all text-xs"
             onClick={() => setPendingReset(true)}
             title="Restore the original 12-product catalog"
           >
-            <RotateCcw className="h-3 w-3 mr-1" /> {t("resetCatalog")}
+            <RotateCcw className="h-3.5 w-3.5 mr-1.5 text-amber-500" /> {t("resetCatalog")}
           </Button>
-          <Button variant="outline" size="sm" className="h-8">
-            <Download className="h-3 w-3 mr-1" /> {t("export")}
+          <Button variant="outline" size="sm" className="h-9 rounded-xl border-border/80 bg-card/80 backdrop-blur-md hover:bg-accent hover:scale-105 transition-all text-xs">
+            <Download className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" /> {t("export")}
           </Button>
-          <Button size="sm" className="h-8" onClick={onAdd}>
-            <Plus className="h-3 w-3 mr-1" /> {t("newProduct")}
+          <Button size="sm" className="h-9 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-bold shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all text-xs" onClick={onAdd}>
+            <Plus className="h-3.5 w-3.5 mr-1" /> {t("newProduct")}
           </Button>
         </div>
       </div>

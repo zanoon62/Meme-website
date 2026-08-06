@@ -88,12 +88,12 @@ export function AdminNotifications({
         <Button
           variant="ghost"
           size="icon"
-          className="rounded-full relative hover:bg-accent transition-colors"
+          className="h-9 w-9 rounded-xl backdrop-blur-xl bg-white/70 dark:bg-zinc-900/70 border border-zinc-200/80 dark:border-white/10 shadow-xs hover:shadow-md hover:scale-105 hover:bg-white dark:hover:bg-zinc-800 hover:border-amber-500/40 dark:hover:border-amber-400/40 transition-all duration-200 text-foreground relative"
           aria-label="Notifications"
         >
-          <Bell className="h-4 w-4 text-foreground" />
+          <Bell className="h-[1.15rem] w-[1.15rem] text-muted-foreground group-hover:text-foreground transition-colors" />
           {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 h-4 min-w-4 px-1 rounded-full bg-red-600 text-white font-bold text-[10px] flex items-center justify-center shadow-sm animate-pulse">
+            <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold text-[10px] flex items-center justify-center shadow-md animate-pulse">
               {unreadCount}
             </span>
           )}

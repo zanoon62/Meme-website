@@ -28,9 +28,13 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full hover:bg-accent">
-          <Sun className="h-[1.1rem] w-[1.1rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-[1.1rem] w-[1.1rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-xl backdrop-blur-xl bg-white/70 dark:bg-zinc-900/70 border border-zinc-200/80 dark:border-white/10 shadow-xs hover:shadow-md hover:scale-105 hover:bg-white dark:hover:bg-zinc-800 hover:border-amber-500/40 dark:hover:border-amber-400/40 transition-all duration-200 text-foreground"
+        >
+          <Sun className="h-[1.15rem] w-[1.15rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0 text-amber-500" />
+          <Moon className="absolute h-[1.15rem] w-[1.15rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100 text-amber-400" />
           <span className="sr-only">Toggle theme</span>
         </Button>
       </DropdownMenuTrigger>

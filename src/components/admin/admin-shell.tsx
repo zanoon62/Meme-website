@@ -122,19 +122,23 @@ export function AdminShell({
     t("dashboard");
 
   return (
-    <main dir={dir} className="flex-1 bg-background text-foreground min-h-screen">
-      <div className="flex">
+    <main dir={dir} className="flex-1 bg-background text-foreground min-h-screen relative overflow-hidden">
+      {/* Designer background ambient glow accents */}
+      <div className="pointer-events-none absolute -top-40 right-0 w-96 h-96 bg-amber-500/5 dark:bg-amber-500/10 rounded-full blur-3xl" />
+      <div className="pointer-events-none absolute top-1/3 -left-40 w-96 h-96 bg-amber-500/5 dark:bg-amber-500/5 rounded-full blur-3xl" />
+
+      <div className="flex relative z-10">
         {/* Sidebar — desktop */}
-        <aside className="hidden lg:flex flex-col w-64 border-r border-border/80 bg-card sticky top-0 h-screen shadow-sm">
+        <aside className="hidden lg:flex flex-col w-64 border-r border-border/80 bg-card/90 backdrop-blur-xl sticky top-0 h-screen shadow-sm">
           <div className="p-6 pb-4">
             <Link
               href="/"
-              className="font-display text-2xl tracking-[0.18em] font-bold text-foreground flex items-center gap-2"
+              className="font-display text-2xl tracking-[0.18em] font-bold text-foreground flex items-center gap-2 group"
             >
-              <Sparkles className="h-5 w-5 text-amber-500" />
+              <Sparkles className="h-5 w-5 text-amber-500 group-hover:rotate-12 transition-transform duration-300" />
               MEME
             </Link>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-1 font-semibold">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-amber-500/90 dark:text-amber-400/90 mt-1 font-bold">
               Atelier Admin
             </p>
           </div>
@@ -142,7 +146,7 @@ export function AdminShell({
           <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-5">
             {navGroups.map((group) => (
               <div key={group.label}>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground px-3 mb-2 font-bold">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground px-3 mb-2 font-bold opacity-80">
                   {group.label}
                 </p>
                 <div className="space-y-1">
@@ -153,13 +157,13 @@ export function AdminShell({
                         key={item.id}
                         onClick={() => onSection(item.id)}
                         className={cn(
-                          "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all relative",
+                          "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 relative group",
                           active
-                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border-l-4 border-amber-500 shadow-xs"
+                            ? "bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-transparent text-amber-600 dark:text-amber-400 font-bold border-l-4 border-amber-500 shadow-xs"
                             : "text-foreground/70 hover:text-foreground hover:bg-accent/60"
                         )}
                       >
-                        <item.icon className={cn("h-4 w-4", active ? "text-amber-500" : "text-muted-foreground")} />
+                        <item.icon className={cn("h-4 w-4 transition-transform duration-200 group-hover:scale-110", active ? "text-amber-500" : "text-muted-foreground")} />
                         {item.label}
                       </button>
                     );
@@ -172,8 +176,8 @@ export function AdminShell({
           <div className="p-3 border-t border-border/80">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-accent text-left transition-colors">
-                  <Avatar className="h-8 w-8 border border-border">
+                <button className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-accent/70 text-left transition-colors">
+                  <Avatar className="h-8 w-8 border border-amber-500/30">
                     <AvatarFallback className="bg-amber-500 text-black font-bold text-xs">
                       AD
                     </AvatarFallback>
@@ -195,7 +199,7 @@ export function AdminShell({
                   {t("settings")}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
+                  <LogOut className="mr-2 h-4 w-4 text-rose-500" />
                   {t("signOut")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -205,13 +209,13 @@ export function AdminShell({
 
         {/* Main Content Viewport */}
         <div className="flex-1 min-w-0">
-          {/* Top bar */}
-          <header className="sticky top-0 z-20 bg-background/95 backdrop-blur-md border-b border-border/80 px-4 lg:px-8 py-3.5 flex items-center justify-between shadow-xs">
+          {/* Top bar — iOS Frosted Glass Capsule Bar */}
+          <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border/70 px-4 lg:px-8 py-3 flex items-center justify-between shadow-xs transition-colors duration-200">
             <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
                 size="sm"
-                className="lg:hidden"
+                className="lg:hidden rounded-xl border border-border/60"
                 onClick={() => setMobileNavOpen(!mobileNavOpen)}
               >
                 Navigation
@@ -226,7 +230,8 @@ export function AdminShell({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3">
+            {/* Header Right / Left Action Icons Bar with iPhone Frosted Pill Effect */}
+            <div className="flex items-center gap-2 sm:gap-2.5 p-1 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-xl">
               {/* Interactive Notifications Center */}
               <AdminNotifications onJumpSection={onSection} />
 
@@ -236,7 +241,7 @@ export function AdminShell({
               {onNewProduct && (
                 <Button
                   size="sm"
-                  className="rounded-lg hidden sm:inline-flex bg-amber-500 hover:bg-amber-600 text-black font-semibold shadow"
+                  className="rounded-xl hidden sm:inline-flex bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-bold shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all duration-200 text-xs px-3.5 h-9"
                   onClick={onNewProduct}
                 >
                   + {t("newProduct")}

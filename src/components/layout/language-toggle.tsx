@@ -94,8 +94,13 @@ export function LanguageToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full" aria-label="Switch language">
-          <Globe className="h-[1.1rem] w-[1.1rem]" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-xl backdrop-blur-xl bg-white/70 dark:bg-zinc-900/70 border border-zinc-200/80 dark:border-white/10 shadow-xs hover:shadow-md hover:scale-105 hover:bg-white dark:hover:bg-zinc-800 hover:border-amber-500/40 dark:hover:border-amber-400/40 transition-all duration-200 text-foreground"
+          aria-label="Switch language"
+        >
+          <Globe className="h-[1.15rem] w-[1.15rem] text-muted-foreground group-hover:text-foreground transition-colors" />
           <span className="sr-only">Switch language</span>
         </Button>
       </DropdownMenuTrigger>

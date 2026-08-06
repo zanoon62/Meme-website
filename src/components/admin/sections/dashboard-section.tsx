@@ -118,29 +118,46 @@ export function DashboardSection({
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-zinc-900 via-zinc-950 to-black dark:from-zinc-900 dark:via-zinc-950 dark:to-black text-white rounded-2xl p-6 sm:p-8 border border-zinc-800 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.25em] text-amber-400 font-bold mb-1">
+      <div className="relative overflow-hidden bg-gradient-to-r from-zinc-900 via-zinc-950 to-black dark:from-zinc-950 dark:via-zinc-900 dark:to-black text-white rounded-3xl p-6 sm:p-8 border border-zinc-800/80 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group">
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-all duration-500" />
+        <div className="relative z-10">
+          <p className="text-[11px] uppercase tracking-[0.25em] text-amber-400 font-bold mb-1 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
             {t("welcomeBack")}
           </p>
           <h3 className="font-display font-bold text-2xl sm:text-3xl tracking-tight text-white">
             {t("manageCatalog")}
           </h3>
-          <p className="text-sm text-zinc-300 mt-2 font-medium">
-            <span className="font-bold text-white">{products.length}</span> {t("productsLive")} ·{" "}
-            <span className="font-bold text-emerald-400">{products.filter((p) => p.inventory > 0).length}</span> {t("active")} ·{" "}
-            <span className="font-bold text-amber-400">{lowStock.length}</span> {t("lowStock")}
-            {outOfStock.length > 0 && ` · ${outOfStock.length} ${t("outOfStock")}`}
+          <p className="text-sm text-zinc-300 mt-2 font-medium flex flex-wrap items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-white font-bold text-xs border border-white/10">
+              {products.length} {t("productsLive")}
+            </span>
+            ·
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs border border-emerald-500/30">
+              {products.filter((p) => p.inventory > 0).length} {t("active")}
+            </span>
+            ·
+            <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold text-xs border border-amber-500/30">
+              {lowStock.length} {t("lowStock")}
+            </span>
+            {outOfStock.length > 0 && (
+              <>
+                ·
+                <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-bold text-xs border border-rose-500/30">
+                  {outOfStock.length} {t("outOfStock")}
+                </span>
+              </>
+            )}
           </p>
         </div>
-        <div className="flex gap-2.5 flex-shrink-0">
+        <div className="flex gap-2.5 flex-shrink-0 relative z-10">
           <Button
             variant="outline"
             size="sm"
             onClick={() => onJump?.("guide")}
-            className="border-zinc-700 text-white bg-zinc-800/80 hover:bg-zinc-700 hover:text-white font-semibold rounded-xl"
+            className="border-zinc-700/80 text-white bg-zinc-800/80 hover:bg-zinc-700 hover:text-white font-semibold rounded-xl backdrop-blur-md hover:scale-105 transition-all"
           >
-            <BookOpen className="h-4 w-4 mr-1.5" /> {t("guide")}
+            <BookOpen className="h-4 w-4 mr-1.5 text-amber-400" /> {t("guide")}
           </Button>
         </div>
       </div>
@@ -148,10 +165,10 @@ export function DashboardSection({
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((k) => (
-          <Card key={k.label} className="p-5 border border-border/80 bg-card shadow-sm hover:shadow-md transition-shadow rounded-2xl space-y-3">
+          <Card key={k.label} className="p-5 border border-border/80 bg-card/80 backdrop-blur-xl shadow-xs hover:shadow-xl hover:border-amber-500/30 dark:hover:border-amber-400/30 transition-all duration-300 rounded-3xl space-y-3 group">
             <div className="flex items-center justify-between">
-              <div className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center border border-border/40">
-                <k.icon className="h-5 w-5 text-foreground" />
+              <div className="h-11 w-11 rounded-2xl bg-amber-500/10 dark:bg-amber-500/15 flex items-center justify-center border border-amber-500/20 text-amber-500 group-hover:scale-110 group-hover:bg-amber-500/20 transition-all duration-300">
+                <k.icon className="h-5 w-5" />
               </div>
               <span
                 className={`inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full border ${
