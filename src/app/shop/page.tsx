@@ -8,12 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  categories,
-  allColors,
-  allSizes,
-  priceRange,
-} from "@/data/products";
+import { allSizes } from "@/data/products";
 import { useLiveProducts } from "@/components/providers/product-store";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -54,10 +49,44 @@ function ShopContent() {
   const [category, setCategory] = React.useState(initialCategory);
   const [selectedColors, setSelectedColors] = React.useState<string[]>([]);
   const [selectedSizes, setSelectedSizes] = React.useState<ProductSize[]>([]);
-  const [priceMax, setPriceMax] = React.useState(priceRange.max);
+  const [priceMax, setPriceMax] = React.useState<number | null>(null);
   const [sort, setSort] = React.useState("featured");
   const [visible, setVisible] = React.useState(12);
   const [mobileFiltersOpen, setMobileFiltersOpen] = React.useState(false);
+
+  // ─── Derive categories, colors, and price range from live products ────────
+  const liveCategories = React.useMemo(() => {
+    const slugSet = new Set<string>();
+    const cats: { slug: string; name: string }[] = [{ slug: "all", name: "All" }];
+    for (const p of products) {
+      if (p.category && !slugSet.has(p.category)) {
+        slugSet.add(p.category);
+        cats.push({ slug: p.category, name: p.category });
+      }
+    }
+    return cats;
+  }, [products]);
+
+  const liveColors = React.useMemo(
+    () =>
+      Array.from(
+        new Set(products.flatMap((p) => p.colors?.map((c) => c.name) ?? []))
+      ).sort(),
+    [products]
+  );
+
+  const livePriceRange = React.useMemo(() => {
+    if (products.length === 0) return { min: 0, max: 100_000 };
+    const prices = products.map((p) => p.price).filter(Boolean);
+    return { min: Math.min(...prices), max: Math.max(...prices) };
+  }, [products]);
+
+  // Set priceMax once products load for the first time
+  React.useEffect(() => {
+    setPriceMax((prev) => (prev === null ? livePriceRange.max : prev));
+  }, [livePriceRange.max]);
+
+  const effectivePriceMax = priceMax ?? livePriceRange.max;
 
   const sortOptions = [
     { value: "featured", label: t("shop.featured") },
@@ -67,7 +96,7 @@ function ShopContent() {
     { value: "rating", label: t("product.best_seller") },
   ];
 
-  // Reset category when URL changes
+  // Sync category with URL search params
   React.useEffect(() => {
     setCategory(searchParams.get("category") || "all");
   }, [searchParams]);
@@ -83,8 +112,8 @@ function ShopContent() {
       result = result.filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
-          p.subtitle.toLowerCase().includes(q) ||
-          p.tags.some((t) => t.includes(q)) ||
+          p.subtitle?.toLowerCase().includes(q) ||
+          p.tags?.some((tag) => tag.includes(q)) ||
           p.category.toLowerCase().includes(q)
       );
     }
@@ -94,17 +123,21 @@ function ShopContent() {
 
     if (selectedColors.length) {
       result = result.filter((p) =>
-        p.colors.some((c) => selectedColors.includes(c.name))
+        p.colors?.some((c) => selectedColors.includes(c.name))
       );
     }
     if (selectedSizes.length) {
-      result = result.filter((p) => p.sizes.some((s) => selectedSizes.includes(s)));
+      result = result.filter((p) =>
+        p.sizes?.some((s) => selectedSizes.includes(s))
+      );
     }
-    result = result.filter((p) => p.price <= priceMax);
+    result = result.filter((p) => p.price <= effectivePriceMax);
 
     switch (sort) {
       case "newest":
-        result = result.sort((a, b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0));
+        result = result.sort(
+          (a, b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0)
+        );
         break;
       case "price-asc":
         result = result.sort((a, b) => a.price - b.price);
@@ -118,18 +151,27 @@ function ShopContent() {
     }
 
     return result;
-  }, [products, category, query, filter, selectedColors, selectedSizes, priceMax, sort]);
+  }, [
+    products,
+    category,
+    query,
+    filter,
+    selectedColors,
+    selectedSizes,
+    effectivePriceMax,
+    sort,
+  ]);
 
   const visibleProducts = filtered.slice(0, visible);
   const activeFilterCount =
     selectedColors.length +
     selectedSizes.length +
-    (priceMax < priceRange.max ? 1 : 0);
+    (effectivePriceMax < livePriceRange.max ? 1 : 0);
 
   const clearAll = () => {
     setSelectedColors([]);
     setSelectedSizes([]);
-    setPriceMax(priceRange.max);
+    setPriceMax(livePriceRange.max);
     setCategory("all");
   };
 
@@ -143,15 +185,19 @@ function ShopContent() {
     <div className="space-y-8">
       {/* Category */}
       <div>
-        <h3 className="text-xs uppercase tracking-[0.2em] font-medium mb-4">{t("shop.category")}</h3>
+        <h3 className="text-xs uppercase tracking-[0.2em] font-medium mb-4">
+          {t("shop.category")}
+        </h3>
         <div className="space-y-2.5">
-          {categories.map((cat) => (
+          {liveCategories.map((cat) => (
             <button
               key={cat.slug}
               onClick={() => setCategory(cat.slug)}
               className={cn(
                 "block text-sm py-1 transition-colors text-start w-full",
-                category === cat.slug ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground"
+                category === cat.slug
+                  ? "text-foreground font-medium"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               {getCategoryLabel(cat.name)}
@@ -162,52 +208,73 @@ function ShopContent() {
 
       {/* Price */}
       <div>
-        <h3 className="text-xs uppercase tracking-[0.2em] font-medium mb-4">{t("shop.price")}</h3>
+        <h3 className="text-xs uppercase tracking-[0.2em] font-medium mb-4">
+          {t("shop.price")}
+        </h3>
         <div className="space-y-4">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{formatPrice(priceRange.min)}</span>
-            <span>{formatPrice(priceMax)}</span>
+            <span>{formatPrice(livePriceRange.min)}</span>
+            <span>{formatPrice(effectivePriceMax)}</span>
           </div>
-          <Slider
-            value={[priceMax]}
-            min={priceRange.min}
-            max={priceRange.max}
-            step={10}
-            onValueChange={(v) => setPriceMax(v[0])}
-          />
+          {livePriceRange.max > livePriceRange.min ? (
+            <Slider
+              value={[effectivePriceMax]}
+              min={livePriceRange.min}
+              max={livePriceRange.max}
+              step={50}
+              onValueChange={(v) => setPriceMax(v[0])}
+            />
+          ) : (
+            <div className="h-1.5 bg-muted rounded-full" />
+          )}
         </div>
       </div>
 
-      {/* Colors */}
-      <div>
-        <h3 className="text-xs uppercase tracking-[0.2em] font-medium mb-4">{t("product.select_color")}</h3>
-        <div className="space-y-2.5">
-          {allColors.map((color) => (
-            <label key={color} className="flex items-center gap-3 cursor-pointer group">
-              <Checkbox
-                checked={selectedColors.includes(color)}
-                onCheckedChange={(checked) => {
-                  setSelectedColors((prev) =>
-                    checked ? [...prev, color] : prev.filter((c) => c !== color)
-                  );
-                }}
-              />
-              <span className="text-sm group-hover:text-foreground transition-colors">{color}</span>
-            </label>
-          ))}
+      {/* Colors — only shown if any product has colors */}
+      {liveColors.length > 0 && (
+        <div>
+          <h3 className="text-xs uppercase tracking-[0.2em] font-medium mb-4">
+            {t("product.select_color")}
+          </h3>
+          <div className="space-y-2.5">
+            {liveColors.map((color) => (
+              <label
+                key={color}
+                className="flex items-center gap-3 cursor-pointer group"
+              >
+                <Checkbox
+                  checked={selectedColors.includes(color)}
+                  onCheckedChange={(checked) => {
+                    setSelectedColors((prev) =>
+                      checked
+                        ? [...prev, color]
+                        : prev.filter((c) => c !== color)
+                    );
+                  }}
+                />
+                <span className="text-sm group-hover:text-foreground transition-colors">
+                  {color}
+                </span>
+              </label>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Sizes */}
       <div>
-        <h3 className="text-xs uppercase tracking-[0.2em] font-medium mb-4">{t("product.select_size")}</h3>
+        <h3 className="text-xs uppercase tracking-[0.2em] font-medium mb-4">
+          {t("product.select_size")}
+        </h3>
         <div className="grid grid-cols-3 gap-2">
           {allSizes.map((size) => (
             <button
               key={size}
               onClick={() =>
                 setSelectedSizes((prev) =>
-                  prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]
+                  prev.includes(size)
+                    ? prev.filter((s) => s !== size)
+                    : [...prev, size]
                 )
               }
               className={cn(
@@ -232,7 +299,10 @@ function ShopContent() {
   );
 
   return (
-    <main dir={dir} className="flex-1 mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 py-10 lg:py-16">
+    <main
+      dir={dir}
+      className="flex-1 mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 py-10 lg:py-16"
+    >
       {/* Header */}
       <div className="mb-8 lg:mb-12">
         <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mb-3">
@@ -240,14 +310,18 @@ function ShopContent() {
         </p>
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <h1 className="font-display text-4xl lg:text-6xl tracking-tight">
-            {category === "all" ? t("shop.all_products") : getCategoryLabel(category)}
+            {category === "all"
+              ? t("shop.all_products")
+              : getCategoryLabel(category)}
           </h1>
-          <p className="text-sm text-muted-foreground">{filtered.length} {t("shop.pieces")}</p>
+          <p className="text-sm text-muted-foreground">
+            {filtered.length} {t("shop.pieces")}
+          </p>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-[240px_1fr] gap-10">
-        {/* Desktop filters */}
+        {/* Desktop sidebar filters */}
         <aside className="hidden lg:block sticky top-28 self-start">
           {FiltersContent}
         </aside>
@@ -256,9 +330,16 @@ function ShopContent() {
           {/* Toolbar */}
           <div className="flex items-center justify-between mb-8 pb-4 border-b border-border/60">
             {/* Mobile filter trigger */}
-            <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+            <Sheet
+              open={mobileFiltersOpen}
+              onOpenChange={setMobileFiltersOpen}
+            >
               <SheetTrigger asChild>
-                <Button variant="outline" size="sm" className="lg:hidden rounded-full">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="lg:hidden rounded-full"
+                >
                   <SlidersHorizontal className="h-4 w-4 mr-2" />
                   {t("shop.category")}
                   {activeFilterCount > 0 && (
@@ -268,7 +349,10 @@ function ShopContent() {
                   )}
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-[85vw] sm:w-[380px] overflow-y-auto">
+              <SheetContent
+                side="left"
+                className="w-[85vw] sm:w-[380px] overflow-y-auto"
+              >
                 <SheetHeader className="mb-4">
                   <SheetTitle>{t("shop.category")}</SheetTitle>
                 </SheetHeader>
@@ -276,27 +360,45 @@ function ShopContent() {
               </SheetContent>
             </Sheet>
 
+            {/* Active filter chips */}
             <div className="hidden lg:flex items-center gap-2 flex-wrap">
               {selectedColors.map((c) => (
-                <span key={c} className="inline-flex items-center gap-1 text-xs px-2.5 py-1 border border-border rounded-full">
+                <span
+                  key={c}
+                  className="inline-flex items-center gap-1 text-xs px-2.5 py-1 border border-border rounded-full"
+                >
                   {c}
-                  <button onClick={() => setSelectedColors((p) => p.filter((x) => x !== c))}>
+                  <button
+                    onClick={() =>
+                      setSelectedColors((p) => p.filter((x) => x !== c))
+                    }
+                  >
                     <X className="h-3 w-3" />
                   </button>
                 </span>
               ))}
               {selectedSizes.map((s) => (
-                <span key={s} className="inline-flex items-center gap-1 text-xs px-2.5 py-1 border border-border rounded-full">
+                <span
+                  key={s}
+                  className="inline-flex items-center gap-1 text-xs px-2.5 py-1 border border-border rounded-full"
+                >
                   {s}
-                  <button onClick={() => setSelectedSizes((p) => p.filter((x) => x !== s))}>
+                  <button
+                    onClick={() =>
+                      setSelectedSizes((p) => p.filter((x) => x !== s))
+                    }
+                  >
                     <X className="h-3 w-3" />
                   </button>
                 </span>
               ))}
             </div>
 
+            {/* Sort */}
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground hidden sm:inline">{t("shop.sort_by")}</span>
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                {t("shop.sort_by")}
+              </span>
               <div className="relative">
                 <select
                   value={sort}
@@ -304,7 +406,13 @@ function ShopContent() {
                   className="appearance-none bg-transparent border border-border rounded-full pl-4 pr-9 py-2 text-xs font-medium cursor-pointer hover:border-foreground transition-colors"
                 >
                   {sortOptions.map((o) => (
-                    <option key={o.value} value={o.value} className="bg-background text-foreground">{o.label}</option>
+                    <option
+                      key={o.value}
+                      value={o.value}
+                      className="bg-background text-foreground"
+                    >
+                      {o.label}
+                    </option>
                   ))}
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3 w-3 pointer-events-none text-muted-foreground" />
@@ -312,11 +420,24 @@ function ShopContent() {
             </div>
           </div>
 
-          {/* Grid */}
-          {visibleProducts.length === 0 ? (
+          {/* Product grid */}
+          {products.length === 0 ? (
+            <div className="py-20 text-center">
+              <p className="text-lg font-medium text-muted-foreground">
+                {t("shop.no_products")}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Add products from the admin panel to see them here.
+              </p>
+            </div>
+          ) : visibleProducts.length === 0 ? (
             <div className="py-20 text-center">
               <p className="text-lg font-medium">{t("shop.no_products")}</p>
-              <Button variant="outline" className="mt-4 rounded-full" onClick={clearAll}>
+              <Button
+                variant="outline"
+                className="mt-4 rounded-full"
+                onClick={clearAll}
+              >
                 {t("shop.clear_filters")}
               </Button>
             </div>
