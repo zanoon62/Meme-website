@@ -489,74 +489,7 @@ export type Review = {
   helpful: number;
 };
 
-export const reviews: Review[] = [
-  {
-    id: "r-001",
-    productId: "w-001",
-    author: "Salma A.",
-    rating: 5,
-    title: "Better than suits costing 2x",
-    body: "The drape is incredible. The canvassed construction gives it a presence I wasn't expecting at this price point. Wore it to a gallery opening in Zamalek and got three compliments in the first hour. The wool feels substantial without being heavy, and the cut is sharp without being costume-y. This is the only blazer dress I'll need for years.",
-    date: "2025-09-14",
-    verified: true,
-    helpful: 47,
-  },
-  {
-    id: "r-002",
-    productId: "w-001",
-    author: "Menna T.",
-    rating: 5,
-    title: "Tailored to perfection",
-    body: "I'm a stylist and this is now in regular rotation for client fittings. The shoulder construction is the real standout — structured but not stiff. Sizing is true to size. The Noir black is a true deep black, not the slightly-blue black you get from cheaper wools.",
-    date: "2025-08-22",
-    verified: true,
-    helpful: 38,
-  },
-  {
-    id: "r-003",
-    productId: "w-002",
-    author: "Nour K.",
-    rating: 5,
-    title: "Cashmere that lasts",
-    body: "I've bought a lot of hoodies and this is the first one that actually feels luxe without being stiff. The cashmere blend is brushed on the inside and gets softer with every wash. The boxy fit is exactly what I wanted. Worth every pound.",
-    date: "2025-10-02",
-    verified: true,
-    helpful: 62,
-  },
-  {
-    id: "r-004",
-    productId: "w-005",
-    author: "Farida R.",
-    rating: 5,
-    title: "The only slip dress I'll wear",
-    body: "Bought three. The silk is in a different league than the basic slip dresses I used to buy. The bias cut skims every curve without clinging. Holds its shape after dozens of washes. The tonal embroidery is a quiet flex.",
-    date: "2025-09-30",
-    verified: true,
-    helpful: 89,
-  },
-  {
-    id: "r-005",
-    productId: "w-007",
-    author: "Laila S.",
-    rating: 5,
-    title: "A real heirloom piece",
-    body: "This jacket will outlive me. The lambskin is butter-soft from day one and the construction is impeccable. The asymmetric zip hits perfectly. Save up and buy it — you won't regret it.",
-    date: "2025-07-18",
-    verified: true,
-    helpful: 51,
-  },
-  {
-    id: "r-006",
-    productId: "w-011",
-    author: "Hana M.",
-    rating: 5,
-    title: "Holds shape all day",
-    body: "Six months in and the denim still looks fresh. The high rise is perfect and the stretch holds without bagging out. The fit is true skinny — not jegging-tight. The Okayama denim is the real deal.",
-    date: "2025-10-12",
-    verified: true,
-    helpful: 73,
-  },
-];
+export const reviews: Review[] = [];
 
 export const getReviewsForProduct = (productId: string) =>
   reviews.filter((r) => r.productId === productId);

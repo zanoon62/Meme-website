@@ -16,9 +16,7 @@ type Review = (typeof seedReviews)[number] & {
 };
 
 export function ReviewsSection() {
-  const [reviews, setReviews] = React.useState<Review[]>(
-    seedReviews.map((r) => ({ ...r, is_published: true }))
-  );
+  const [reviews, setReviews] = React.useState<Review[]>([]);
   const [respondingTo, setRespondingTo] = React.useState<string | null>(null);
   const [response, setResponse] = React.useState("");
 
@@ -29,7 +27,7 @@ export function ReviewsSection() {
         const res = await fetch("/api/admin/reviews?status=all");
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data.reviews) && data.reviews.length > 0) {
+          if (Array.isArray(data.reviews)) {
             // Map API reviews to local shape
             const mapped: Review[] = data.reviews.map((r: {
               id: string;
@@ -60,7 +58,7 @@ export function ReviewsSection() {
           }
         }
       } catch {
-        // fall back to seed
+        // fall back
       }
     })();
   }, []);
@@ -134,7 +132,16 @@ export function ReviewsSection() {
       </div>
 
       <div className="space-y-3">
-        {reviews.map((r) => {
+        {reviews.length === 0 ? (
+          <Card className="p-12 text-center border-dashed">
+            <MessageSquare className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
+            <p className="text-sm font-medium">No reviews yet ✨</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Customer reviews will appear here once submitted.
+            </p>
+          </Card>
+        ) : (
+          reviews.map((r) => {
           const product = seedProducts.find((p) => p.id === r.productId);
           return (
             <Card key={r.id} className="p-5">
@@ -256,7 +263,8 @@ export function ReviewsSection() {
               </div>
             </Card>
           );
-        })}
+        })
+        )}
       </div>
     </div>
   );

@@ -358,13 +358,7 @@ const seedCoupons: DemoCoupon[] = [
   { id: "cp-4", code: "FLAT500", type: "fixed", value: 500, min_subtotal: 5000, usage_count: 12, usage_limit: null, is_active: false, expires_at: "2025-09-30T23:59:59Z", created_at: "2025-01-01T00:00:00Z" },
 ];
 
-const seedReviews: DemoReview[] = [
-  { id: "rv-1", product_id: "p-001", product_name: "Noir Tailored Blazer Dress", customer_name: "Salma Ahmed", rating: 5, title: "Perfectly tailored", body: "The fit is impeccable and the wool feels luxurious. Wore it to a wedding and got so many compliments.", is_published: true, is_verified: true, public_response: "Thank you Salma! So glad you love it.", created_at: "2025-09-20T10:00:00Z" },
-  { id: "rv-2", product_id: "p-002", product_name: "Cashmere Oversized Hoodie", customer_name: "Nour Khaled", rating: 5, title: "Cozy luxury", body: "Worth every pound. The cashmere is so soft and the oversized fit is exactly what I wanted.", is_published: true, is_verified: true, public_response: null, created_at: "2025-10-05T14:00:00Z" },
-  { id: "rv-3", product_id: "p-004", product_name: "Atelier Camel Overcoat", customer_name: "Farida Mahmoud", rating: 4, title: "Beautiful coat", body: "The color is gorgeous and the wool is heavy. Runs slightly large but that's the style.", is_published: false, is_verified: true, public_response: null, created_at: "2025-10-13T09:00:00Z" },
-  { id: "rv-4", product_id: "p-007", product_name: "Cropped Leather Moto Jacket", customer_name: "Hana Youssef", rating: 5, title: "Investment piece", body: "The leather quality is incredible. This will last me years. Highly recommend.", is_published: true, is_verified: true, public_response: null, created_at: "2025-10-16T11:30:00Z" },
-  { id: "rv-5", product_id: "p-005", product_name: "Bias-Cut Silk Slip Dress", customer_name: "Laila Mostafa", rating: 4, title: "Elegant", body: "The silk drapes beautifully. Slightly sheer so I wear a slip underneath.", is_published: false, is_verified: false, public_response: null, created_at: "2025-10-11T16:00:00Z" },
-];
+const seedReviews: DemoReview[] = [];
 
 // ---------- In-memory store (per server process) ----------
 const store = {
