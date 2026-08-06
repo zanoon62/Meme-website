@@ -819,34 +819,102 @@ function ImageUploadField({
 }) {
   const { t, isAr } = useAdminT();
   const [uploading, setUploading] = React.useState(false);
+  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [dragging, setDragging] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const handleFile = async (file: File) => {
     setUploading(true);
+    setErrorMsg(null);
     try {
       const form = new FormData();
       form.append("file", file);
       const res = await fetch("/api/admin/homepage-image", { method: "POST", body: form });
-      if (!res.ok) throw new Error("Upload failed");
-      const { url } = await res.json();
-      onChange(url);
-      toast.success(isAr ? "تم رفع الصورة بنجاح" : "Image uploaded successfully");
-    } catch {
-      toast.error(isAr ? "فشل رفع الصورة" : "Image upload failed");
+      // Read actual error from server so we can show it
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = data?.error || `HTTP ${res.status}`;
+        setErrorMsg(msg);
+        toast.error(`${isAr ? "فشل رفع الصورة" : "Upload failed"}: ${msg}`);
+        return;
+      }
+      onChange(data.url);
+      toast.success(isAr ? "تم رفع الصورة بنجاح ✓" : "Image uploaded ✓");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Network error";
+      setErrorMsg(msg);
+      toast.error(`${isAr ? "خطأ في الاتصال" : "Connection error"}: ${msg}`);
     } finally {
       setUploading(false);
     }
   };
 
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith("image/")) handleFile(file);
+  };
+
   return (
     <div className="space-y-2">
-      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</Label>
+      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</Label>
+
+      {/* Drop Zone */}
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
+        onClick={() => inputRef.current?.click()}
+        className={cn(
+          "relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed cursor-pointer transition-all duration-200 min-h-[120px] text-center p-4",
+          dragging
+            ? "border-amber-500 bg-amber-500/10 scale-[1.01]"
+            : "border-border/60 bg-accent/20 hover:border-amber-500/50 hover:bg-amber-500/5"
+        )}
+      >
+        {value ? (
+          // Preview existing image
+          <>
+            <div className="relative w-full h-36 rounded-lg overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={value} alt="Preview" className="w-full h-full object-cover" />
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              {isAr ? "انقر أو اسحب لتغيير الصورة" : "Click or drag to replace image"}
+            </p>
+          </>
+        ) : (
+          // Empty state
+          <>
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+              <Upload className="h-5 w-5 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">{isAr ? "رفع صورة" : "Upload Image"}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {isAr ? "انقر هنا أو اسحب الصورة — JPG, PNG, WebP حتى 5 MB" : "Click or drag & drop — JPG, PNG, WebP up to 5 MB"}
+              </p>
+            </div>
+          </>
+        )}
+        {uploading && (
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-xl">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <span className="animate-spin text-lg">⟳</span>
+              {isAr ? "جاري الرفع..." : "Uploading..."}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Manual URL input (fallback) */}
       <div className="flex gap-2">
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="https://..."
-          className="flex-1 text-xs"
+          placeholder="https://... (أو أدخل رابط الصورة مباشرة)"
+          className="flex-1 text-xs h-8"
         />
         <Button
           type="button"
@@ -854,11 +922,10 @@ function ImageUploadField({
           size="sm"
           disabled={uploading}
           onClick={() => inputRef.current?.click()}
-          className="shrink-0"
+          className="shrink-0 h-8 text-xs"
         >
-          {uploading
-            ? <><span className="animate-spin mr-1">⟳</span>{t("uploading")}</>
-            : <><Upload className="h-3.5 w-3.5 mr-1.5" />{t("uploadImage")}</>}
+          <Upload className="h-3 w-3 mr-1" />
+          {uploading ? (isAr ? "جاري..." : "..." ) : (isAr ? "رفع" : "Upload")}
         </Button>
         <input
           ref={inputRef}
@@ -868,9 +935,12 @@ function ImageUploadField({
           onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
         />
       </div>
-      {value && (
-        <div className="relative w-28 h-16 rounded overflow-hidden border border-border/60">
-          <Image src={value} alt="Preview" fill sizes="112px" className="object-cover" />
+
+      {/* Error message display */}
+      {errorMsg && (
+        <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
+          <X className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span><strong>{isAr ? "خطأ:" : "Error:"}</strong> {errorMsg}</span>
         </div>
       )}
     </div>
