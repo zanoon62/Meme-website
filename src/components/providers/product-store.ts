@@ -67,7 +67,10 @@ const PLACEHOLDER_IMG =
 export const useProductStore = create<ProductStore>()(
   persist(
     (set, get) => ({
-      products: seedProducts,
+      // When Supabase is configured, start with an empty list — refreshFromServer()
+      // will populate from the real database. When not configured (local dev),
+      // use the seed catalog so the UI still renders for development/preview.
+      products: isSupabaseConfigured() ? [] : seedProducts,
       hydrated: false,
       loading: false,
       setHydrated: (v) => set({ hydrated: v }),
@@ -232,8 +235,14 @@ export const useProductStore = create<ProductStore>()(
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);
+        // When Supabase is active, discard any cached localStorage products
+        // (which may be old seed/fake products) so only real DB data shows.
+        if (isSupabaseConfigured()) {
+          state?.setProducts([]);
+        }
       },
-      partialize: (s) => ({ products: s.products }),
+      // Only persist products in local (non-Supabase) mode
+      partialize: (s) => ({ products: isSupabaseConfigured() ? [] : s.products }),
     }
   )
 );

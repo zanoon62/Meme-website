@@ -20,9 +20,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
-  // Demo mode — return mock analytics for preview/evaluation
+  // No Supabase configured — return empty analytics so the dashboard
+  // shows real zeros rather than misleading demo data.
   if (!isSupabaseServiceConfigured()) {
-    return NextResponse.json(demoAnalytics);
+    return NextResponse.json(emptyAnalytics);
   }
 
   const guard = await requireAdmin();
@@ -127,39 +128,22 @@ export async function GET(req: NextRequest) {
       generatedAt: new Date().toISOString(),
     });
   } catch (e) {
-    return NextResponse.json(demoAnalytics);
+    logger.error("analytics aggregation failed", { error: e });
+    return NextResponse.json(emptyAnalytics);
   }
 }
 
-const demoAnalytics = {
+const emptyAnalytics = {
   kpis: {
-    revenue: 48620.5,
-    revenueDelta: 18.4,
-    orders: 127,
-    aov: 383.62,
-    totalProducts: 12,
-    totalCustomers: 847,
-    pendingOrders: 3,
+    revenue: 0,
+    revenueDelta: 0,
+    orders: 0,
+    aov: 0,
+    totalProducts: 0,
+    totalCustomers: 0,
+    pendingOrders: 0,
   },
-  series: [
-    { date: "2025-09-15", revenue: 1280, orders: 4 },
-    { date: "2025-09-18", revenue: 2450, orders: 7 },
-    { date: "2025-09-21", revenue: 980, orders: 3 },
-    { date: "2025-09-24", revenue: 3120, orders: 9 },
-    { date: "2025-09-27", revenue: 1860, orders: 5 },
-    { date: "2025-09-30", revenue: 4280, orders: 12 },
-    { date: "2025-10-03", revenue: 2940, orders: 8 },
-    { date: "2025-10-06", revenue: 5210, orders: 14 },
-    { date: "2025-10-09", revenue: 3680, orders: 10 },
-    { date: "2025-10-12", revenue: 6420, orders: 17 },
-    { date: "2025-10-15", revenue: 4890, orders: 13 },
-  ],
-  topProducts: [
-    { name: "Noir Tailored Blazer Dress", units: 38, revenue: 18582 },
-    { name: "Cashmere Oversized Hoodie", units: 52, revenue: 12740 },
-    { name: "Wide-Leg Silk Trouser", units: 24, revenue: 6960 },
-    { name: "Italian Moto Jacket", units: 11, revenue: 6050 },
-    { name: "Silk Slip Dress", units: 19, revenue: 4845 },
-  ],
+  series: [],
+  topProducts: [],
   generatedAt: new Date().toISOString(),
 };

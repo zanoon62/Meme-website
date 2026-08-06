@@ -35,56 +35,9 @@ type NotificationItem = {
   targetSection: AdminSection;
 };
 
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "notif-1",
-    type: "order",
-    titleAr: "طلب جديد #1048",
-    titleEn: "New Order #1048",
-    descAr: "تم استلام طلب بقيمة 18,500 ج.م من سارة أحمد",
-    descEn: "Order placed for 18,500 EGP by Sarah Ahmed",
-    timeAr: "منذ 3 دقائق",
-    timeEn: "3 mins ago",
-    read: false,
-    targetSection: "orders",
-  },
-  {
-    id: "notif-2",
-    type: "inventory",
-    titleAr: "تنبيه مخزون منخفض",
-    titleEn: "Low Stock Alert",
-    descAr: "فستان بليزر أسود فاخر متبقي منه 2 قطعة فقط بالمخزون",
-    descEn: "Noir Tailored Blazer Dress has only 2 units left",
-    timeAr: "منذ 15 دقيقة",
-    timeEn: "15 mins ago",
-    read: false,
-    targetSection: "inventory",
-  },
-  {
-    id: "notif-3",
-    type: "review",
-    titleAr: "تقييم جديد ⭐⭐⭐⭐⭐",
-    titleEn: "New 5-Star Review ⭐⭐⭐⭐⭐",
-    descAr: "قام عميل بكتابة تعليق مميز على هودي الكشمير الفاخر",
-    descEn: "Client left a stellar review on Cashmere Hoodie",
-    timeAr: "منذ ساعتين",
-    timeEn: "2 hours ago",
-    read: false,
-    targetSection: "reviews",
-  },
-  {
-    id: "notif-4",
-    type: "system",
-    titleAr: "تحديث النظام بنجاح",
-    titleEn: "System Updated",
-    descAr: "تم تفعيل جدول المقاسات الذكي ورفع الصور المباشر",
-    descEn: "Smart size charts & file uploader activated",
-    timeAr: "منذ 4 ساعات",
-    timeEn: "4 hours ago",
-    read: true,
-    targetSection: "dashboard",
-  },
-];
+// Notifications start empty — real notifications will be generated
+// by actual orders, inventory changes, and customer reviews.
+const INITIAL_NOTIFICATIONS: NotificationItem[] = [];
 
 export function AdminNotifications({
   onJumpSection,

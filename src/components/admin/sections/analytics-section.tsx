@@ -6,17 +6,11 @@ import {
   Area,
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
 } from "recharts";
 import { Card } from "@/components/ui/card";
 import { DollarSign, ShoppingCart, TrendingUp, Eye } from "lucide-react";
@@ -35,25 +29,6 @@ type Analytics = {
   series: { date: string; revenue: number; orders: number }[];
   topProducts: { name: string; units: number; revenue: number }[];
 };
-
-const CATEGORY_DATA = [
-  { name: "Tailoring", value: 35, color: "#0d0d0d" },
-  { name: "Outerwear", value: 22, color: "#525252" },
-  { name: "Knitwear", value: 18, color: "#a3a3a3" },
-  { name: "Dresses", value: 14, color: "#d4d4d4" },
-  { name: "Footwear", value: 7, color: "#e5e5e5" },
-  { name: "Other", value: 4, color: "#f5f5f5" },
-];
-
-const TRAFFIC_DATA = [
-  { day: "Mon", direct: 4200, organic: 3100, social: 2100 },
-  { day: "Tue", direct: 4800, organic: 3400, social: 2400 },
-  { day: "Wed", direct: 5100, organic: 3700, social: 2800 },
-  { day: "Thu", direct: 4900, organic: 3500, social: 2600 },
-  { day: "Fri", direct: 5800, organic: 4200, social: 3200 },
-  { day: "Sat", direct: 6400, organic: 4500, social: 3800 },
-  { day: "Sun", direct: 5600, organic: 3900, social: 3100 },
-];
 
 export function AnalyticsSection() {
   const [data, setData] = React.useState<Analytics | null>(null);
@@ -75,29 +50,31 @@ export function AnalyticsSection() {
   const kpis = [
     {
       label: "Total Revenue",
-      value: kpi ? formatPrice(kpi.revenue) : "$—",
-      delta: kpi ? `${kpi.revenueDelta > 0 ? "+" : ""}${kpi.revenueDelta}%` : "—",
+      value: kpi ? (kpi.revenue > 0 ? formatPrice(kpi.revenue) : "\u2014") : "\u2014",
+      delta: kpi && kpi.revenueDelta !== 0 ? `${kpi.revenueDelta > 0 ? "+" : ""}${kpi.revenueDelta}%` : "\u2014",
       icon: DollarSign,
     },
     {
       label: "Orders",
-      value: kpi?.orders?.toString() ?? "—",
-      delta: "+8.2%",
+      value: kpi ? kpi.orders.toString() : "\u2014",
+      delta: "\u2014",
       icon: ShoppingCart,
     },
     {
       label: "Avg Order Value",
-      value: kpi ? formatPrice(kpi.aov) : "$—",
-      delta: "+3.8%",
+      value: kpi ? (kpi.aov > 0 ? formatPrice(kpi.aov) : "\u2014") : "\u2014",
+      delta: "\u2014",
       icon: TrendingUp,
     },
     {
       label: "Conversion Rate",
-      value: "3.42%",
-      delta: "+0.4%",
+      value: "\u2014",
+      delta: "\u2014",
       icon: Eye,
     },
   ];
+
+  const hasSeriesData = (data?.series?.length ?? 0) > 0;
 
   return (
     <div className="space-y-6">
@@ -109,7 +86,7 @@ export function AnalyticsSection() {
               <div className="h-9 w-9 rounded-md bg-foreground/5 flex items-center justify-center">
                 <k.icon className="h-4 w-4" />
               </div>
-              <span className="text-xs text-emerald-600 font-medium">
+              <span className="text-xs text-muted-foreground font-medium">
                 {k.delta}
               </span>
             </div>
@@ -119,7 +96,7 @@ export function AnalyticsSection() {
         ))}
       </div>
 
-      {/* Revenue + orders over time */}
+      {/* Revenue over time */}
       <Card className="p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -130,6 +107,12 @@ export function AnalyticsSection() {
         {loading ? (
           <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground">
             Loading…
+          </div>
+        ) : !hasSeriesData ? (
+          <div className="h-[300px] flex flex-col items-center justify-center text-center gap-2">
+            <TrendingUp className="h-8 w-8 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground font-medium">No revenue data yet</p>
+            <p className="text-xs text-muted-foreground/70">Revenue will appear here once orders are placed</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={300}>
@@ -150,7 +133,7 @@ export function AnalyticsSection() {
               <YAxis
                 stroke="hsl(var(--muted-foreground))"
                 fontSize={11}
-                tickFormatter={(v) => `$${v / 1000}k`}
+                tickFormatter={(v) => `${v / 1000}k`}
               />
               <Tooltip
                 contentStyle={{
@@ -173,11 +156,21 @@ export function AnalyticsSection() {
         )}
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Orders per day */}
-        <Card className="p-6">
-          <h3 className="font-display text-lg mb-1">Orders per day</h3>
-          <p className="text-xs text-muted-foreground mb-4">Last 30 days</p>
+      {/* Orders per day */}
+      <Card className="p-6">
+        <h3 className="font-display text-lg mb-1">Orders per day</h3>
+        <p className="text-xs text-muted-foreground mb-4">Last 30 days</p>
+        {loading ? (
+          <div className="h-[240px] flex items-center justify-center text-sm text-muted-foreground">
+            Loading…
+          </div>
+        ) : !hasSeriesData ? (
+          <div className="h-[240px] flex flex-col items-center justify-center text-center gap-2">
+            <ShoppingCart className="h-8 w-8 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground font-medium">No orders yet</p>
+            <p className="text-xs text-muted-foreground/70">Order volume will appear here once customers start buying</p>
+          </div>
+        ) : (
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={data?.series ?? []}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -199,70 +192,7 @@ export function AnalyticsSection() {
               <Bar dataKey="orders" fill="hsl(var(--foreground))" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </Card>
-
-        {/* Category distribution */}
-        <Card className="p-6">
-          <h3 className="font-display text-lg mb-1">Revenue by category</h3>
-          <p className="text-xs text-muted-foreground mb-4">All time</p>
-          <ResponsiveContainer width="100%" height={240}>
-            <PieChart>
-              <Pie
-                data={CATEGORY_DATA}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={90}
-                paddingAngle={2}
-              >
-                {CATEGORY_DATA.map((entry, i) => (
-                  <Cell key={i} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  background: "hsl(var(--background))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: 8,
-                  fontSize: 12,
-                }}
-                formatter={(v: number) => `${v}%`}
-              />
-              <Legend
-                wrapperStyle={{ fontSize: 11 }}
-                iconType="circle"
-                iconSize={8}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </Card>
-      </div>
-
-      {/* Traffic by source */}
-      <Card className="p-6">
-        <h3 className="font-display text-lg mb-1">Traffic by source</h3>
-        <p className="text-xs text-muted-foreground mb-4">Last 7 days</p>
-        <ResponsiveContainer width="100%" height={280}>
-          <LineChart data={TRAFFIC_DATA}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} />
-            <Tooltip
-              contentStyle={{
-                background: "hsl(var(--background))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: 8,
-                fontSize: 12,
-              }}
-            />
-            <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" iconSize={8} />
-            <Line type="monotone" dataKey="direct" stroke="#0d0d0d" strokeWidth={2} />
-            <Line type="monotone" dataKey="organic" stroke="#737373" strokeWidth={2} />
-            <Line type="monotone" dataKey="social" stroke="#d4d4d4" strokeWidth={2} />
-          </LineChart>
-        </ResponsiveContainer>
+        )}
       </Card>
     </div>
   );
