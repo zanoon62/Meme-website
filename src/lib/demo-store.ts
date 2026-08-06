@@ -458,6 +458,18 @@ export const demoStore = {
     store.coupons.push(cp);
     return cp;
   },
+  updateCoupon(id: string, patch: Partial<DemoCoupon>): DemoCoupon | null {
+    const idx = store.coupons.findIndex((c) => c.id === id);
+    if (idx === -1) return null;
+    store.coupons[idx] = { ...store.coupons[idx], ...patch };
+    return store.coupons[idx];
+  },
+  deleteCoupon(id: string): boolean {
+    const idx = store.coupons.findIndex((c) => c.id === id);
+    if (idx === -1) return false;
+    store.coupons.splice(idx, 1);
+    return true;
+  },
 
   // Customers
   listCustomers(): DemoCustomer[] {
