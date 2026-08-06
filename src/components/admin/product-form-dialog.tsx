@@ -42,23 +42,10 @@ import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Product, ProductColor, ProductSize } from "@/components/providers/ui-provider";
-import { useProductStore, type ProductInput } from "@/components/providers/product-store";
+import { useProductStore, useLiveProducts, type ProductInput } from "@/components/providers/product-store";
 import { useAdminT } from "@/components/admin/admin-i18n";
 
 const ALL_SIZES: ProductSize[] = ["XS", "S", "M", "L", "XL", "XXL", "ONE SIZE"];
-
-const CATEGORY_OPTIONS = [
-  "Dresses",
-  "Tailoring",
-  "Outerwear",
-  "Knitwear",
-  "Hoodies & Sweatshirts",
-  "Tops",
-  "Skirts",
-  "Pants",
-  "Footwear",
-  "Accessories",
-];
 
 const COLLECTION_OPTIONS = ["Atelier Noir", "Core Essentials", "Premium Brands"];
 
@@ -70,21 +57,18 @@ const DEFAULT_NEW_PRODUCT: ProductInput = {
   price: 0,
   compareAtPrice: undefined,
   currency: "EGP",
-  category: "Dresses",
-  collection: "Atelier Noir",
-  colors: [{ name: "Noir", hex: "#0d0d0d" }],
-  sizes: ["XS", "S", "M", "L"],
-  images: [
-    img("New Atelier Piece", "Dresses", "noir", 0),
-    img("New Atelier Piece", "Dresses", "noir", 1),
-  ],
+  category: "",
+  collection: "",
+  colors: [],
+  sizes: [],
+  images: [],
   badges: [],
   rating: 5,
   reviewCount: 0,
   inventory: 10,
-  material: "100% Premium Cotton / Wool",
-  care: "Dry clean only. Steam to refresh.",
-  isNew: true,
+  material: "",
+  care: "",
+  isNew: false,
   isBestSeller: false,
   isTrending: false,
   isLimited: false,
@@ -102,6 +86,20 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
   const addProduct = useProductStore((s) => s.addProduct);
   const updateProduct = useProductStore((s) => s.updateProduct);
   const { t, isAr, dir } = useAdminT();
+  const allProducts = useLiveProducts();
+
+  // Derive unique categories from live products so the dropdown stays in sync
+  const liveCategories = React.useMemo(() => {
+    const seen = new Set<string>();
+    const cats: string[] = [];
+    for (const p of allProducts) {
+      if (p.category && !seen.has(p.category)) {
+        seen.add(p.category);
+        cats.push(p.category);
+      }
+    }
+    return cats;
+  }, [allProducts]);
 
   const isEdit = !!product;
   const [form, setForm] = React.useState<ProductInput>(DEFAULT_NEW_PRODUCT);
@@ -490,15 +488,30 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                       onChange={(e) => update("category", e.target.value)}
                       className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
                     >
-                      {CATEGORY_OPTIONS.map((c) => (
+                      <option value="">— Select category —</option>
+                      {liveCategories.map((c) => (
                         <option key={c} value={c}>{c}</option>
                       ))}
+                      {/* Allow typing a custom category if none exist yet */}
+                      {liveCategories.length === 0 && (
+                        <option value={form.category || ""} disabled>
+                          {form.category || "No categories yet — type below"}
+                        </option>
+                      )}
                     </select>
+                    {/* Free-text input — lets admin create brand new categories inline */}
+                    <Input
+                      value={form.category}
+                      onChange={(e) => update("category", e.target.value)}
+                      placeholder="Or type a new category name…"
+                      className="h-8 text-xs mt-1.5"
+                    />
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
                       {isAr
                         ? "📌 **الفئة (Category)**: تظهر في القائمة الجانبية لصفحة المتجر (`/shop`). تمكن العميل من تصفية المنتجات حسب النوع (مثل: فساتين، بدل، ملابس خارجية)."
                         : "📌 **Category**: Used in store filter page (`/shop`) to group items by type."}
                     </p>
+
                   </div>
 
                   {/* Collection Field with Visual Guide Box */}
