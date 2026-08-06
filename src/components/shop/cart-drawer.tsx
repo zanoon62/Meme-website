@@ -8,7 +8,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { useCart, useUI, useCartSubtotal } from "@/components/providers/ui-provider";
 import { formatPrice, getShippingProgress, FREE_SHIPPING_THRESHOLD } from "@/lib/format";
-import { products } from "@/data/products";
+import { useProductStore } from "@/components/providers/product-store";
+import { type Product } from "@/components/providers/ui-provider";
 import { ProductCard } from "@/components/shop/product-card";
 
 export function CartDrawer() {
@@ -17,18 +18,18 @@ export function CartDrawer() {
   const remove = useCart((s) => s.remove);
   const updateQty = useCart((s) => s.updateQty);
   const sub = useCartSubtotal();
-  const [recommendations, setRecommendations] = React.useState<typeof products>([]);
+  const storeProducts = useProductStore((s) => s.products);
+  const [recommendations, setRecommendations] = React.useState<Product[]>([]);
 
   React.useEffect(() => {
     if (cartOpen && lines.length > 0) {
       const lineProductIds = new Set(lines.map((l) => l.productId));
-      const recs = products
-        .filter((p) => !lineProductIds.has(p.id))
-        .filter((p) => p.isBestSeller || p.isTrending)
-        .slice(0, 3);
-      setRecommendations(recs);
+      const available = storeProducts.filter((p) => !lineProductIds.has(p.id) && (p.inventory > 0 || p.inventory === undefined));
+      const featured = available.filter((p) => p.isBestSeller || p.isTrending).slice(0, 3);
+      const finalRecs = featured.length > 0 ? featured : available.slice(0, 3);
+      setRecommendations(finalRecs);
     }
-  }, [cartOpen, lines]);
+  }, [cartOpen, lines, storeProducts]);
 
   const shipping = getShippingProgress(sub);
 
@@ -154,7 +155,7 @@ export function CartDrawer() {
                       >
                         <div className="relative aspect-[3/4] rounded-md overflow-hidden bg-accent">
                           <Image
-                            src={p.images[0]}
+                            src={p.images?.[0] || "/placeholder.jpg"}
                             alt={p.name}
                             fill
                             sizes="120px"

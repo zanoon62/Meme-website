@@ -16,6 +16,7 @@ import {
   Package,
   MapPin,
   Phone,
+  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,18 +82,126 @@ export default function CheckoutPage() {
     notes: "",
   });
 
+  const [promoInput, setPromoInput] = React.useState("");
+  const [validatingPromo, setValidatingPromo] = React.useState(false);
+  const [promoError, setPromoError] = React.useState<string | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = React.useState<{
+    code: string;
+    discount: number;
+    type: string;
+    value: number;
+    freeShipping?: boolean;
+  } | null>(null);
+
   const zone = SHIPPING_ZONES.find((z) => z.id === form.shippingZone) ?? SHIPPING_ZONES[0];
   const method = PAYMENT_METHODS.find((m) => m.id === form.paymentMethod) ?? PAYMENT_METHODS[0];
 
-  // Free shipping over threshold, otherwise zone cost
-  const shippingCost = sub >= FREE_SHIPPING_THRESHOLD ? 0 : zone.cost;
-  // Payment processing fee
+  // Calculate discount amount
+  const discountAmount = appliedCoupon ? appliedCoupon.discount : 0;
+  const discountedSub = Math.max(0, sub - discountAmount);
+
+  // Free shipping over threshold or via free_shipping promo code, otherwise zone cost
+  const shippingCost = (appliedCoupon?.freeShipping || sub >= FREE_SHIPPING_THRESHOLD) ? 0 : zone.cost;
+  // Payment processing fee calculated on discounted subtotal
   const processingFee =
     (method.processingFee ?? 0) +
-    Math.round(((method.feePercent ?? 0) / 100) * sub);
-  // Egypt VAT 14%
-  const vat = Math.round(sub * 0.14);
-  const total = sub + shippingCost + vat + processingFee;
+    Math.round(((method.feePercent ?? 0) / 100) * discountedSub);
+  // Egypt VAT 14% on discounted subtotal
+  const vat = Math.round(discountedSub * 0.14);
+  const total = discountedSub + shippingCost + vat + processingFee;
+
+  const handleApplyPromo = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const code = promoInput.trim().toUpperCase();
+    if (!code) return;
+
+    setValidatingPromo(true);
+    setPromoError(null);
+
+    try {
+      // 1. Validate against server API endpoint
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, subtotal: sub }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok) {
+          setAppliedCoupon({
+            code,
+            discount: data.discount ?? 0,
+            type: data.type ?? "percent",
+            value: data.value ?? 0,
+            freeShipping: data.free_shipping ?? false,
+          });
+          toast.success(`Promo code ${code} applied!`);
+          setPromoInput("");
+          setValidatingPromo(false);
+          return;
+        } else if (data.reason === "min_subtotal_not_met") {
+          const err = "Minimum order amount not met for this promo code";
+          setPromoError(err);
+          toast.error(err);
+          setValidatingPromo(false);
+          return;
+        } else if (data.reason === "expired") {
+          const err = "This promo code has expired";
+          setPromoError(err);
+          toast.error(err);
+          setValidatingPromo(false);
+          return;
+        }
+      }
+    } catch {
+      // fallback to client check
+    }
+
+    // 2. Client-side check for local admin-created promo codes (fallback)
+    try {
+      const saved = localStorage.getItem("meme-admin-promotions-v2");
+      if (saved) {
+        const coupons = JSON.parse(saved);
+        const match = coupons.find(
+          (c: any) => c.code.toUpperCase() === code && c.is_active
+        );
+        if (match) {
+          if (match.min_subtotal && sub < match.min_subtotal) {
+            const err = `Minimum subtotal of ${formatPrice(match.min_subtotal)} required`;
+            setPromoError(err);
+            toast.error(err);
+            setValidatingPromo(false);
+            return;
+          }
+          let disc = 0;
+          if (match.type === "percent") {
+            disc = Math.round((sub * match.value) / 100);
+          } else if (match.type === "fixed") {
+            disc = match.value;
+          }
+          setAppliedCoupon({
+            code: match.code.toUpperCase(),
+            discount: disc,
+            type: match.type,
+            value: match.value,
+            freeShipping: match.type === "shipping",
+          });
+          toast.success(`Promo code ${match.code} applied!`);
+          setPromoInput("");
+          setValidatingPromo(false);
+          return;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    const err = "Invalid or expired promo code";
+    setPromoError(err);
+    toast.error(err);
+    setValidatingPromo(false);
+  };
 
   const updateForm = (key: string, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -514,6 +623,12 @@ export default function CheckoutPage() {
                 <span className="text-muted-foreground">Subtotal</span>
                 <span>{formatPrice(sub)}</span>
               </div>
+              {appliedCoupon && appliedCoupon.discount > 0 && (
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                  <span>Discount ({appliedCoupon.code})</span>
+                  <span>-{formatPrice(appliedCoupon.discount)}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Shipping ({zone.name.split(" (")[0]})</span>
                 <span>{shippingCost === 0 ? "FREE" : formatPrice(shippingCost)}</span>
@@ -537,11 +652,56 @@ export default function CheckoutPage() {
               <span className="font-display text-xl">{formatPrice(total)}</span>
             </div>
 
-            {/* Discount */}
-            <div className="mt-4 flex gap-2">
-              <Input placeholder="Promo code" className="h-10 text-sm" />
-              <Button variant="outline" size="sm" className="h-10">Apply</Button>
-            </div>
+            {/* Discount / Promo Code */}
+            {appliedCoupon ? (
+              <div className="mt-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Tag className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <div>
+                    <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                      {appliedCoupon.code} Applied
+                    </p>
+                    <p className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80">
+                      {appliedCoupon.type === "percent"
+                        ? `${appliedCoupon.value}% off subtotal`
+                        : appliedCoupon.freeShipping
+                        ? "Free shipping unlocked"
+                        : `${formatPrice(appliedCoupon.value)} off subtotal`}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAppliedCoupon(null)}
+                  className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleApplyPromo} className="mt-4 space-y-1.5">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Promo code"
+                    value={promoInput}
+                    onChange={(e) => setPromoInput(e.target.value)}
+                    className="h-10 text-sm uppercase"
+                  />
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    size="sm"
+                    disabled={validatingPromo || !promoInput.trim()}
+                    className="h-10 px-4 shrink-0 font-medium"
+                  >
+                    {validatingPromo ? "..." : "Apply"}
+                  </Button>
+                </div>
+                {promoError && (
+                  <p className="text-[11px] text-destructive">{promoError}</p>
+                )}
+              </form>
+            )}
 
             <div className="mt-4 pt-4 border-t border-border/60 space-y-2">
               <p className="text-[11px] text-muted-foreground flex items-center gap-2">
