@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useUI, useCartCount, useWishlistCount } from "@/components/providers/ui-provider";
-import { categories } from "@/data/products";
+import { useLiveProducts } from "@/components/providers/product-store";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
 import { LanguageToggle } from "./language-toggle";
@@ -28,6 +28,20 @@ export function Header() {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const t = useT();
   const dir = useLangDir();
+  const allProducts = useLiveProducts();
+
+  // Derive unique categories from live products (always in sync with DB)
+  const liveCategories = React.useMemo(() => {
+    const seen = new Set<string>();
+    const cats: { slug: string; name: string }[] = [];
+    for (const p of allProducts) {
+      if (p.category && !seen.has(p.category)) {
+        seen.add(p.category);
+        cats.push({ slug: p.category, name: p.category });
+      }
+    }
+    return cats;
+  }, [allProducts]);
 
   React.useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -71,8 +85,10 @@ export function Header() {
                 <nav className="flex flex-col gap-1">
                   <Link href="/" onClick={() => setMobileOpen(false)} className="py-3 text-base border-b border-white/5 hover:translate-x-1 transition-transform">{t("nav.home")}</Link>
                   <Link href="/shop" onClick={() => setMobileOpen(false)} className="py-3 text-base border-b border-white/5 hover:translate-x-1 transition-transform">{t("nav.shop")}</Link>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-6 mb-3">{t("shop.category")}</p>
-                  {categories.map((cat) => (
+                  {liveCategories.length > 0 && (
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-6 mb-3">{t("shop.category")}</p>
+                  )}
+                  {liveCategories.map((cat) => (
                     <Link
                       key={cat.slug}
                       href={`/shop?category=${encodeURIComponent(cat.name)}`}
@@ -110,18 +126,22 @@ export function Header() {
               <div className="absolute top-full left-1/2 -translate-x-1/2 pt-4 invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200">
                 <div className="bg-card border border-white/10 rounded-sm shadow-2xl p-6 min-w-[280px]">
                   <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-3">{t("shop.category")}</p>
-                  <ul className="space-y-2">
-                    {categories.map((cat) => (
-                      <li key={cat.slug}>
-                        <Link
-                          href={`/shop?category=${encodeURIComponent(cat.name)}`}
-                          className="text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground hover:translate-x-1 transition-all inline-block py-1"
-                        >
-                          {getCategoryLabel(cat.name)}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
+                  {liveCategories.length === 0 ? (
+                    <p className="text-xs text-muted-foreground/60 py-1">No categories yet</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {liveCategories.map((cat) => (
+                        <li key={cat.slug}>
+                          <Link
+                            href={`/shop?category=${encodeURIComponent(cat.name)}`}
+                            className="text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground hover:translate-x-1 transition-all inline-block py-1"
+                          >
+                            {getCategoryLabel(cat.name)}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
             </div>
