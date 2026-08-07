@@ -16,7 +16,10 @@ import {
   ExternalLink,
   RefreshCw,
   MapPin,
-  HelpCircle,
+  Mail,
+  Phone,
+  CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -61,7 +64,7 @@ export function SettingsSection() {
   };
 
   const tabs = [
-    { id: "store" as const, label: isAr ? "إعدادات المتجر الهوية" : "Store Profile & Identity", icon: Store },
+    { id: "store" as const, label: isAr ? "إعدادات المتجر والهوية" : "Store Profile & Identity", icon: Store },
     { id: "payments" as const, label: isAr ? "وسائل الدفع والتحويل" : "Payments & Wallets", icon: CreditCard },
     { id: "shipping" as const, label: isAr ? "مناطق وأسعار الشحن" : "Shipping Zones & Rates", icon: Truck },
   ];
@@ -92,7 +95,7 @@ export function SettingsSection() {
       {tab === "payments" && <PaymentsSettings onOpenPreview={openPreview} />}
       {tab === "shipping" && <ShippingSettings onOpenPreview={openPreview} />}
 
-      {/* Live Storefront Interactive Preview Modal */}
+      {/* Full Page Live Storefront Interactive Preview Modal */}
       <Dialog open={showPreviewModal} onOpenChange={setShowPreviewModal}>
         <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 overflow-hidden rounded-2xl flex flex-col bg-background">
           <div className="p-3 px-5 border-b border-border bg-card flex flex-wrap items-center justify-between gap-3 shrink-0">
@@ -100,7 +103,7 @@ export function SettingsSection() {
               <Eye className="h-5 w-5 text-amber-500 animate-pulse" />
               <div>
                 <h3 className="font-display font-bold text-base text-foreground">
-                  {isAr ? "معاينة حية وتفاعلية لجميع التغييرات" : "Settings Live Interactive Preview"}
+                  {isAr ? "معاينة حية وتفاعلية لموقع المتجر" : "Settings Live Interactive Viewport"}
                 </h3>
                 <p className="text-[11px] text-muted-foreground font-mono">
                   {previewPath}
@@ -115,13 +118,13 @@ export function SettingsSection() {
                   onClick={() => { setPreviewPath("/"); setIframeKey((k) => k + 1); }}
                   className={cn("px-3 py-1 rounded-lg font-bold transition-all", previewPath === "/" ? "bg-amber-500 text-black shadow-xs" : "text-muted-foreground hover:text-foreground")}
                 >
-                  {isAr ? "الرئيسية (الفوتر/الهيدر)" : "Home (Header/Footer)"}
+                  {isAr ? "الرئيسية (الهيدر والفوتر)" : "Home (Header/Footer)"}
                 </button>
                 <button
                   onClick={() => { setPreviewPath("/shop"); setIframeKey((k) => k + 1); }}
                   className={cn("px-3 py-1 rounded-lg font-bold transition-all", previewPath === "/shop" ? "bg-amber-500 text-black shadow-xs" : "text-muted-foreground hover:text-foreground")}
                 >
-                  {isAr ? "المتجر والمنتجات" : "Shop"}
+                  {isAr ? "المتجر" : "Shop"}
                 </button>
                 <button
                   onClick={() => { setPreviewPath("/checkout"); setIframeKey((k) => k + 1); }}
@@ -163,7 +166,7 @@ export function SettingsSection() {
                 size="icon"
                 onClick={() => window.open(previewPath, "_blank")}
                 className="h-8 w-8 rounded-lg"
-                title={isAr ? "فتح الصفحة في تبويب عادي" : "Open in full browser tab"}
+                title={isAr ? "فتح الصفحة في تبويب جديد" : "Open in full browser tab"}
               >
                 <ExternalLink className="h-3.5 w-3.5" />
               </Button>
@@ -193,6 +196,160 @@ function FieldLocationBadge({ arText, enText }: { arText: string; enText: string
       <MapPin className="h-3 w-3 text-amber-500 shrink-0" />
       {isAr ? arText : enText}
     </span>
+  );
+}
+
+/* ⚡ 100% Real-Time Keystroke Live Component Previews directly on the page! */
+
+function LiveStoreProfilePreview({ form }: { form: any }) {
+  const { isAr } = useAdminT();
+  return (
+    <div className="p-4 bg-zinc-950 text-white rounded-2xl border border-zinc-800 space-y-4 shadow-xl overflow-hidden">
+      <div className="flex items-center justify-between border-b border-zinc-800 pb-2 px-1">
+        <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-[#f6ec91] flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          {isAr ? "معاينة القسم الحية المباشرة (تحديث لحظي عند الكتابة ⚡)" : "Live Instant Section Preview (Real-Time Keystroke)"}
+        </span>
+        <span className="text-[10px] text-zinc-400 font-mono">
+          {isAr ? "تحديث فور كتابة أي حرف" : "Live reactive rendering"}
+        </span>
+      </div>
+
+      {/* Header Mockup */}
+      <div>
+        <p className="text-[10px] uppercase tracking-wider text-amber-400 mb-1 font-bold">
+          {isAr ? "1. شكل الهيدر وأعلى الموقع (Header Preview)" : "1. Live Header Preview"}
+        </p>
+        <div className="p-3 bg-zinc-900/90 rounded-xl border border-zinc-800/80 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="h-7 w-7 rounded-lg bg-[#f6ec91] text-black font-black flex items-center justify-center text-xs">
+              M
+            </div>
+            <span className="font-display font-bold text-sm text-white tracking-widest uppercase">
+              {form.name || "MEME ATELIER"}
+            </span>
+          </div>
+          <div className="hidden sm:flex items-center gap-4 text-[11px] text-zinc-400">
+            <span className="text-[#f6ec91] font-bold border-b border-[#f6ec91] pb-0.5">{isAr ? "الرئيسية" : "Home"}</span>
+            <span>{isAr ? "المتجر" : "Shop"}</span>
+            <span>{isAr ? "حسابي" : "Account"}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer Mockup */}
+      <div>
+        <p className="text-[10px] uppercase tracking-wider text-amber-400 mb-1 font-bold">
+          {isAr ? "2. شكل أسعار الفوتر وبيانات الاتصال (Footer Preview)" : "2. Live Footer & Contact Info Preview"}
+        </p>
+        <div className="p-4 bg-black rounded-xl border border-zinc-800 space-y-3">
+          <div className="text-center border-b border-zinc-800/80 pb-3">
+            <h4 className="font-display font-black text-2xl text-amber-400 tracking-widest uppercase">
+              {form.name || "MEME ATELIER"}
+            </h4>
+            <p className="text-xs italic text-zinc-300 mt-1">
+              {form.tagline || "Tailored for the modern woman"}
+            </p>
+          </div>
+
+          <p className="text-[11px] text-zinc-400 leading-relaxed text-center max-w-lg mx-auto italic">
+            "{form.description || "Premium fashion atelier"}"
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-3 border-t border-zinc-800/80 text-[11px]">
+            <div className="flex items-center gap-2 text-zinc-300 bg-zinc-900/60 p-2 rounded-lg border border-zinc-800">
+              <Mail className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              <span className="truncate font-mono">{form.email || "orders@meme-eg.store"}</span>
+            </div>
+            <div className="flex items-center gap-2 text-zinc-300 bg-zinc-900/60 p-2 rounded-lg border border-zinc-800">
+              <Phone className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              <span className="font-mono">{form.phone || "+20 100 000 0000"}</span>
+            </div>
+            <div className="flex items-center gap-2 text-zinc-300 bg-zinc-900/60 p-2 rounded-lg border border-zinc-800">
+              <MapPin className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              <span className="truncate">{form.address || "Zamalek, Cairo"}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 text-[10px] text-zinc-500 border-t border-zinc-900">
+            <span>Instagram: <strong className="text-amber-400 font-mono">{form.instagramHandle || "@suited_by_meme"}</strong></span>
+            <span>Currency: <strong className="text-amber-400 font-bold">{form.currency}</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LivePaymentsPreview({ vodafoneNum, instapayAddr, instapayPhone, instapayName }: { vodafoneNum: string; instapayAddr: string; instapayPhone: string; instapayName: string }) {
+  const { isAr } = useAdminT();
+  return (
+    <div className="p-4 bg-zinc-950 text-white rounded-2xl border border-zinc-800 space-y-4 shadow-xl overflow-hidden">
+      <div className="flex items-center justify-between border-b border-zinc-800 pb-2 px-1">
+        <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-[#f6ec91] flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          {isAr ? "معاينة خيارات الدفع في Checkout (تحديث لحظي عند الكتابة ⚡)" : "Live Checkout Payment Boxes Preview (Keystroke Updated)"}
+        </span>
+        <span className="text-[10px] text-zinc-400 font-mono">
+          {isAr ? "ما يراه العميل عند إتمام الشراء" : "As seen by customers"}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Vodafone Cash Box Mockup */}
+        <div className="p-4 bg-zinc-900 rounded-xl border border-red-500/40 space-y-2">
+          <div className="flex items-center gap-2 text-xs font-bold text-red-400">
+            <span>🔴</span>
+            <span>{isAr ? "فودافون كاش (Vodafone Cash)" : "Vodafone Cash Wallet"}</span>
+          </div>
+          <p className="text-[11px] text-zinc-400">
+            {isAr ? "الرقم الظاهر للعميل للتحويل عليه:" : "Receiver wallet number shown to customer:"}
+          </p>
+          <div className="p-2.5 bg-black rounded-lg border border-red-500/30 font-mono font-bold text-sm text-red-400 text-center tracking-wider">
+            {vodafoneNum || "010XXXXXXXX"}
+          </div>
+        </div>
+
+        {/* InstaPay Box Mockup */}
+        <div className="p-4 bg-zinc-900 rounded-xl border border-purple-500/40 space-y-2">
+          <div className="flex items-center gap-2 text-xs font-bold text-purple-400">
+            <span>⚡</span>
+            <span>{isAr ? "عنوان إنستاباي (InstaPay IPA)" : "InstaPay Account"}</span>
+          </div>
+          <div className="space-y-1 text-[11px]">
+            <p className="text-zinc-400">IPA: <strong className="text-purple-300 font-mono font-bold">{instapayAddr || "user@instapay"}</strong></p>
+            <p className="text-zinc-400">Phone: <strong className="text-purple-300 font-mono">{instapayPhone || "010XXXXXXXX"}</strong></p>
+            <p className="text-zinc-400">Name: <strong className="text-purple-300 font-bold">{instapayName || "MEME Atelier"}</strong></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LiveShippingPreview({ zones }: { zones: ShippingZone[] }) {
+  const { isAr } = useAdminT();
+  return (
+    <div className="p-4 bg-zinc-950 text-white rounded-2xl border border-zinc-800 space-y-3 shadow-xl overflow-hidden">
+      <div className="flex items-center justify-between border-b border-zinc-800 pb-2 px-1">
+        <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-[#f6ec91] flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          {isAr ? "معاينة اختيار المحافظة وحساب الشحن في Checkout (تحديث لحظي ⚡)" : "Live Checkout Shipping Rate Calculator Preview"}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {zones.slice(0, 4).map((z) => (
+          <div key={z.id} className="p-3 bg-zinc-900 rounded-xl border border-zinc-800 flex items-center justify-between text-xs">
+            <div>
+              <p className="font-bold text-white">{isAr ? z.nameAr : z.name}</p>
+              <p className="text-[10px] text-zinc-400 font-mono">⏱ {z.estimatedDays}</p>
+            </div>
+            <span className="font-display font-bold text-amber-400">LE {z.cost}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -280,7 +437,10 @@ function StoreSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => v
         )}
       </div>
 
-      <div className="space-y-5">
+      {/* ⚡ 100% Instant Keystroke Live Preview Component directly on the page! */}
+      <LiveStoreProfilePreview form={form} />
+
+      <div className="space-y-5 pt-2">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div className="space-y-1.5">
             <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -556,6 +716,14 @@ function PaymentsSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
         )}
       </div>
 
+      {/* ⚡ Instant Keystroke Live Payments Preview Component */}
+      <LivePaymentsPreview
+        vodafoneNum={vodafoneNumber}
+        instapayAddr={instapayAddr}
+        instapayPhone={instapayPhone}
+        instapayName={instapayName}
+      />
+
       {/* PayMob Gateway Card */}
       <div className="p-5 border border-amber-500/30 rounded-2xl bg-amber-500/5 dark:bg-amber-500/10 space-y-4">
         <div className="flex items-center justify-between">
@@ -794,8 +962,8 @@ function ShippingSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
   };
 
   return (
-    <Card className="p-6 max-w-4xl shadow-sm border-border/80">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 border-b border-border/60 pb-4">
+    <Card className="p-6 max-w-4xl shadow-sm border-border/80 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-4">
         <div>
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <h3 className="font-display text-lg font-bold">
@@ -829,7 +997,10 @@ function ShippingSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
         </Button>
       </div>
 
-      <div className="space-y-3">
+      {/* ⚡ Instant Live Shipping Rates Preview Box */}
+      <LiveShippingPreview zones={zones} />
+
+      <div className="space-y-3 pt-2">
         {zones.map((z) => (
           <div
             key={z.id}
