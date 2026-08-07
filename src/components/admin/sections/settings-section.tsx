@@ -4,21 +4,17 @@ import * as React from "react";
 import {
   Store,
   CreditCard,
-  Bell,
   Truck,
-  Shield,
   Save,
   RotateCcw,
   Plus,
   Trash2,
   Edit2,
-  Check,
-  Globe,
-  DollarSign,
-  AlertTriangle,
   Eye,
   Smartphone,
   Monitor,
+  ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -43,36 +39,36 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useAdminT } from "@/components/admin/admin-i18n";
+import { useStoreSettingsStore } from "@/lib/store-settings-store";
 import { useShippingStore } from "@/lib/shipping-store";
 import { usePaymentStore } from "@/lib/payment-store";
 import type { ShippingZone } from "@/lib/format";
 
 export function SettingsSection() {
-  const { t, isAr } = useAdminT();
-  const [tab, setTab] = React.useState<
-    "store" | "payments" | "shipping" | "notifications" | "security"
-  >("store");
+  const { isAr } = useAdminT();
+  const [tab, setTab] = React.useState<"store" | "payments" | "shipping">("store");
 
   const [showPreviewModal, setShowPreviewModal] = React.useState(false);
   const [previewPath, setPreviewPath] = React.useState("/");
   const [previewMode, setPreviewMode] = React.useState<"desktop" | "mobile">("desktop");
+  const [iframeKey, setIframeKey] = React.useState(0);
 
   const openPreview = (path?: string) => {
     const defaultPath = tab === "payments" || tab === "shipping" ? "/checkout" : "/";
     setPreviewPath(path || defaultPath);
+    setIframeKey((k) => k + 1);
     setShowPreviewModal(true);
   };
 
   const tabs = [
     { id: "store" as const, label: isAr ? "إعدادات المتجر" : "Store Profile", icon: Store },
-    { id: "payments" as const, label: isAr ? "وسائل الدفع" : "Payments", icon: CreditCard },
-    { id: "shipping" as const, label: isAr ? "مناطق الشحن" : "Shipping Zones", icon: Truck },
-    { id: "notifications" as const, label: isAr ? "الإشعارات" : "Notifications", icon: Bell },
-    { id: "security" as const, label: isAr ? "الأمان والنظام" : "Security & System", icon: Shield },
+    { id: "payments" as const, label: isAr ? "وسائل الدفع والتحويل" : "Payments & Gateways", icon: CreditCard },
+    { id: "shipping" as const, label: isAr ? "مناطق وأسعار الشحن" : "Shipping Zones & Fees", icon: Truck },
   ];
 
   return (
     <div className="space-y-6">
+      {/* Settings Navigation Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-1">
         <div className="flex gap-1 overflow-x-auto">
           {tabs.map((tabItem) => (
@@ -91,58 +87,68 @@ export function SettingsSection() {
           ))}
         </div>
 
-        {/* Live Preview Button inside Settings Section */}
-        <Button
-          onClick={() => openPreview()}
-          className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold text-xs h-9 px-4 rounded-xl flex items-center gap-2 shrink-0"
-        >
-          <Eye className="h-4 w-4 text-amber-500 animate-pulse" />
-          {isAr ? "معاينة حية وتفاعلية للموقع 👁️" : "Live Storefront Preview 👁️"}
-        </Button>
+        {/* Live Preview Header Action */}
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => openPreview()}
+            className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold text-xs h-9 px-4 rounded-xl flex items-center gap-2 shrink-0"
+          >
+            <Eye className="h-4 w-4 text-amber-500 animate-pulse" />
+            {isAr ? "معاينة حية للموقع 👁️" : "Live Storefront Preview 👁️"}
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={() => window.open(previewPath, "_blank")}
+            className="h-9 px-3 text-xs font-bold flex items-center gap-1.5 shrink-0"
+            title={isAr ? "فتح في نافذة جديدة" : "Open in new browser tab"}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{isAr ? "تبويب جديد" : "New Tab"}</span>
+          </Button>
+        </div>
       </div>
 
       {tab === "store" && <StoreSettings onOpenPreview={openPreview} />}
       {tab === "payments" && <PaymentsSettings onOpenPreview={openPreview} />}
       {tab === "shipping" && <ShippingSettings onOpenPreview={openPreview} />}
-      {tab === "notifications" && <NotificationsSettings onOpenPreview={openPreview} />}
-      {tab === "security" && <SecuritySettings onOpenPreview={openPreview} />}
 
       {/* Live Storefront Interactive Preview Modal */}
       <Dialog open={showPreviewModal} onOpenChange={setShowPreviewModal}>
         <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 overflow-hidden rounded-2xl flex flex-col bg-background">
-          <div className="p-3 px-5 border-b border-border bg-card flex items-center justify-between shrink-0">
+          <div className="p-3 px-5 border-b border-border bg-card flex flex-wrap items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3">
               <Eye className="h-5 w-5 text-amber-500 animate-pulse" />
               <div>
                 <h3 className="font-display font-bold text-base text-foreground">
-                  {isAr ? "معاينة حية ومباشرة لتغييرات الإعدادات" : "Settings Live Interactive Preview"}
+                  {isAr ? "معاينة حية وتفاعلية للمتجر" : "Settings Live Interactive Preview"}
                 </h3>
-                <p className="text-[11px] text-muted-foreground">
-                  {isAr ? "استعرض شكل الاسم والأرقام والأسعار فور تغييرها في المتجر." : "Preview how store name, phone numbers, and payment details look on live storefront."}
+                <p className="text-[11px] text-muted-foreground font-mono">
+                  {previewPath}
                 </p>
               </div>
             </div>
 
             {/* Path selector tabs & responsive mode toggles */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1 bg-accent/60 p-1 rounded-xl text-xs">
                 <button
-                  onClick={() => setPreviewPath("/")}
+                  onClick={() => { setPreviewPath("/"); setIframeKey((k) => k + 1); }}
                   className={cn("px-3 py-1 rounded-lg font-bold transition-all", previewPath === "/" ? "bg-amber-500 text-black shadow-xs" : "text-muted-foreground hover:text-foreground")}
                 >
                   {isAr ? "الرئيسية" : "Home"}
                 </button>
                 <button
-                  onClick={() => setPreviewPath("/shop")}
+                  onClick={() => { setPreviewPath("/shop"); setIframeKey((k) => k + 1); }}
                   className={cn("px-3 py-1 rounded-lg font-bold transition-all", previewPath === "/shop" ? "bg-amber-500 text-black shadow-xs" : "text-muted-foreground hover:text-foreground")}
                 >
                   {isAr ? "المتجر" : "Shop"}
                 </button>
                 <button
-                  onClick={() => setPreviewPath("/checkout")}
+                  onClick={() => { setPreviewPath("/checkout"); setIframeKey((k) => k + 1); }}
                   className={cn("px-3 py-1 rounded-lg font-bold transition-all", previewPath === "/checkout" ? "bg-amber-500 text-black shadow-xs" : "text-muted-foreground hover:text-foreground")}
                 >
-                  {isAr ? "إنهاء الطلب (Checkout)" : "Checkout"}
+                  {isAr ? "إنهاء الطلب" : "Checkout"}
                 </button>
               </div>
 
@@ -162,11 +168,32 @@ export function SettingsSection() {
                   <Smartphone className="h-4 w-4" />
                 </button>
               </div>
+
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setIframeKey((k) => k + 1)}
+                className="h-8 w-8 rounded-lg"
+                title={isAr ? "إعادة تحديث المعاينة" : "Refresh Preview"}
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => window.open(previewPath, "_blank")}
+                className="h-8 w-8 rounded-lg"
+                title={isAr ? "فتح الصفحة في تبويب عادي" : "Open in full browser tab"}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Button>
             </div>
           </div>
 
           <div className="flex-1 bg-zinc-950 flex items-center justify-center p-2 sm:p-4 overflow-hidden relative">
             <iframe
+              key={iframeKey}
               src={previewPath}
               className={cn(
                 "h-full border-0 transition-all duration-300 shadow-2xl rounded-xl bg-background",
@@ -182,27 +209,59 @@ export function SettingsSection() {
 
 function StoreSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => void }) {
   const { isAr } = useAdminT();
+  const storeSettings = useStoreSettingsStore();
+
   const [form, setForm] = React.useState({
-    name: "MEME Atelier",
-    tagline: "Tailored for the modern Egyptian woman",
-    description:
-      "Premium women's fashion — Italian wool tailoring, cashmere knits, and silk dresses designed to outlive every trend cycle. Designed in Cairo.",
-    email: "orders@meme-eg.store",
-    phone: "+20 100 000 0000",
-    currency: "EGP",
-    timezone: "Africa/Cairo",
-    instagram: "https://instagram.com/suited_by_meme",
-    domain: "meme-eg.store",
+    name: storeSettings.name,
+    tagline: storeSettings.tagline,
+    description: storeSettings.description,
+    email: storeSettings.email,
+    phone: storeSettings.phone,
+    currency: storeSettings.currency,
+    timezone: storeSettings.timezone,
+    instagram: storeSettings.instagram,
+    instagramHandle: storeSettings.instagramHandle,
+    domain: storeSettings.domain,
+    address: storeSettings.address,
   });
+
+  React.useEffect(() => {
+    setForm({
+      name: storeSettings.name,
+      tagline: storeSettings.tagline,
+      description: storeSettings.description,
+      email: storeSettings.email,
+      phone: storeSettings.phone,
+      currency: storeSettings.currency,
+      timezone: storeSettings.timezone,
+      instagram: storeSettings.instagram,
+      instagramHandle: storeSettings.instagramHandle,
+      domain: storeSettings.domain,
+      address: storeSettings.address,
+    });
+  }, [
+    storeSettings.name,
+    storeSettings.tagline,
+    storeSettings.description,
+    storeSettings.email,
+    storeSettings.phone,
+    storeSettings.currency,
+    storeSettings.timezone,
+    storeSettings.instagram,
+    storeSettings.instagramHandle,
+    storeSettings.domain,
+    storeSettings.address,
+  ]);
 
   const [saving, setSaving] = React.useState(false);
 
   const handleSave = () => {
     setSaving(true);
+    storeSettings.updateSettings(form);
     setTimeout(() => {
       setSaving(false);
-      toast.success(isAr ? "تم حفظ إعدادات المتجر بنجاح" : "Store profile updated successfully");
-    }, 400);
+      toast.success(isAr ? "تم حفظ إعدادات وتفاصيل المتجر بنجاح ✨" : "Store profile updated & persisted live!");
+    }, 250);
   };
 
   return (
@@ -211,17 +270,19 @@ function StoreSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => v
         {isAr ? "ملف المتجر وتفاصيل العلامة التجارية" : "Store Profile & Branding"}
       </h3>
       <p className="text-xs text-muted-foreground mb-6">
-        {isAr ? "المعلومات الأساسية عن الأتيليه والتي تظهر عبر المتجر والمطبوعات." : "Basic information about your atelier shown across the storefront and emails."}
+        {isAr
+          ? "المعلومات الرسمية عن الأتيليه والتواصل التي تظهر في المتجر والهيدر والفوتر بمرونة حية."
+          : "Basic information about your atelier rendered dynamically across storefront footer, header, and receipts."}
       </p>
 
       <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <Label className="text-xs font-bold">{isAr ? "اسم المتجر" : "Store name"}</Label>
+            <Label className="text-xs font-bold">{isAr ? "اسم المتجر (Store Name)" : "Store name"}</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              className="mt-1.5 h-10 text-xs"
+              className="mt-1.5 h-10 text-xs font-bold"
             />
           </div>
           <div>
@@ -235,7 +296,7 @@ function StoreSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => v
         </div>
 
         <div>
-          <Label className="text-xs font-bold">{isAr ? "وصف المتجر" : "Description"}</Label>
+          <Label className="text-xs font-bold">{isAr ? "وصف المتجر (Description)" : "Description"}</Label>
           <Textarea
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
@@ -258,12 +319,40 @@ function StoreSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => v
             <Input
               value={form.phone}
               onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-              className="mt-1.5 h-10 text-xs"
+              className="mt-1.5 h-10 text-xs font-mono"
             />
           </div>
         </div>
 
+        <div>
+          <Label className="text-xs font-bold">{isAr ? "عنوان الأتيليه المقر الرئيسي" : "Atelier Physical Address"}</Label>
+          <Input
+            value={form.address}
+            onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+            className="mt-1.5 h-10 text-xs"
+          />
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <Label className="text-xs font-bold">{isAr ? "رابط انستغرام (Instagram URL)" : "Instagram URL"}</Label>
+            <Input
+              value={form.instagram}
+              onChange={(e) => setForm((f) => ({ ...f, instagram: e.target.value }))}
+              className="mt-1.5 h-10 text-xs"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-bold">{isAr ? "معرّف انستغرام (Handle)" : "Instagram Handle"}</Label>
+            <Input
+              value={form.instagramHandle}
+              onChange={(e) => setForm((f) => ({ ...f, instagramHandle: e.target.value }))}
+              className="mt-1.5 h-10 text-xs font-mono"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <Label className="text-xs font-bold">{isAr ? "العملة الأساسية" : "Currency"}</Label>
             <Select
@@ -298,17 +387,6 @@ function StoreSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => v
               </SelectContent>
             </Select>
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <Label className="text-xs font-bold">{isAr ? "رابط انستغرام (Instagram)" : "Instagram URL"}</Label>
-            <Input
-              value={form.instagram}
-              onChange={(e) => setForm((f) => ({ ...f, instagram: e.target.value }))}
-              className="mt-1.5 h-10 text-xs"
-            />
-          </div>
           <div>
             <Label className="text-xs font-bold">{isAr ? "النطاق المخصص (Domain)" : "Custom domain"}</Label>
             <Input
@@ -332,7 +410,7 @@ function StoreSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => v
             {isAr ? "معاينة حية للموقع" : "Live Storefront Preview"}
           </Button>
         )}
-        <Button onClick={handleSave} disabled={saving} className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-10 px-6 ml-auto">
+        <Button onClick={handleSave} disabled={saving} className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-10 px-6 ml-auto shadow-md">
           <Save className="h-4 w-4 mr-2" />
           {saving ? (isAr ? "جاري الحفظ..." : "Saving...") : (isAr ? "حفظ التغييرات" : "Save Changes")}
         </Button>
@@ -383,8 +461,8 @@ function PaymentsSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
         </h3>
         <p className="text-xs text-muted-foreground">
           {isAr
-            ? "ربط مادي وتكامل مباشر لبوابة باي موب (Visa/MasterCard/Meeza/Apple Pay) وتعديل أرقام فودافون كاش وإنستاباي."
-            : "Direct PayMob API integration keys (Visa, MasterCard, Meeza, Apple Pay) & mobile wallet numbers."}
+            ? "ربط مادي وتكامل مباشر لبوابة باي موب (Visa/MasterCard/Meeza/Apple Pay) وتعديل أرقام فودافون كاش وإنستاباي التي تظهر للعميل في Checkout."
+            : "Direct PayMob API integration keys (Visa, MasterCard, Meeza, Apple Pay) & mobile wallet numbers rendered dynamically at checkout."}
         </p>
       </div>
 
@@ -853,180 +931,6 @@ function ShippingSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
           </DialogContent>
         )}
       </Dialog>
-    </Card>
-  );
-}
-
-function NotificationsSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => void }) {
-  const { isAr } = useAdminT();
-  const [saving, setSaving] = React.useState(false);
-
-  const handleSave = () => {
-    setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
-      toast.success(isAr ? "تم حفظ إعدادات الإشعارات" : "Notification preferences saved");
-    }, 300);
-  };
-
-  return (
-    <Card className="p-6 max-w-3xl shadow-sm border-border/80">
-      <h3 className="font-display text-lg font-bold mb-1">
-        {isAr ? "تفضيلات الإشعارات التلقائية" : "Notification Preferences"}
-      </h3>
-      <p className="text-xs text-muted-foreground mb-6">
-        {isAr ? "تحديد الأحداث التفاعلية التي ترسل إشعارات ورسائل بريدية." : "Choose which events trigger automated notifications to staff and customers."}
-      </p>
-
-      <div className="space-y-4">
-        {[
-          {
-            label: isAr ? "إشعار طلب جديد" : "New order received",
-            desc: isAr ? "إرسال إشعار فور تأكيد العملاء للطلبات" : "Email staff instantly when an order is placed",
-            on: true,
-          },
-          {
-            label: isAr ? "تنبيه نقص المخزون" : "Low stock alert",
-            desc: isAr ? "تنبيه الأتيليه عند انخفاض كمية أي قطعة عن 5 قطع" : "Email when product stock drops below 5 units",
-            on: true,
-          },
-          {
-            label: isAr ? "تأكيد شحن الطلب للعميل" : "Order shipped notification",
-            desc: isAr ? "إرسال رسالة تتبع تفاعلية للعميل فور الشحن" : "Send customer tracking email & notification upon dispatch",
-            on: true,
-          },
-          {
-            label: isAr ? "تقارير المبيعات الأسبوعية" : "Weekly summary recap",
-            desc: isAr ? "ملخص أسبوعي بأرقام المبيعات والأداء" : "Weekly digest of revenue performance",
-            on: true,
-          },
-        ].map((n) => (
-          <div key={n.label} className="flex items-center justify-between p-3 border border-border/60 rounded-xl bg-card">
-            <div>
-              <p className="text-sm font-bold">{n.label}</p>
-              <p className="text-xs text-muted-foreground">{n.desc}</p>
-            </div>
-            <Switch defaultChecked={n.on} />
-          </div>
-        ))}
-      </div>
-
-      <div className="flex justify-end mt-6">
-        <Button onClick={handleSave} disabled={saving} className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-10 px-6">
-          <Save className="h-4 w-4 mr-2" />
-          {isAr ? "حفظ التغييرات" : "Save Preferences"}
-        </Button>
-      </div>
-    </Card>
-  );
-}
-
-function SecuritySettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => void }) {
-  const { isAr } = useAdminT();
-  const [resettingData, setResettingData] = React.useState(false);
-
-  const handleResetData = async () => {
-    if (!confirm(isAr ? "هل أنت متأكد من تصفير جميع الإيرادات والطلبات والاختبارات إلى 0؟" : "Are you sure you want to reset all test orders, revenue, and analytics to LE 0?")) return;
-    setResettingData(true);
-    try {
-      const res = await fetch("/api/admin/reset-store-data", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        toast.error(data.error || "Failed to reset store data.");
-        return;
-      }
-      toast.success(isAr ? "تم تصفير جميع بيانات الاختبار بنجاح! 🎉" : "All test data reset to LE 0!");
-      window.location.reload();
-    } catch {
-      toast.error("Network error during reset.");
-    } finally {
-      setResettingData(false);
-    }
-  };
-
-  return (
-    <Card className="p-6 max-w-3xl shadow-sm border-border/80">
-      <h3 className="font-display text-lg font-bold mb-1">
-        {isAr ? "الأمان وإدارة صلاحيات النظام" : "Security & System Access"}
-      </h3>
-      <p className="text-xs text-muted-foreground mb-6">
-        {isAr ? "إدارة حسابات الفريق وسجل التغييرات وإعادة التصفير." : "Manage admin accounts, security policies, and data resets."}
-      </p>
-
-      <div className="space-y-4">
-        <div className="flex items-center justify-between p-4 border border-border/60 rounded-xl bg-card">
-          <div>
-            <p className="text-sm font-bold">{isAr ? "التحقق بخطوتين (2FA)" : "Two-factor authentication"}</p>
-            <p className="text-xs text-muted-foreground">
-              {isAr ? "طلب رمز الحماية عند تسجيل دخول المشرفين" : "Require 2FA verification for all admin logins"}
-            </p>
-          </div>
-          <Switch />
-        </div>
-
-        <div className="flex items-center justify-between p-4 border border-border/60 rounded-xl bg-card">
-          <div>
-            <p className="text-sm font-bold">{isAr ? "إنهاء الجلسة التلقائي" : "Session timeout"}</p>
-            <p className="text-xs text-muted-foreground">
-              {isAr ? "تسجيل الخروج التلقائي بعد 30 دقيقة خمول" : "Auto sign-out after 30 minutes of inactivity"}
-            </p>
-          </div>
-          <Switch defaultChecked />
-        </div>
-      </div>
-
-      <Separator className="my-6" />
-
-      {/* Danger Zone: Reset Store Test Data */}
-      <div className="p-4 border border-rose-500/40 rounded-xl bg-rose-500/5 dark:bg-rose-500/10 space-y-3">
-        <div>
-          <p className="text-sm font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2">
-            <RotateCcw className="h-4 w-4" />
-            {isAr ? "تصفير بيانات الاختبار والإيرادات (LE 0)" : "Reset Test Data & Revenue (LE 0)"}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            {isAr
-              ? "استخدم هذا الزر لمسح طلبات وتدريبات الاختبار وتصفير مبالغ الإيرادات للبدء من جديد مع الطلبات الحقيقية."
-              : "Use this button after testing to wipe test orders, sales figures, and analytics back to LE 0 before launching live sales."}
-          </p>
-        </div>
-        <Button
-          variant="destructive"
-          size="sm"
-          disabled={resettingData}
-          onClick={handleResetData}
-          className="bg-rose-600 hover:bg-rose-700 font-bold text-xs"
-        >
-          {resettingData
-            ? (isAr ? "جاري التصفير..." : "Resetting...")
-            : (isAr ? "تصفير جميع الإيرادات والطلبات إلى 0" : "Reset All Orders & Money to 0")}
-        </Button>
-      </div>
-
-      <Separator className="my-6" />
-
-      <div>
-        <p className="text-sm font-bold mb-3">{isAr ? "حسابات المشرفين والفريق" : "Staff Accounts"}</p>
-        <div className="space-y-2">
-          {[
-            { email: "admin@memeatelier.com", role: isAr ? "المالك" : "Owner", status: isAr ? "نشط الآن" : "Active now" },
-            { email: "studio@meme-eg.store", role: isAr ? "مشرف الأتيليه" : "Atelier Staff", status: isAr ? "منذ ساعتين" : "2h ago" },
-          ].map((s) => (
-            <div
-              key={s.email}
-              className="flex items-center justify-between p-3.5 border border-border/60 rounded-xl bg-card"
-            >
-              <div>
-                <p className="text-xs font-bold text-foreground">{s.email}</p>
-                <p className="text-[10px] text-muted-foreground">
-                  {s.role} · {s.status}
-                </p>
-              </div>
-              <span className="text-xs text-amber-600 font-bold">{isAr ? "مفوض" : "Authorized"}</span>
-            </div>
-          ))}
-        </div>
-      </div>
     </Card>
   );
 }

@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 // - Social icons + payment methods
 // - Copyright bottom bar
 
+import { useStoreSettingsStore } from "@/lib/store-settings-store";
+
 const shopLinks = [
   { label: "New Arrivals", href: "/shop?filter=new" },
   { label: "Collections", href: "/shop" },
@@ -30,27 +32,27 @@ const infoLinks = [
   { label: "Terms of Service", href: "/" },
 ];
 
-const socials = [
-  { label: "Instagram", href: "https://www.instagram.com/suited_by_meme", handle: "@suited_by_meme" },
-  { label: "TikTok", href: "#", handle: "@suited_by_meme" },
-  { label: "WhatsApp", href: "https://wa.me/201000000000", handle: "+20 100 000 0000" },
-  { label: "Facebook", href: "#", handle: "/suitedbymeme" },
-];
-
 const paymentMethods = ["VISA", "MASTERCARD", "MEEZA", "COD", "FAWRY", "VODAFONE CASH", "INSTAPAY"];
 
 export function Footer() {
-  const [email, setEmail] = React.useState("");
+  const [emailInput, setEmailInput] = React.useState("");
   const [openCol, setOpenCol] = React.useState<string | null>(null);
+
+  const storeSettings = useStoreSettingsStore();
+
+  const socials = [
+    { label: "Instagram", href: storeSettings.instagram || "https://www.instagram.com/suited_by_meme", handle: storeSettings.instagramHandle || "@suited_by_meme" },
+    { label: "WhatsApp", href: `https://wa.me/${storeSettings.phone.replace(/[^0-9]/g, "")}`, handle: storeSettings.phone },
+  ];
 
   const submitNewsletter = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) {
+    if (!emailInput.trim()) {
       toast.error("Please enter your email address");
       return;
     }
     toast.success("Welcome to the inner circle. Check your inbox.");
-    setEmail("");
+    setEmailInput("");
   };
 
   const toggleCol = (title: string) => setOpenCol((c) => (c === title ? null : title));
@@ -156,8 +158,8 @@ export function Footer() {
               <div className="relative">
                 <Input
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
                   placeholder="Enter your email"
                   className="h-12 bg-transparent border border-white/20 text-white placeholder:text-white/40 focus-visible:border-[#f6ec91] rounded-none pr-32"
                 />
@@ -176,22 +178,22 @@ export function Footer() {
             {/* Contact info */}
             <div className="mt-7 space-y-2.5">
               <a
-                href="mailto:atelier@suitedbymeme.com"
-                className="flex items-center gap-3 text-xs text-white/70 hover:text-[#f6ec91] transition-colors"
+                href={`mailto:${storeSettings.email}`}
+                className="flex items-center gap-3 text-xs text-white/70 hover:text-[#f6ec91] transition-colors font-mono"
               >
                 <Mail className="h-3.5 w-3.5 text-[#f6ec91]/70" />
-                atelier@suitedbymeme.com
+                {storeSettings.email}
               </a>
               <a
-                href="tel:+201000000000"
-                className="flex items-center gap-3 text-xs text-white/70 hover:text-[#f6ec91] transition-colors"
+                href={`tel:${storeSettings.phone.replace(/[^0-9+]/g, "")}`}
+                className="flex items-center gap-3 text-xs text-white/70 hover:text-[#f6ec91] transition-colors font-mono"
               >
                 <Phone className="h-3.5 w-3.5 text-[#f6ec91]/70" />
-                +20 100 000 0000
+                {storeSettings.phone}
               </a>
               <p className="flex items-start gap-3 text-xs text-white/70">
                 <MapPin className="h-3.5 w-3.5 text-[#f6ec91]/70 mt-0.5 flex-shrink-0" />
-                <span>The MEME Atelier · 12 Taha Hussein St. · Zamalek · Cairo · Egypt</span>
+                <span>{storeSettings.name} · {storeSettings.address}</span>
               </p>
             </div>
           </div>
@@ -235,7 +237,7 @@ export function Footer() {
 
         {/* Bottom bar */}
         <div className="border-t border-white/10 pt-6 flex flex-col md:flex-row justify-between items-center gap-3 text-[11px] text-white/50">
-          <p>© {new Date().getFullYear()} MEME. All rights reserved. Suited by MEME · Cairo, Egypt</p>
+          <p>© {new Date().getFullYear()} {storeSettings.name}. All rights reserved. {storeSettings.tagline}</p>
           <div className="flex flex-wrap gap-x-6 gap-y-2 justify-center">
             <Link href="/" className="hover:text-[#f6ec91] transition-colors">Privacy Policy</Link>
             <Link href="/" className="hover:text-[#f6ec91] transition-colors">Terms of Service</Link>
