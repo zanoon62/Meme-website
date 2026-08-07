@@ -15,6 +15,8 @@ import {
   Monitor,
   ExternalLink,
   RefreshCw,
+  MapPin,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,8 +36,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useAdminT } from "@/components/admin/admin-i18n";
@@ -61,9 +61,9 @@ export function SettingsSection() {
   };
 
   const tabs = [
-    { id: "store" as const, label: isAr ? "إعدادات المتجر" : "Store Profile", icon: Store },
-    { id: "payments" as const, label: isAr ? "وسائل الدفع والتحويل" : "Payments & Gateways", icon: CreditCard },
-    { id: "shipping" as const, label: isAr ? "مناطق وأسعار الشحن" : "Shipping Zones & Fees", icon: Truck },
+    { id: "store" as const, label: isAr ? "إعدادات المتجر الهوية" : "Store Profile & Identity", icon: Store },
+    { id: "payments" as const, label: isAr ? "وسائل الدفع والتحويل" : "Payments & Wallets", icon: CreditCard },
+    { id: "shipping" as const, label: isAr ? "مناطق وأسعار الشحن" : "Shipping Zones & Rates", icon: Truck },
   ];
 
   return (
@@ -94,7 +94,7 @@ export function SettingsSection() {
             className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold text-xs h-9 px-4 rounded-xl flex items-center gap-2 shrink-0"
           >
             <Eye className="h-4 w-4 text-amber-500 animate-pulse" />
-            {isAr ? "معاينة حية للموقع 👁️" : "Live Storefront Preview 👁️"}
+            {isAr ? "معاينة حية للموقع (Live Preview) 👁️" : "Live Storefront Preview 👁️"}
           </Button>
 
           <Button
@@ -121,7 +121,7 @@ export function SettingsSection() {
               <Eye className="h-5 w-5 text-amber-500 animate-pulse" />
               <div>
                 <h3 className="font-display font-bold text-base text-foreground">
-                  {isAr ? "معاينة حية وتفاعلية للمتجر" : "Settings Live Interactive Preview"}
+                  {isAr ? "معاينة حية وتفاعلية لجميع التغييرات" : "Settings Live Interactive Preview"}
                 </h3>
                 <p className="text-[11px] text-muted-foreground font-mono">
                   {previewPath}
@@ -136,19 +136,19 @@ export function SettingsSection() {
                   onClick={() => { setPreviewPath("/"); setIframeKey((k) => k + 1); }}
                   className={cn("px-3 py-1 rounded-lg font-bold transition-all", previewPath === "/" ? "bg-amber-500 text-black shadow-xs" : "text-muted-foreground hover:text-foreground")}
                 >
-                  {isAr ? "الرئيسية" : "Home"}
+                  {isAr ? "الرئيسية (الفوتر/الهيدر)" : "Home (Header/Footer)"}
                 </button>
                 <button
                   onClick={() => { setPreviewPath("/shop"); setIframeKey((k) => k + 1); }}
                   className={cn("px-3 py-1 rounded-lg font-bold transition-all", previewPath === "/shop" ? "bg-amber-500 text-black shadow-xs" : "text-muted-foreground hover:text-foreground")}
                 >
-                  {isAr ? "المتجر" : "Shop"}
+                  {isAr ? "المتجر والمنتجات" : "Shop"}
                 </button>
                 <button
                   onClick={() => { setPreviewPath("/checkout"); setIframeKey((k) => k + 1); }}
                   className={cn("px-3 py-1 rounded-lg font-bold transition-all", previewPath === "/checkout" ? "bg-amber-500 text-black shadow-xs" : "text-muted-foreground hover:text-foreground")}
                 >
-                  {isAr ? "إنهاء الطلب" : "Checkout"}
+                  {isAr ? "إنهاء الطلب (Checkout)" : "Checkout"}
                 </button>
               </div>
 
@@ -204,6 +204,16 @@ export function SettingsSection() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function FieldLocationBadge({ arText, enText }: { arText: string; enText: string }) {
+  const { isAr } = useAdminT();
+  return (
+    <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+      <MapPin className="h-3 w-3 text-amber-500 shrink-0" />
+      {isAr ? arText : enText}
+    </span>
   );
 }
 
@@ -265,101 +275,174 @@ function StoreSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => v
   };
 
   return (
-    <Card className="p-6 max-w-3xl shadow-sm border-border/80">
-      <h3 className="font-display text-lg font-bold mb-1">
-        {isAr ? "ملف المتجر وتفاصيل العلامة التجارية" : "Store Profile & Branding"}
-      </h3>
-      <p className="text-xs text-muted-foreground mb-6">
-        {isAr
-          ? "المعلومات الرسمية عن الأتيليه والتواصل التي تظهر في المتجر والهيدر والفوتر بمرونة حية."
-          : "Basic information about your atelier rendered dynamically across storefront footer, header, and receipts."}
-      </p>
+    <Card className="p-6 max-w-4xl shadow-sm border-border/80 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
+        <div>
+          <h3 className="font-display text-lg font-bold mb-1">
+            {isAr ? "ملف المتجر وتفاصيل العلامة التجارية" : "Store Profile & Branding"}
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            {isAr
+              ? "المعلومات الرسمية عن الأتيليه والتواصل التي تظهر في المتجر والهيدر والفوتر بمرونة حية."
+              : "Basic information about your atelier rendered dynamically across storefront footer, header, and receipts."}
+          </p>
+        </div>
 
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <Label className="text-xs font-bold">{isAr ? "اسم المتجر (Store Name)" : "Store name"}</Label>
+        {onOpenPreview && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenPreview("/")}
+            className="border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 font-bold h-9 text-xs px-3.5 shrink-0"
+          >
+            <Eye className="h-4 w-4 mr-1.5 text-amber-500" />
+            {isAr ? "معاينة الفوتر والهيدر 👁️" : "Preview Footer & Header 👁️"}
+          </Button>
+        )}
+      </div>
+
+      <div className="space-y-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <Label className="text-xs font-bold">{isAr ? "اسم المتجر (Store Name)" : "Store name"}</Label>
+              <FieldLocationBadge
+                arText="يظهر في: أعلى الموقع (Header) + الفوتر (Footer) + الفواتير"
+                enText="Appears in: Header, Footer & Receipts"
+              />
+            </div>
             <Input
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              className="mt-1.5 h-10 text-xs font-bold"
+              className="h-10 text-xs font-bold"
             />
           </div>
-          <div>
-            <Label className="text-xs font-bold">{isAr ? "الشعار النصي (Tagline)" : "Tagline"}</Label>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <Label className="text-xs font-bold">{isAr ? "الشعار النصي (Tagline)" : "Tagline"}</Label>
+              <FieldLocationBadge
+                arText="يظهر في: أسفل كل الصفحات (Footer) تحت اللوجو"
+                enText="Appears in: Footer beneath store logo"
+              />
+            </div>
             <Input
               value={form.tagline}
               onChange={(e) => setForm((f) => ({ ...f, tagline: e.target.value }))}
-              className="mt-1.5 h-10 text-xs"
+              className="h-10 text-xs"
             />
           </div>
         </div>
 
-        <div>
-          <Label className="text-xs font-bold">{isAr ? "وصف المتجر (Description)" : "Description"}</Label>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <Label className="text-xs font-bold">{isAr ? "وصف المتجر (Description)" : "Description"}</Label>
+            <FieldLocationBadge
+              arText="يظهر في: فوتر الموقع + محركات البحث SEO"
+              enText="Appears in: Footer & Search engine SEO previews"
+            />
+          </div>
           <Textarea
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            rows={3}
-            className="mt-1.5 text-xs"
+            rows={2}
+            className="text-xs"
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <Label className="text-xs font-bold">{isAr ? "البريد الإلكتروني الرسمي" : "Contact email"}</Label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <Label className="text-xs font-bold">{isAr ? "البريد الإلكتروني الرسمي" : "Contact email"}</Label>
+              <FieldLocationBadge
+                arText="يظهر في: أسفل الموقع (Footer) + إيميلات تأكيد الطلب"
+                enText="Appears in: Footer & Order Confirmation Emails"
+              />
+            </div>
             <Input
               value={form.email}
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              className="mt-1.5 h-10 text-xs font-mono"
+              className="h-10 text-xs font-mono"
             />
           </div>
-          <div>
-            <Label className="text-xs font-bold">{isAr ? "رقم الهاتف / واتساب" : "Phone / WhatsApp"}</Label>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <Label className="text-xs font-bold">{isAr ? "رقم الهاتف / واتساب" : "Phone / WhatsApp"}</Label>
+              <FieldLocationBadge
+                arText="يظهر في: أسفل الموقع (Footer) + زر شات الواتساب المباشر"
+                enText="Appears in: Footer & Live WhatsApp Chat Button"
+              />
+            </div>
             <Input
               value={form.phone}
               onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-              className="mt-1.5 h-10 text-xs font-mono"
+              className="h-10 text-xs font-mono"
             />
           </div>
         </div>
 
-        <div>
-          <Label className="text-xs font-bold">{isAr ? "عنوان الأتيليه المقر الرئيسي" : "Atelier Physical Address"}</Label>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <Label className="text-xs font-bold">{isAr ? "عنوان الأتيليه المقر الرئيسي" : "Atelier Physical Address"}</Label>
+            <FieldLocationBadge
+              arText="يظهر في: أسفل جميع الصفحات (Footer)"
+              enText="Appears in: Storefront Footer bottom info"
+            />
+          </div>
           <Input
             value={form.address}
             onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-            className="mt-1.5 h-10 text-xs"
+            className="h-10 text-xs"
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <Label className="text-xs font-bold">{isAr ? "رابط انستغرام (Instagram URL)" : "Instagram URL"}</Label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <Label className="text-xs font-bold">{isAr ? "رابط انستغرام (Instagram URL)" : "Instagram URL"}</Label>
+              <FieldLocationBadge
+                arText="يظهر في: أيقونة انستغرام بأسفل الموقع (Footer)"
+                enText="Appears in: Instagram icon at Footer"
+              />
+            </div>
             <Input
               value={form.instagram}
               onChange={(e) => setForm((f) => ({ ...f, instagram: e.target.value }))}
-              className="mt-1.5 h-10 text-xs"
+              className="h-10 text-xs"
             />
           </div>
-          <div>
-            <Label className="text-xs font-bold">{isAr ? "معرّف انستغرام (Handle)" : "Instagram Handle"}</Label>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <Label className="text-xs font-bold">{isAr ? "معرّف انستغرام (Handle)" : "Instagram Handle"}</Label>
+              <FieldLocationBadge
+                arText="يظهر في: اسم الحساب المكتوب بجانب أيقونة انستغرام"
+                enText="Appears in: Handle text beside Instagram link"
+              />
+            </div>
             <Input
               value={form.instagramHandle}
               onChange={(e) => setForm((f) => ({ ...f, instagramHandle: e.target.value }))}
-              className="mt-1.5 h-10 text-xs font-mono"
+              className="h-10 text-xs font-mono"
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
-            <Label className="text-xs font-bold">{isAr ? "العملة الأساسية" : "Currency"}</Label>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <Label className="text-xs font-bold">{isAr ? "العملة الأساسية" : "Currency"}</Label>
+              <FieldLocationBadge
+                arText="تظهر في: بجانب أسعار المنتجات في المتجر والسلة والـ Checkout"
+                enText="Appears in: Product prices, Cart & Checkout"
+              />
+            </div>
             <Select
               value={form.currency}
               onValueChange={(v) => setForm((f) => ({ ...f, currency: v }))}
             >
-              <SelectTrigger className="mt-1.5 h-10 text-xs">
+              <SelectTrigger className="h-10 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -371,13 +454,20 @@ function StoreSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => v
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label className="text-xs font-bold">{isAr ? "المنطقة الزمنية" : "Timezone"}</Label>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <Label className="text-xs font-bold">{isAr ? "المنطقة الزمنية" : "Timezone"}</Label>
+              <FieldLocationBadge
+                arText="تظهر في: توقيت تسجيل الطلبات باللوحة"
+                enText="Appears in: Admin Order timestamps"
+              />
+            </div>
             <Select
               value={form.timezone}
               onValueChange={(v) => setForm((f) => ({ ...f, timezone: v }))}
             >
-              <SelectTrigger className="mt-1.5 h-10 text-xs">
+              <SelectTrigger className="h-10 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -387,12 +477,19 @@ function StoreSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => v
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label className="text-xs font-bold">{isAr ? "النطاق المخصص (Domain)" : "Custom domain"}</Label>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <Label className="text-xs font-bold">{isAr ? "النطاق المخصص (Domain)" : "Custom domain"}</Label>
+              <FieldLocationBadge
+                arText="يظهر في: شريط عنوان المتصفح للعملاء"
+                enText="Appears in: Customer browser address bar"
+              />
+            </div>
             <Input
               value={form.domain}
               onChange={(e) => setForm((f) => ({ ...f, domain: e.target.value }))}
-              className="mt-1.5 h-10 text-xs font-mono"
+              className="h-10 text-xs font-mono"
             />
           </div>
         </div>
@@ -407,7 +504,7 @@ function StoreSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => v
             className="border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 font-bold h-10 text-xs px-4"
           >
             <Eye className="h-4 w-4 mr-1.5 text-amber-500" />
-            {isAr ? "معاينة حية للموقع" : "Live Storefront Preview"}
+            {isAr ? "معاينة التغييرات مباشرة بالموقع 👁️" : "Live Storefront Preview 👁️"}
           </Button>
         )}
         <Button onClick={handleSave} disabled={saving} className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-10 px-6 ml-auto shadow-md">
@@ -454,16 +551,30 @@ function PaymentsSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
   };
 
   return (
-    <Card className="p-6 max-w-3xl shadow-sm border-border/80 space-y-6">
-      <div>
-        <h3 className="font-display text-lg font-bold mb-1">
-          {isAr ? "بوابة دفع باي موب (PayMob) وإعدادات التحويلات" : "PayMob Gateway & Wallet Transfer Settings"}
-        </h3>
-        <p className="text-xs text-muted-foreground">
-          {isAr
-            ? "ربط مادي وتكامل مباشر لبوابة باي موب (Visa/MasterCard/Meeza/Apple Pay) وتعديل أرقام فودافون كاش وإنستاباي التي تظهر للعميل في Checkout."
-            : "Direct PayMob API integration keys (Visa, MasterCard, Meeza, Apple Pay) & mobile wallet numbers rendered dynamically at checkout."}
-        </p>
+    <Card className="p-6 max-w-4xl shadow-sm border-border/80 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
+        <div>
+          <h3 className="font-display text-lg font-bold mb-1">
+            {isAr ? "بوابة دفع باي موب (PayMob) وإعدادات التحويلات" : "PayMob Gateway & Wallet Transfer Settings"}
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            {isAr
+              ? "ربط مادي وتكامل مباشر لبوابة باي موب (Visa/MasterCard/Meeza/Apple Pay) وتعديل أرقام فودافون كاش وإنستاباي التي تظهر للعميل في Checkout."
+              : "Direct PayMob API integration keys (Visa, MasterCard, Meeza, Apple Pay) & mobile wallet numbers rendered dynamically at checkout."}
+          </p>
+        </div>
+
+        {onOpenPreview && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenPreview("/checkout")}
+            className="border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 font-bold h-9 text-xs px-3.5 shrink-0"
+          >
+            <Eye className="h-4 w-4 mr-1.5 text-amber-500" />
+            {isAr ? "معاينة صفحة إنهاء الطلب (Checkout) 👁️" : "Preview Checkout Page 👁️"}
+          </Button>
+        )}
       </div>
 
       {/* PayMob Gateway Card */}
@@ -474,10 +585,16 @@ function PaymentsSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
               <CreditCard className="h-5 w-5" />
             </div>
             <div>
-              <h4 className="font-bold text-sm text-foreground">
-                {isAr ? "ربط بوابة باي موب (PayMob Gateway)" : "PayMob Gateway (Visa, MasterCard, Meeza, Apple Pay)"}
-              </h4>
-              <p className="text-xs text-muted-foreground">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="font-bold text-sm text-foreground">
+                  {isAr ? "ربط بوابة باي موب (PayMob Gateway)" : "PayMob Gateway (Visa, MasterCard, Meeza, Apple Pay)"}
+                </h4>
+                <FieldLocationBadge
+                  arText="تظهر في: صفحة Checkout عند خيار الدفع الفيزا والفيزا المباشرة"
+                  enText="Appears in: Checkout card payment step"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {isAr ? "البوابة المعتمدة للدفع بالبطاقات البنكية في مصر" : "Certified online payment gateway for cards in Egypt"}
               </p>
             </div>
@@ -534,48 +651,64 @@ function PaymentsSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
 
       {/* Vodafone Cash Card */}
       <div className="p-5 border border-border/80 rounded-2xl bg-card space-y-4 shadow-xs">
-        <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-xl bg-red-500 text-white flex items-center justify-center font-bold text-sm">
-            🔴
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-xl bg-red-500 text-white flex items-center justify-center font-bold text-sm">
+              🔴
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-foreground">
+                {isAr ? "محفظة فودافون كاش (Vodafone Cash Wallet)" : "Vodafone Cash Wallet"}
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                {isAr ? "تعديل رقم محفظة التحويل المستهدفة للعملاء" : "Set target receiver wallet number shown at checkout"}
+              </p>
+            </div>
           </div>
-          <div>
-            <h4 className="font-bold text-sm text-foreground">
-              {isAr ? "محفظة فودافون كاش (Vodafone Cash Wallet)" : "Vodafone Cash Wallet"}
-            </h4>
-            <p className="text-xs text-muted-foreground">
-              {isAr ? "تعديل رقم محفظة التحويل المستهدفة للعملاء" : "Set target receiver wallet number shown at checkout"}
-            </p>
-          </div>
+
+          <FieldLocationBadge
+            arText="يظهر في: صفحة Checkout فور اختيار العميل لـ فودافون كاش"
+            enText="Appears in: Checkout when Vodafone Cash option selected"
+          />
         </div>
 
         <div>
-          <Label className="text-xs font-bold">{isAr ? "رقم محفظة فودافون كاش (Vodafone Cash Number)" : "Vodafone Cash Receiver Number"} *</Label>
+          <Label className="text-xs font-bold">{isAr ? "رقم محفظة فودافون كاش (Vodafone Cash Receiver Number)" : "Vodafone Cash Receiver Number"} *</Label>
           <Input
             value={vodafoneNumber}
             onChange={(e) => setVodafoneNumber(e.target.value)}
             placeholder="010XXXXXXXX"
             className="mt-1.5 h-11 text-sm font-bold font-mono border-amber-500/40 focus:border-amber-500"
           />
-          <p className="text-[11px] text-muted-foreground mt-1">
-            {isAr ? "يظهر هذا الرقم مباشرة للعميل عند اختيار طريقة فودافون كاش في صفحة إنهاء الطلب." : "This number is dynamically rendered on checkout when customer selects Vodafone Cash."}
+          <p className="text-[11px] text-muted-foreground mt-1 font-semibold text-amber-600 dark:text-amber-400">
+            {isAr
+              ? "📌 يظهر هذا الرقم فوراً للعميل في خطوة الدفع عند اختيار فودافون كاش، ليقوم بالتحويل عليه ثم إرفاق الصورة."
+              : "📌 This receiver number is dynamically rendered at checkout when customer selects Vodafone Cash."}
           </p>
         </div>
       </div>
 
       {/* InstaPay Card */}
       <div className="p-5 border border-border/80 rounded-2xl bg-card space-y-4 shadow-xs">
-        <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-xl bg-purple-500 text-white flex items-center justify-center font-bold text-sm">
-            ⚡
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-xl bg-purple-500 text-white flex items-center justify-center font-bold text-sm">
+              ⚡
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-foreground">
+                {isAr ? "عنوان وشبكة إنستاباي (InstaPay Account)" : "InstaPay Account Details"}
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                {isAr ? "تعديل عنوان الدفع الفوري IPA واسم الحساب" : "Set target IPA address & phone shown at checkout"}
+              </p>
+            </div>
           </div>
-          <div>
-            <h4 className="font-bold text-sm text-foreground">
-              {isAr ? "عنوان وشبكة إنستاباي (InstaPay Account)" : "InstaPay Account Details"}
-            </h4>
-            <p className="text-xs text-muted-foreground">
-              {isAr ? "تعديل عنوان الدفع الفوري IPA واسم الحساب" : "Set target IPA address & phone shown at checkout"}
-            </p>
-          </div>
+
+          <FieldLocationBadge
+            arText="يظهر في: صفحة Checkout فور اختيار العميل لـ InstaPay"
+            enText="Appears in: Checkout when InstaPay option selected"
+          />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -618,7 +751,7 @@ function PaymentsSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
             className="border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 font-bold h-11 text-xs px-4"
           >
             <Eye className="h-4 w-4 mr-1.5 text-amber-500" />
-            {isAr ? "معاينة صفحة إنهاء الطلب 👁️" : "Preview Checkout Page 👁️"}
+            {isAr ? "معاينة خيارات الدفع في Checkout 👁️" : "Preview Checkout Payments 👁️"}
           </Button>
         )}
         <Button onClick={handleSaveAll} className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-11 px-8 text-sm shadow-md ml-auto">
@@ -682,12 +815,18 @@ function ShippingSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
   };
 
   return (
-    <Card className="p-6 max-w-3xl shadow-sm border-border/80">
-      <div className="flex items-center justify-between mb-4">
+    <Card className="p-6 max-w-4xl shadow-sm border-border/80">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 border-b border-border/60 pb-4">
         <div>
-          <h3 className="font-display text-lg font-bold mb-1">
-            {isAr ? "مناطق وأسعار الشحن في مصر" : "Egyptian Shipping Zones & Rates"}
-          </h3>
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <h3 className="font-display text-lg font-bold">
+              {isAr ? "مناطق وأسعار الشحن في مصر" : "Egyptian Shipping Zones & Rates"}
+            </h3>
+            <FieldLocationBadge
+              arText="تظهر في: صفحة Checkout عند اختيار المحافظة لحساب الإجمالي"
+              enText="Appears in: Checkout governorate selector & total calculation"
+            />
+          </div>
           <p className="text-xs text-muted-foreground">
             {isAr
               ? "تحكم كامل في أسعار الشحن ومدة التوصيل المخصصة لكل محافظة في مصر."
@@ -704,7 +843,7 @@ function ShippingSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
               toast.success(isAr ? "تمت إعادة الضبط بنجاح" : "Reset shipping zones");
             }
           }}
-          className="text-xs text-muted-foreground"
+          className="text-xs text-muted-foreground shrink-0"
         >
           <RotateCcw className="h-3.5 w-3.5 mr-1" />
           {isAr ? "إعادة الضبط" : "Reset Defaults"}
@@ -790,7 +929,7 @@ function ShippingSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
             className="border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 font-bold h-10 text-xs px-4"
           >
             <Eye className="h-4 w-4 mr-1.5 text-amber-500" />
-            {isAr ? "معاينة صفحة إنهاء الطلب 👁️" : "Preview Checkout Page 👁️"}
+            {isAr ? "معاينة تكلفة الشحن في Checkout 👁️" : "Preview Shipping at Checkout 👁️"}
           </Button>
         )}
       </div>
@@ -798,12 +937,10 @@ function ShippingSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
       {/* Add Zone Modal */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
         <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-display text-lg font-bold flex items-center gap-2">
-              <Truck className="h-5 w-5 text-amber-500" />
-              {isAr ? "إضافة منطقة شحن جديدة" : "Add New Shipping Zone"}
-            </DialogTitle>
-          </DialogHeader>
+          <div className="font-display text-lg font-bold flex items-center gap-2 pb-2 border-b border-border">
+            <Truck className="h-5 w-5 text-amber-500" />
+            {isAr ? "إضافة منطقة شحن جديدة" : "Add New Shipping Zone"}
+          </div>
 
           <form onSubmit={handleAddSubmit} className="space-y-4 pt-2">
             <div>
@@ -869,12 +1006,10 @@ function ShippingSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
       <Dialog open={!!editingZone} onOpenChange={(open) => !open && setEditingZone(null)}>
         {editingZone && (
           <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="font-display text-lg font-bold flex items-center gap-2">
-                <Edit2 className="h-5 w-5 text-amber-500" />
-                {isAr ? `تعديل منطقة: ${editingZone.nameAr}` : `Edit Zone: ${editingZone.name}`}
-              </DialogTitle>
-            </DialogHeader>
+            <div className="font-display text-lg font-bold flex items-center gap-2 pb-2 border-b border-border">
+              <Edit2 className="h-5 w-5 text-amber-500" />
+              {isAr ? `تعديل منطقة: ${editingZone.nameAr}` : `Edit Zone: ${editingZone.name}`}
+            </div>
 
             <form onSubmit={handleUpdateSubmit} className="space-y-4 pt-2">
               <div>
