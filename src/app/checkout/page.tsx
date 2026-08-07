@@ -66,9 +66,13 @@ export default function CheckoutPage() {
     firstName: "",
     lastName: "",
     address: "",
+    buildingNo: "",
+    floor: "",
     apartment: "",
+    landmark: "",
     city: "",
     governorate: "Cairo",
+    postalCode: "11511",
     phone: "",
     shippingZone: "cairo",
     paymentMethod: "card",
@@ -81,6 +85,12 @@ export default function CheckoutPage() {
     instapayHandle: "",
     notes: "",
   });
+
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [confirmedOrder, setConfirmedOrder] = React.useState<{
+    order_number: string;
+    total: number;
+  } | null>(null);
 
   const [promoInput, setPromoInput] = React.useState("");
   const [validatingPromo, setValidatingPromo] = React.useState(false);
@@ -206,12 +216,83 @@ export default function CheckoutPage() {
   const updateForm = (key: string, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
-  const nextStep = () => {
-    if (currentStep < 3) setCurrentStep(currentStep + 1);
-    else {
-      setCompleted(true);
-      clear();
-      setTimeout(() => router.push("/account"), 4000);
+  const nextStep = async () => {
+    if (currentStep === 1) {
+      if (!form.email || !form.phone || !form.firstName || !form.lastName || !form.address || !form.city) {
+        toast.error("Please fill in all required contact and shipping details");
+        return;
+      }
+      setCurrentStep(2);
+    } else if (currentStep === 2) {
+      setCurrentStep(3);
+    } else {
+      // Step 3: Real Checkout API call
+      setIsSubmitting(true);
+      try {
+        const fullStreet = form.buildingNo
+          ? `Bldg ${form.buildingNo}, ${form.address}`
+          : form.address;
+        const details = [
+          form.floor ? `Floor ${form.floor}` : null,
+          form.apartment ? `Apt ${form.apartment}` : null,
+          form.landmark ? `Near ${form.landmark}` : null,
+        ].filter(Boolean).join(", ");
+
+        const payload = {
+          email: form.email,
+          shipping_address: {
+            first_name: form.firstName,
+            last_name: form.lastName,
+            email: form.email,
+            address1: fullStreet,
+            address2: details || undefined,
+            city: form.city,
+            state: form.governorate,
+            postal_code: form.postalCode || "11511",
+            country: "EG",
+            phone: form.phone,
+          },
+          shipping_method: "standard" as const,
+          coupon_code: appliedCoupon?.code,
+          lines: lines.map((l) => ({
+            productId: l.productId,
+            slug: l.slug,
+            name: l.name,
+            image: l.image,
+            color: l.color,
+            size: l.size,
+            price: l.price,
+            quantity: l.quantity,
+          })),
+          customer_note: form.notes || undefined,
+        };
+
+        const res = await fetch("/api/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          toast.error(data.error || "Failed to process order. Please try again.");
+          setIsSubmitting(false);
+          return;
+        }
+
+        setConfirmedOrder({
+          order_number: data.order.order_number,
+          total: data.order.total,
+        });
+        setCompleted(true);
+        clear();
+        toast.success("Order placed successfully!");
+        setTimeout(() => router.push("/account"), 5000);
+      } catch (err: any) {
+        toast.error("Network error during checkout. Please try again.");
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -238,7 +319,7 @@ export default function CheckoutPage() {
           <div className="border border-border/60 rounded-sm p-6 text-left space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Order number</span>
-              <span className="font-medium font-mono">MEME-{Math.random().toString(36).slice(2, 8).toUpperCase()}</span>
+              <span className="font-medium font-mono text-amber-500 font-bold">{confirmedOrder?.order_number || "MEME-ORDER"}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Payment method</span>
@@ -246,7 +327,7 @@ export default function CheckoutPage() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Total</span>
-              <span className="font-medium">{formatPrice(total)}</span>
+              <span className="font-medium">{formatPrice(confirmedOrder?.total ?? total)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Estimated delivery</span>
@@ -377,16 +458,26 @@ export default function CheckoutPage() {
                 <div>
                   <h2 className="font-display text-2xl mb-4">Shipping address</h2>
                   <div className="grid grid-cols-2 gap-3">
-                    <Input placeholder="First name (الاسم الأول)" value={form.firstName} onChange={(e) => updateForm("firstName", e.target.value)} className="h-12" />
-                    <Input placeholder="Last name (اسم العائلة)" value={form.lastName} onChange={(e) => updateForm("lastName", e.target.value)} className="h-12" />
+                    <Input placeholder="First name (الاسم الأول) *" value={form.firstName} onChange={(e) => updateForm("firstName", e.target.value)} className="h-12" />
+                    <Input placeholder="Last name (اسم العائلة) *" value={form.lastName} onChange={(e) => updateForm("lastName", e.target.value)} className="h-12" />
                   </div>
-                  <Input placeholder="Street address (العنوان)" value={form.address} onChange={(e) => updateForm("address", e.target.value)} className="h-12 mt-3" />
-                  <Input placeholder="Apartment, building, floor (optional)" value={form.apartment} onChange={(e) => updateForm("apartment", e.target.value)} className="h-12 mt-3" />
+                  
+                  {/* Street & Building info */}
+                  <div className="grid grid-cols-3 gap-3 mt-3">
+                    <Input placeholder="Building No. (رقم المبنى)" value={form.buildingNo} onChange={(e) => updateForm("buildingNo", e.target.value)} className="h-12" />
+                    <Input placeholder="Floor (الطابق)" value={form.floor} onChange={(e) => updateForm("floor", e.target.value)} className="h-12" />
+                    <Input placeholder="Apt No. (رقم الشقة)" value={form.apartment} onChange={(e) => updateForm("apartment", e.target.value)} className="h-12" />
+                  </div>
+
+                  <Input placeholder="Street name / Area (اسم الشارع / المنطقة) *" value={form.address} onChange={(e) => updateForm("address", e.target.value)} className="h-12 mt-3" />
+                  
+                  <Input placeholder="Nearest Landmark (أقرب علامة مميزة) e.g. Near Mall / Bank / Mosque" value={form.landmark} onChange={(e) => updateForm("landmark", e.target.value)} className="h-12 mt-3" />
+
                   <div className="grid grid-cols-2 gap-3 mt-3">
-                    <Input placeholder="City / District (المدينة)" value={form.city} onChange={(e) => updateForm("city", e.target.value)} className="h-12" />
+                    <Input placeholder="City / District (المدينة / الحي) *" value={form.city} onChange={(e) => updateForm("city", e.target.value)} className="h-12" />
                     <Select value={form.governorate} onValueChange={(v) => updateForm("governorate", v)}>
                       <SelectTrigger className="h-12">
-                        <SelectValue placeholder="Governorate (المحافظة)" />
+                        <SelectValue placeholder="Governorate (المحافظة) *" />
                       </SelectTrigger>
                       <SelectContent className="max-h-72">
                         {GOVERNORATES.map((g) => (
@@ -586,8 +677,8 @@ export default function CheckoutPage() {
                 <Button onClick={() => setCurrentStep(2)} variant="ghost" className="mr-2">
                   Back
                 </Button>
-                <Button onClick={nextStep} size="lg" className="w-full h-12 rounded-full">
-                  Place order — {formatPrice(total)}
+                <Button onClick={nextStep} disabled={isSubmitting} size="lg" className="w-full h-12 rounded-full font-bold">
+                  {isSubmitting ? "Processing Order..." : `Place order — ${formatPrice(total)}`}
                 </Button>
               </motion.div>
             )}
