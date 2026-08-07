@@ -48,6 +48,72 @@ export function AdminNotifications({
   const [notifications, setNotifications] =
     React.useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
 
+  // Fetch real order notifications & low inventory alerts
+  React.useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const [ordersRes, productsRes] = await Promise.all([
+          fetch("/api/admin/orders?limit=15"),
+          fetch("/api/admin/products"),
+        ]);
+
+        const items: NotificationItem[] = [];
+
+        if (ordersRes.ok) {
+          const { orders } = await ordersRes.json();
+          if (orders && Array.isArray(orders)) {
+            orders.forEach((o: any) => {
+              const name = o.shipping_address?.first_name || o.email || "Customer";
+              const dateObj = new Date(o.placed_at || o.created_at || Date.now());
+              const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              items.push({
+                id: `order-${o.id}`,
+                type: "order",
+                titleAr: `طلب جديد #${o.order_number}`,
+                titleEn: `New Order #${o.order_number}`,
+                descAr: `طلب بقيمة LE ${o.total?.toLocaleString()} من ${name} (${o.status})`,
+                descEn: `Order worth LE ${o.total?.toLocaleString()} by ${name} (${o.status})`,
+                timeAr: timeStr,
+                timeEn: timeStr,
+                read: false,
+                targetSection: "orders",
+              });
+            });
+          }
+        }
+
+        if (productsRes.ok) {
+          const { products } = await productsRes.json();
+          if (products && Array.isArray(products)) {
+            products.filter((p: any) => (p.inventory ?? 0) <= 5).forEach((p: any) => {
+              items.push({
+                id: `low-stock-${p.id}`,
+                type: "inventory",
+                titleAr: `تنبيه مخزون منخفض: ${p.name}`,
+                titleEn: `Low Stock Alert: ${p.name}`,
+                descAr: `المتبقي فقط ${p.inventory} قطعة في المخزن!`,
+                descEn: `Only ${p.inventory} units remaining in stock!`,
+                timeAr: "الآن",
+                timeEn: "Now",
+                read: false,
+                targetSection: "inventory",
+              });
+            });
+          }
+        }
+
+        if (isMounted && items.length > 0) {
+          setNotifications(items);
+        }
+      } catch (err) {
+        console.error("Failed to load admin notifications", err);
+      }
+    })();
+
+    return () => { isMounted = false; };
+  }, []);
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const markAllRead = () => {

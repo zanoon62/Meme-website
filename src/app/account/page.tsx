@@ -821,15 +821,36 @@ function Dashboard({ session }: { session: SessionData }) {
           {/* ── Notifications ── */}
           <TabsContent value="notifications" className="mt-0">
             <h2 className="font-display text-2xl tracking-tight mb-6">Notifications</h2>
-            <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
-              <Bell className="h-12 w-12 text-muted-foreground/40" />
-              <div>
-                <p className="font-medium">No notifications</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Order updates and alerts will appear here.
-                </p>
+            {orders.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-4 text-center border border-dashed border-border/70 rounded-2xl">
+                <Bell className="h-12 w-12 text-muted-foreground/40" />
+                <div>
+                  <p className="font-medium">No notifications yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    When you place an order, live delivery updates and alerts will appear here.
+                  </p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-3">
+                {orders.map((order) => (
+                  <div key={order.id} className="p-4 border border-border/80 rounded-xl bg-card flex items-start gap-3.5 shadow-xs">
+                    <div className="h-9 w-9 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0 mt-0.5 font-bold">
+                      <ShoppingBag className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="font-bold text-sm text-foreground">Order Confirmed #{order.order_number}</h4>
+                        <span className="text-xs text-muted-foreground font-mono">{formatDate(order.placed_at)}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        Thank you! Your order of {order.order_items?.length || 1} item(s) totaling {formatPrice(order.total)} is confirmed and status is currently <span className="font-semibold text-foreground uppercase">{order.status}</span>.
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           {/* ── Settings ── */}
