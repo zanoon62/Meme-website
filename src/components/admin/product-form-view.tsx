@@ -38,24 +38,13 @@ import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { Product, ProductColor, ProductSize, SizeChartData } from "@/components/providers/ui-provider";
-import { useProductStore, type ProductInput } from "@/components/providers/product-store";
+import { useProductStore, useLiveCategories, type ProductInput } from "@/components/providers/product-store";
 import { useAdminT } from "@/components/admin/admin-i18n";
 import { getDefaultSizeChart } from "@/lib/size-charts";
 
 const ALL_SIZES: ProductSize[] = ["XS", "S", "M", "L", "XL", "XXL", "ONE SIZE"];
 
-const CATEGORY_OPTIONS: Array<{ value: string; en: string; ar: string }> = [
-  { value: "Dresses", en: "Dresses", ar: "فساتين" },
-  { value: "Tailoring", en: "Tailoring", ar: "بدل وبليزر" },
-  { value: "Outerwear", en: "Outerwear", ar: "ملابس خارجية وجاكيتات" },
-  { value: "Knitwear", en: "Knitwear", ar: "تريكو وصوف" },
-  { value: "Hoodies & Sweatshirts", en: "Hoodies & Sweatshirts", ar: "هوديز وسويت شيرت" },
-  { value: "Tops", en: "Tops", ar: "بلوزات وتوب" },
-  { value: "Skirts", en: "Skirts", ar: "تنانير" },
-  { value: "Pants", en: "Pants", ar: "بنطلونات" },
-  { value: "Footwear", en: "Footwear", ar: "أحذية" },
-  { value: "Accessories", en: "Accessories", ar: "إكسسوارات" },
-];
+
 
 const DEFAULT_NEW_PRODUCT: ProductInput = {
   slug: "",
@@ -93,6 +82,8 @@ export function ProductFormView({ product, onBack }: Props) {
   const addProduct = useProductStore((s) => s.addProduct);
   const updateProduct = useProductStore((s) => s.updateProduct);
   const { t, isAr, dir } = useAdminT();
+  // Live categories from the product store — always reflects real state
+  const liveCategories = useLiveCategories();
 
   const isEdit = !!product;
   const [form, setForm] = React.useState<ProductInput>(DEFAULT_NEW_PRODUCT);
@@ -235,7 +226,7 @@ export function ProductFormView({ product, onBack }: Props) {
       ? Math.round(((form.compareAtPrice - form.price) / form.compareAtPrice) * 100)
       : null;
 
-  const currentCategoryLabel = CATEGORY_OPTIONS.find((c) => c.value === form.category);
+  const currentCategoryLabel = liveCategories.find((c) => c.name === form.category)?.name ?? form.category;
 
   return (
     <div dir={dir} className="w-full min-h-screen pb-20 space-y-6 bg-background">
@@ -332,17 +323,30 @@ export function ProductFormView({ product, onBack }: Props) {
               </div>
 
               <Field label={isAr ? "اختر الفئة الرئيسية للمنتج *" : "Select Category *"} error={errors.category}>
-                <select
-                  value={form.category}
-                  onChange={(e) => handleCategoryChange(e.target.value)}
-                  className="w-full h-11 rounded-lg border border-input bg-background px-4 text-base font-semibold text-foreground cursor-pointer shadow-sm hover:border-amber-500 transition-colors"
-                >
-                  {CATEGORY_OPTIONS.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {isAr ? c.ar : c.en}
-                    </option>
-                  ))}
-                </select>
+                {liveCategories.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-2">
+                    {isAr
+                      ? "لا توجد فئات حتى الآن — أضف منتجًا لإنشاء فئة جديدة"
+                      : "No categories yet — add products to create categories"}
+                  </p>
+                ) : (
+                  <select
+                    value={form.category}
+                    onChange={(e) => handleCategoryChange(e.target.value)}
+                    className="w-full h-11 rounded-lg border border-input bg-background px-4 text-base font-semibold text-foreground cursor-pointer shadow-sm hover:border-amber-500 transition-colors"
+                  >
+                    {!form.category && (
+                      <option value="" disabled>
+                        {isAr ? "— اختر الفئة —" : "— Select a category —"}
+                      </option>
+                    )}
+                    {liveCategories.map((cat) => (
+                      <option key={cat.slug} value={cat.name}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </Field>
             </section>
 
@@ -493,8 +497,8 @@ export function ProductFormView({ product, onBack }: Props) {
 
               <p className="text-xs text-muted-foreground">
                 {isAr
-                  ? `جدول القياسات مخصص تلقائياً لفئة (${currentCategoryLabel?.ar || form.category}). يمكن التعديل المباشر على قيم المقاسات.`
-                  : `Size measurements customized for ${currentCategoryLabel?.en || form.category}. Edit cell values directly.`}
+                  ? `جدول القياسات مخصص تلقائياً لفئة (${currentCategoryLabel}). يمكن التعديل المباشر على قيم المقاسات.`
+                  : `Size measurements customized for ${currentCategoryLabel}. Edit cell values directly.`}
               </p>
 
               {form.sizeChart && (
@@ -670,7 +674,7 @@ export function ProductFormView({ product, onBack }: Props) {
                 <div className="flex items-center justify-between text-[10px] text-muted-foreground font-mono">
                   <span>meme-eg.store/product/{form.slug || "slug"}</span>
                   <Badge variant="outline" className="text-[9px] border-amber-500/40 text-amber-500">
-                    {isAr ? currentCategoryLabel?.ar || form.category : currentCategoryLabel?.en || form.category}
+                    {currentCategoryLabel}
                   </Badge>
                 </div>
 
@@ -816,7 +820,7 @@ export function ProductFormView({ product, onBack }: Props) {
 
                   <div className="space-y-1.5">
                     <p className="text-[10px] font-bold text-muted-foreground uppercase">
-                      {isAr ? currentCategoryLabel?.ar : currentCategoryLabel?.en}
+                      {currentCategoryLabel}
                     </p>
                     <h4 className="font-display font-bold text-base line-clamp-1 text-foreground">
                       {form.name || (isAr ? "اسم المنتج سيظهر هنا" : "Product Title")}
@@ -855,7 +859,7 @@ export function ProductFormView({ product, onBack }: Props) {
           <DialogHeader>
             <DialogTitle className="font-display text-xl font-bold flex items-center gap-2">
               <Ruler className="h-5 w-5 text-amber-500" />
-              {isAr ? `جدول المقاسات: ${currentCategoryLabel?.ar || form.category}` : `Size Guide: ${currentCategoryLabel?.en || form.category}`}
+              {isAr ? `جدول المقاسات: ${currentCategoryLabel}` : `Size Guide: ${currentCategoryLabel}`}
             </DialogTitle>
           </DialogHeader>
 
