@@ -537,6 +537,18 @@ export default function ProductPageClient({ slug }: { slug: string }) {
 
           {(() => {
             const chart = product.sizeChart || getDefaultSizeChart(product.category);
+            const sizeHeader = chart.headers.find((h) => h.toLowerCase().includes("size")) || chart.headers[0];
+            
+            // Filter size chart rows to match product.sizes (e.g. if product doesn't have XL, don't show XL in chart)
+            const filteredRows = (product.sizes && product.sizes.length > 0)
+              ? chart.rows.filter((row) => {
+                  const rowSize = String(row[sizeHeader] || "").toUpperCase().trim();
+                  return product.sizes.some((s) => String(s).toUpperCase().trim() === rowSize);
+                })
+              : chart.rows;
+
+            const finalRows = filteredRows.length > 0 ? filteredRows : chart.rows;
+
             return (
               <div className="border border-border rounded-xl overflow-hidden shadow-sm my-2">
                 <table className="w-full text-xs border-collapse text-center">
@@ -550,7 +562,7 @@ export default function ProductPageClient({ slug }: { slug: string }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/60">
-                    {chart.rows.map((row, rIdx) => (
+                    {finalRows.map((row, rIdx) => (
                       <tr key={rIdx} className="hover:bg-accent/20">
                         {chart.headers.map((h, cIdx) => (
                           <td key={cIdx} className="p-3 font-medium text-foreground">

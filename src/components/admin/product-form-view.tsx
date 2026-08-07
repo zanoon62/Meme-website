@@ -863,32 +863,43 @@ export function ProductFormView({ product, onBack }: Props) {
             </DialogTitle>
           </DialogHeader>
 
-          {form.sizeChart && (
-            <div className="border border-border rounded-xl overflow-hidden shadow-sm my-2">
-              <table className="w-full text-xs border-collapse text-center">
-                <thead>
-                  <tr className="bg-accent/60 border-b border-border">
-                    {form.sizeChart.headers.map((h, i) => (
-                      <th key={i} className="p-3 font-bold text-foreground">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {form.sizeChart.rows.map((row, rIdx) => (
-                    <tr key={rIdx} className="hover:bg-accent/20">
-                      {form.sizeChart!.headers.map((h, cIdx) => (
-                        <td key={cIdx} className="p-3 font-medium text-foreground">
-                          {row[h]}
-                        </td>
+          {form.sizeChart && (() => {
+            const sizeHeader = form.sizeChart.headers.find((h) => h.toLowerCase().includes("size")) || form.sizeChart.headers[0];
+            const filteredRows = (form.sizes && form.sizes.length > 0)
+              ? form.sizeChart.rows.filter((row) => {
+                  const rowSize = String(row[sizeHeader] || "").toUpperCase().trim();
+                  return form.sizes.some((s) => String(s).toUpperCase().trim() === rowSize);
+                })
+              : form.sizeChart.rows;
+            const finalRows = filteredRows.length > 0 ? filteredRows : form.sizeChart.rows;
+
+            return (
+              <div className="border border-border rounded-xl overflow-hidden shadow-sm my-2">
+                <table className="w-full text-xs border-collapse text-center">
+                  <thead>
+                    <tr className="bg-accent/60 border-b border-border">
+                      {form.sizeChart.headers.map((h, i) => (
+                        <th key={i} className="p-3 font-bold text-foreground">
+                          {h}
+                        </th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {finalRows.map((row, rIdx) => (
+                      <tr key={rIdx} className="hover:bg-accent/20">
+                        {form.sizeChart!.headers.map((h, cIdx) => (
+                          <td key={cIdx} className="p-3 font-medium text-foreground">
+                            {row[h]}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>
