@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useProductStore } from "@/components/providers/product-store";
-import { useT, useLangDir } from "@/lib/i18n";
+import { useAdminT } from "@/components/admin/admin-i18n";
 import { cn } from "@/lib/utils";
 
 type Category = {
@@ -39,8 +39,7 @@ export function CategoriesSection() {
   const [creating, setCreating] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState<Category | null>(null);
   const [deleting, setDeleting] = React.useState(false);
-  const t = useT();
-  const dir = useLangDir();
+  const { t, isAr, dir } = useAdminT();
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -48,7 +47,6 @@ export function CategoriesSection() {
       const res = await fetch("/api/admin/categories");
       if (res.ok) {
         const data = await res.json();
-        // Only show what's actually in the database — no seed fallback
         setCategories(data.categories ?? []);
       }
     } catch {
@@ -73,11 +71,11 @@ export function CategoriesSection() {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Failed to delete");
       }
-      toast.success(`Category "${confirmDelete.name}" deleted`);
+      toast.success(isAr ? `تم حذف الفئة "${confirmDelete.name}"` : `Category "${confirmDelete.name}" deleted`);
       setConfirmDelete(null);
       load();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to delete category");
+      toast.error(e instanceof Error ? e.message : (isAr ? "فشل حذف الفئة" : "Failed to delete category"));
     } finally {
       setDeleting(false);
     }
@@ -95,42 +93,42 @@ export function CategoriesSection() {
       (p) => p.category === catName || p.category.toLowerCase() === catName.toLowerCase()
     ).length;
 
-  const getCategoryLabel = (name: string) => {
-    const key = `cat.${name}`;
-    const translated = t(key);
-    return translated !== key ? translated : name;
-  };
-
   return (
     <div dir={dir} className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className={cn("absolute top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground", isAr ? "right-3" : "left-3")} />
           <Input
-            placeholder={t("admin.search_categories")}
+            placeholder={isAr ? "البحث عن الفئات…" : "Search categories…"}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9 bg-background"
+            className={cn("h-9 bg-background", isAr ? "pr-9" : "pl-9")}
           />
         </div>
         <Button size="sm" onClick={() => setCreating(true)} className="font-semibold shadow-sm">
-          <Plus className="h-4 w-4 mr-1" /> {t("admin.new_category")}
+          <Plus className="h-4 w-4 mr-1" />
+          {isAr ? "فئة جديدة" : "New Category"}
         </Button>
       </div>
 
       {loading ? (
         <Card className="p-12 text-center text-sm text-muted-foreground">
-          {t("admin.loading")}
+          {t("loading")}
         </Card>
       ) : filtered.length === 0 ? (
         <Card className="p-12 text-center border-dashed">
           <FolderTree className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
-          <p className="font-medium text-muted-foreground">No categories yet</p>
+          <p className="font-medium text-muted-foreground">
+            {isAr ? "لا توجد فئات بعد" : "No categories yet"}
+          </p>
           <p className="text-xs text-muted-foreground/60 mt-1">
-            Categories are created automatically when you add products, or create them manually here.
+            {isAr
+              ? "الفئات تُنشأ تلقائياً عند إضافة منتجات، أو يمكنك إنشاؤها يدوياً هنا."
+              : "Categories are created automatically when you add products, or create them manually here."}
           </p>
           <Button size="sm" className="mt-4" onClick={() => setCreating(true)}>
-            <Plus className="h-4 w-4 mr-1" /> Create first category
+            <Plus className="h-4 w-4 mr-1" />
+            {isAr ? "إنشاء أول فئة" : "Create first category"}
           </Button>
         </Card>
       ) : (
@@ -150,7 +148,7 @@ export function CategoriesSection() {
                     variant="ghost"
                     className="h-8 w-8 hover:bg-accent"
                     onClick={() => setEditing(c)}
-                    title="Edit category"
+                    title={isAr ? "تعديل" : "Edit"}
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
@@ -159,13 +157,13 @@ export function CategoriesSection() {
                     variant="ghost"
                     className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => setConfirmDelete(c)}
-                    title="Delete category"
+                    title={isAr ? "حذف" : "Delete"}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
-              <p className="font-bold text-base text-foreground">{getCategoryLabel(c.name)}</p>
+              <p className="font-bold text-base text-foreground">{c.name}</p>
               <p className="text-xs text-muted-foreground font-mono mt-0.5">/{c.slug}</p>
               {c.description && (
                 <p className="text-xs text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
@@ -174,7 +172,7 @@ export function CategoriesSection() {
               )}
               <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/60">
                 <Badge variant="secondary" className="text-[10px] font-semibold">
-                  {productCount(c.name)} {t("admin.products_count")}
+                  {productCount(c.name)} {isAr ? "منتج" : "products"}
                 </Badge>
                 <Badge
                   variant={c.is_active ? "default" : "secondary"}
@@ -185,7 +183,7 @@ export function CategoriesSection() {
                       : "bg-muted text-muted-foreground"
                   )}
                 >
-                  {c.is_active ? t("admin.active") : t("admin.hidden")}
+                  {c.is_active ? (isAr ? "نشط" : "Active") : (isAr ? "مخفي" : "Hidden")}
                 </Badge>
               </div>
             </Card>
@@ -209,33 +207,30 @@ export function CategoriesSection() {
         open={!!confirmDelete}
         onOpenChange={(v) => !v && setConfirmDelete(null)}
       >
-        <DialogContent className="max-w-sm">
+        <DialogContent dir={dir} className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <AlertCircle className="h-5 w-5" />
-              Delete category?
+              {isAr ? "حذف الفئة؟" : "Delete category?"}
             </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete{" "}
+              {isAr ? "هل أنت متأكد من حذف" : "Are you sure you want to delete"}{" "}
               <strong className="text-foreground">&ldquo;{confirmDelete?.name}&rdquo;</strong>?{" "}
-              {productCount(confirmDelete?.name ?? "") > 0 && (
+              {(productCount(confirmDelete?.name ?? "")) > 0 && (
                 <span className="text-amber-600 font-medium">
-                  ⚠ {productCount(confirmDelete?.name ?? "")} product(s) use this category — they
-                  won&apos;t be deleted but will lose their category filter.
+                  {isAr
+                    ? `⚠ ${productCount(confirmDelete?.name ?? "")} منتج يستخدم هذه الفئة — لن يُحذف المنتج لكن سيفقد تصنيفه.`
+                    : `⚠ ${productCount(confirmDelete?.name ?? "")} product(s) use this category — they won't be deleted but will lose their category filter.`}
                 </span>
               )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setConfirmDelete(null)}>
-              Cancel
+              {isAr ? "إلغاء" : "Cancel"}
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleting}
-            >
-              {deleting ? "Deleting…" : "Delete"}
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting ? (isAr ? "جارٍ الحذف…" : "Deleting…") : (isAr ? "حذف" : "Delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -260,7 +255,7 @@ function CategoryDialog({
   const [description, setDescription] = React.useState("");
   const [isActive, setIsActive] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
-  const t = useT();
+  const { t, isAr, dir } = useAdminT();
 
   React.useEffect(() => {
     if (category) {
@@ -278,7 +273,7 @@ function CategoryDialog({
 
   const save = async () => {
     if (!name || !slug) {
-      toast.error("Name and slug are required");
+      toast.error(isAr ? "الاسم والـ Slug مطلوبان" : "Name and slug are required");
       return;
     }
     setSaving(true);
@@ -296,11 +291,15 @@ function CategoryDialog({
         const err = await res.json();
         throw new Error(err.error || "Failed");
       }
-      toast.success(category ? "Category updated" : "Category created successfully!");
+      toast.success(
+        category
+          ? (isAr ? "تم تحديث الفئة" : "Category updated")
+          : (isAr ? "تم إنشاء الفئة بنجاح!" : "Category created successfully!")
+      );
       onSaved();
       onClose();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
+      toast.error(e instanceof Error ? e.message : (isAr ? "فشل الحفظ" : "Failed"));
     } finally {
       setSaving(false);
     }
@@ -308,27 +307,40 @@ function CategoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
+      {/* dir applied to DialogContent so all labels/inputs follow RTL/LTR */}
+      <DialogContent dir={dir}>
         <DialogHeader>
           <DialogTitle>
-            {category ? t("admin.edit_category") : t("admin.new_category")}
+            {category ? (isAr ? "تعديل الفئة" : "Edit Category") : (isAr ? "فئة جديدة" : "New Category")}
           </DialogTitle>
         </DialogHeader>
+
         <div className="space-y-3">
+          {/* Name */}
           <div>
-            <Label className="text-xs">Name *</Label>
+            <Label className="text-xs">
+              {isAr ? "الاسم *" : "Name *"}
+            </Label>
             <Input
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
                 if (!category) {
-                  setSlug(e.target.value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""));
+                  setSlug(
+                    e.target.value
+                      .toLowerCase()
+                      .replace(/\s+/g, "-")
+                      .replace(/[^a-z0-9-]/g, "")
+                  );
                 }
               }}
-              placeholder="e.g. Dresses"
+              placeholder={isAr ? "مثال: فساتين" : "e.g. Dresses"}
               className="mt-1"
+              dir="auto"
             />
           </div>
+
+          {/* Slug */}
           <div>
             <Label className="text-xs">Slug *</Label>
             <Input
@@ -336,55 +348,68 @@ function CategoryDialog({
               onChange={(e) => setSlug(e.target.value)}
               placeholder="dresses"
               className="mt-1 font-mono text-sm"
+              dir="ltr"
             />
             <p className="text-[10px] text-muted-foreground mt-0.5">
-              Used in the URL: /shop?category=…
+              {isAr ? "يُستخدم في الرابط: /shop?category=…" : "Used in the URL: /shop?category=…"}
             </p>
           </div>
+
+          {/* Description */}
           <div>
-            <Label className="text-xs">Description</Label>
+            <Label className="text-xs">
+              {isAr ? "الوصف" : "Description"}
+            </Label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              placeholder="Optional description shown on category page"
+              placeholder={isAr ? "وصف اختياري يظهر في صفحة الفئة" : "Optional description shown on category page"}
               className="mt-1"
+              dir="auto"
             />
           </div>
+
+          {/* Active toggle — layout aware of RTL */}
           <div className="flex items-center justify-between rounded-lg border border-border/60 p-3">
+            {/* Text always on the natural "start" side */}
             <div>
-              <p className="text-xs font-medium">Active</p>
-              <p className="text-[10px] text-muted-foreground">Visible in store filter</p>
+              <p className="text-xs font-medium">{isAr ? "نشط" : "Active"}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isAr ? "مرئي في فلتر المتجر" : "Visible in store filter"}
+              </p>
             </div>
+            {/* Toggle always on the "end" side */}
             <button
               type="button"
               role="switch"
               aria-checked={isActive}
               onClick={() => setIsActive((v) => !v)}
               className={cn(
-                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 isActive ? "bg-primary" : "bg-input"
               )}
             >
               <span
                 className={cn(
-                  "pointer-events-none block h-4 w-4 rounded-full bg-white shadow-lg ring-0 transition-transform",
-                  isActive ? "translate-x-4" : "translate-x-0"
+                  "pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform duration-200",
+                  isActive ? "translate-x-5" : "translate-x-0"
                 )}
               />
             </button>
           </div>
         </div>
+
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            {t("admin.cancel")}
+            {isAr ? "إلغاء" : "Cancel"}
           </Button>
           <Button onClick={save} disabled={saving}>
             {saving
-              ? t("admin.loading")
+              ? (isAr ? "جارٍ الحفظ…" : "Saving…")
               : category
-              ? t("admin.save_changes")
-              : t("admin.create_category")}
+              ? (isAr ? "حفظ التغييرات" : "Save Changes")
+              : (isAr ? "إنشاء الفئة" : "Create Category")}
           </Button>
         </DialogFooter>
       </DialogContent>
