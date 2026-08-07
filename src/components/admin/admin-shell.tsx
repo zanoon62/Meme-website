@@ -232,6 +232,18 @@ export function AdminShell({
 
             {/* Header Right / Left Action Icons Bar with iPhone Frosted Pill Effect */}
             <div className="flex items-center gap-2 sm:gap-2.5 p-1 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-xl">
+              {/* Quick link back to storefront website */}
+              <Link href="/" title={isAr ? "العودة للموقع" : "Back to Website"}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-xl hover:bg-black/10 dark:hover:bg-white/10 text-foreground transition-all duration-200"
+                >
+                  <LogOut className={cn("h-4 w-4 text-muted-foreground hover:text-foreground transition-colors", isAr && "rotate-180")} />
+                  <span className="sr-only">{isAr ? "العودة للموقع" : "Back to Website"}</span>
+                </Button>
+              </Link>
+
               {/* Interactive Notifications Center */}
               <AdminNotifications onJumpSection={onSection} />
 
