@@ -287,7 +287,6 @@ export default function CheckoutPage() {
         setCompleted(true);
         clear();
         toast.success("Order placed successfully!");
-        setTimeout(() => router.push("/account"), 5000);
       } catch (err: any) {
         toast.error("Network error during checkout. Please try again.");
       } finally {
@@ -345,9 +344,14 @@ export default function CheckoutPage() {
               </div>
             )}
           </div>
-          <Button asChild className="mt-6 rounded-full h-12 px-8">
-            <Link href="/shop">Continue shopping</Link>
-          </Button>
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Button asChild className="w-full sm:w-auto rounded-full h-12 px-8 bg-amber-500 hover:bg-amber-600 text-black font-semibold">
+              <Link href="/account">View My Orders</Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full sm:w-auto rounded-full h-12 px-8">
+              <Link href="/shop">Continue Shopping</Link>
+            </Button>
+          </div>
         </motion.div>
       </main>
     );
