@@ -34,13 +34,15 @@ export function Header() {
   const [adminEmail, setAdminEmail] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    // Read immediately on mount
-    setAdminEmail(getAdminEmailClient());
-    // Poll every 2s so the icon appears right after OAuth redirect sets the cookie
-    const interval = setInterval(() => {
-      setAdminEmail(getAdminEmailClient());
-    }, 2000);
-    return () => clearInterval(interval);
+    const check = () => setAdminEmail(getAdminEmailClient());
+    check();
+    // Re-check when tab regains focus (e.g. after OAuth redirect completes)
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("focus", check);
+    return () => {
+      document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("focus", check);
+    };
   }, []);
 
   React.useEffect(() => {
