@@ -35,19 +35,18 @@ export function Header() {
 
   React.useEffect(() => {
     const check = () => {
-      const email = getAdminEmailClient();
-      setAdminEmail(email);
-      if (!email) {
-        // Automatically check if logged-in user is an admin without needing to visit /account
-        fetch("/api/admin/auth/elevate", { method: "POST" })
-          .then((res) => res.json())
-          .then((data) => {
-            if (data?.isAdmin) {
-              setAdminEmail(getAdminEmailClient());
-            }
-          })
-          .catch(() => {});
-      }
+      fetch("/api/admin/auth/elevate", { method: "POST" })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.isAdmin) {
+            setAdminEmail(getAdminEmailClient());
+          } else {
+            setAdminEmail(null);
+          }
+        })
+        .catch(() => {
+          setAdminEmail(null);
+        });
     };
     check();
 

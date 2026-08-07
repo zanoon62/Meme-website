@@ -24,6 +24,9 @@ export async function POST() {
     const { data: { user }, error } = await serverClient.auth.getUser();
 
     if (error || !user || !user.email) {
+      const cookieStore = await cookies();
+      cookieStore.set(ADMIN_COOKIE_NAME, "", { maxAge: 0, path: "/" });
+      cookieStore.set(ADMIN_EMAIL_COOKIE_NAME, "", { maxAge: 0, path: "/" });
       return NextResponse.json({ ok: true, isAdmin: false });
     }
 
@@ -37,6 +40,9 @@ export async function POST() {
       .maybeSingle();
 
     if (!allowed) {
+      const cookieStore = await cookies();
+      cookieStore.set(ADMIN_COOKIE_NAME, "", { maxAge: 0, path: "/" });
+      cookieStore.set(ADMIN_EMAIL_COOKIE_NAME, "", { maxAge: 0, path: "/" });
       return NextResponse.json({ ok: true, isAdmin: false });
     }
 
