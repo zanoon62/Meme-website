@@ -16,7 +16,11 @@ import {
   Globe,
   DollarSign,
   AlertTriangle,
+  Eye,
+  Smartphone,
+  Monitor,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -49,6 +53,16 @@ export function SettingsSection() {
     "store" | "payments" | "shipping" | "notifications" | "security"
   >("store");
 
+  const [showPreviewModal, setShowPreviewModal] = React.useState(false);
+  const [previewPath, setPreviewPath] = React.useState("/");
+  const [previewMode, setPreviewMode] = React.useState<"desktop" | "mobile">("desktop");
+
+  const openPreview = (path?: string) => {
+    const defaultPath = tab === "payments" || tab === "shipping" ? "/checkout" : "/";
+    setPreviewPath(path || defaultPath);
+    setShowPreviewModal(true);
+  };
+
   const tabs = [
     { id: "store" as const, label: isAr ? "إعدادات المتجر" : "Store Profile", icon: Store },
     { id: "payments" as const, label: isAr ? "وسائل الدفع" : "Payments", icon: CreditCard },
@@ -59,33 +73,114 @@ export function SettingsSection() {
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-1 border-b border-border/60 overflow-x-auto">
-        {tabs.map((tabItem) => (
-          <button
-            key={tabItem.id}
-            onClick={() => setTab(tabItem.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap ${
-              tab === tabItem.id
-                ? "border-amber-500 text-amber-600 dark:text-amber-400 font-bold"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <tabItem.icon className="h-4 w-4" />
-            {tabItem.label}
-          </button>
-        ))}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-1">
+        <div className="flex gap-1 overflow-x-auto">
+          {tabs.map((tabItem) => (
+            <button
+              key={tabItem.id}
+              onClick={() => setTab(tabItem.id)}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap ${
+                tab === tabItem.id
+                  ? "border-amber-500 text-amber-600 dark:text-amber-400 font-bold"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <tabItem.icon className="h-4 w-4" />
+              {tabItem.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Live Preview Button inside Settings Section */}
+        <Button
+          onClick={() => openPreview()}
+          className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold text-xs h-9 px-4 rounded-xl flex items-center gap-2 shrink-0"
+        >
+          <Eye className="h-4 w-4 text-amber-500 animate-pulse" />
+          {isAr ? "معاينة حية وتفاعلية للموقع 👁️" : "Live Storefront Preview 👁️"}
+        </Button>
       </div>
 
-      {tab === "store" && <StoreSettings />}
-      {tab === "payments" && <PaymentsSettings />}
-      {tab === "shipping" && <ShippingSettings />}
-      {tab === "notifications" && <NotificationsSettings />}
-      {tab === "security" && <SecuritySettings />}
+      {tab === "store" && <StoreSettings onOpenPreview={openPreview} />}
+      {tab === "payments" && <PaymentsSettings onOpenPreview={openPreview} />}
+      {tab === "shipping" && <ShippingSettings onOpenPreview={openPreview} />}
+      {tab === "notifications" && <NotificationsSettings onOpenPreview={openPreview} />}
+      {tab === "security" && <SecuritySettings onOpenPreview={openPreview} />}
+
+      {/* Live Storefront Interactive Preview Modal */}
+      <Dialog open={showPreviewModal} onOpenChange={setShowPreviewModal}>
+        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 overflow-hidden rounded-2xl flex flex-col bg-background">
+          <div className="p-3 px-5 border-b border-border bg-card flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3">
+              <Eye className="h-5 w-5 text-amber-500 animate-pulse" />
+              <div>
+                <h3 className="font-display font-bold text-base text-foreground">
+                  {isAr ? "معاينة حية ومباشرة لتغييرات الإعدادات" : "Settings Live Interactive Preview"}
+                </h3>
+                <p className="text-[11px] text-muted-foreground">
+                  {isAr ? "استعرض شكل الاسم والأرقام والأسعار فور تغييرها في المتجر." : "Preview how store name, phone numbers, and payment details look on live storefront."}
+                </p>
+              </div>
+            </div>
+
+            {/* Path selector tabs & responsive mode toggles */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 bg-accent/60 p-1 rounded-xl text-xs">
+                <button
+                  onClick={() => setPreviewPath("/")}
+                  className={cn("px-3 py-1 rounded-lg font-bold transition-all", previewPath === "/" ? "bg-amber-500 text-black shadow-xs" : "text-muted-foreground hover:text-foreground")}
+                >
+                  {isAr ? "الرئيسية" : "Home"}
+                </button>
+                <button
+                  onClick={() => setPreviewPath("/shop")}
+                  className={cn("px-3 py-1 rounded-lg font-bold transition-all", previewPath === "/shop" ? "bg-amber-500 text-black shadow-xs" : "text-muted-foreground hover:text-foreground")}
+                >
+                  {isAr ? "المتجر" : "Shop"}
+                </button>
+                <button
+                  onClick={() => setPreviewPath("/checkout")}
+                  className={cn("px-3 py-1 rounded-lg font-bold transition-all", previewPath === "/checkout" ? "bg-amber-500 text-black shadow-xs" : "text-muted-foreground hover:text-foreground")}
+                >
+                  {isAr ? "إنهاء الطلب (Checkout)" : "Checkout"}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1 bg-accent/60 p-1 rounded-xl text-xs">
+                <button
+                  onClick={() => setPreviewMode("desktop")}
+                  className={cn("p-1.5 rounded-lg transition-all", previewMode === "desktop" ? "bg-foreground text-background shadow-xs" : "text-muted-foreground")}
+                  title="Desktop View"
+                >
+                  <Monitor className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setPreviewMode("mobile")}
+                  className={cn("p-1.5 rounded-lg transition-all", previewMode === "mobile" ? "bg-foreground text-background shadow-xs" : "text-muted-foreground")}
+                  title="Mobile View"
+                >
+                  <Smartphone className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 bg-zinc-950 flex items-center justify-center p-2 sm:p-4 overflow-hidden relative">
+            <iframe
+              src={previewPath}
+              className={cn(
+                "h-full border-0 transition-all duration-300 shadow-2xl rounded-xl bg-background",
+                previewMode === "mobile" ? "w-[395px] max-h-[780px] rounded-[40px] border-4 border-zinc-800" : "w-full"
+              )}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function StoreSettings() {
+function StoreSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => void }) {
   const { isAr } = useAdminT();
   const [form, setForm] = React.useState({
     name: "MEME Atelier",
@@ -225,8 +320,19 @@ function StoreSettings() {
         </div>
       </div>
 
-      <div className="flex justify-end mt-6">
-        <Button onClick={handleSave} disabled={saving} className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-10 px-6">
+      <div className="flex items-center justify-between mt-6 pt-4 border-t border-border/60">
+        {onOpenPreview && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenPreview("/")}
+            className="border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 font-bold h-10 text-xs px-4"
+          >
+            <Eye className="h-4 w-4 mr-1.5 text-amber-500" />
+            {isAr ? "معاينة حية للموقع" : "Live Storefront Preview"}
+          </Button>
+        )}
+        <Button onClick={handleSave} disabled={saving} className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-10 px-6 ml-auto">
           <Save className="h-4 w-4 mr-2" />
           {saving ? (isAr ? "جاري الحفظ..." : "Saving...") : (isAr ? "حفظ التغييرات" : "Save Changes")}
         </Button>
@@ -235,7 +341,7 @@ function StoreSettings() {
   );
 }
 
-function PaymentsSettings() {
+function PaymentsSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => void }) {
   const { isAr } = useAdminT();
   const paymentStore = usePaymentStore();
 
@@ -425,8 +531,19 @@ function PaymentsSettings() {
         </div>
       </div>
 
-      <div className="flex justify-end pt-2">
-        <Button onClick={handleSaveAll} className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-11 px-8 text-sm shadow-md">
+      <div className="flex items-center justify-between pt-2">
+        {onOpenPreview && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenPreview("/checkout")}
+            className="border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 font-bold h-11 text-xs px-4"
+          >
+            <Eye className="h-4 w-4 mr-1.5 text-amber-500" />
+            {isAr ? "معاينة صفحة إنهاء الطلب 👁️" : "Preview Checkout Page 👁️"}
+          </Button>
+        )}
+        <Button onClick={handleSaveAll} className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-11 px-8 text-sm shadow-md ml-auto">
           <Save className="h-4 w-4 mr-2" />
           {isAr ? "حفظ مفاتيح باي موب وأرقام المحافظ" : "Save PayMob Keys & Wallet Numbers"}
         </Button>
@@ -435,7 +552,7 @@ function PaymentsSettings() {
   );
 }
 
-function ShippingSettings() {
+function ShippingSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => void }) {
   const { isAr } = useAdminT();
   const zones = useShippingStore((s) => s.zones);
   const addZone = useShippingStore((s) => s.addZone);
@@ -578,13 +695,27 @@ function ShippingSettings() {
         ))}
       </div>
 
-      <Button
-        className="mt-6 bg-amber-500 hover:bg-amber-600 text-black font-bold h-10 px-5"
-        onClick={() => setShowAddModal(true)}
-      >
-        <Plus className="h-4 w-4 mr-2" />
-        {isAr ? "+ إضافة منطقة شحن جديدة" : "+ Add New Shipping Zone"}
-      </Button>
+      <div className="flex items-center justify-between mt-6 pt-4 border-t border-border/60">
+        <Button
+          className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-10 px-5 text-xs shadow-md"
+          onClick={() => setShowAddModal(true)}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          {isAr ? "+ إضافة منطقة شحن جديدة" : "+ Add New Shipping Zone"}
+        </Button>
+
+        {onOpenPreview && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenPreview("/checkout")}
+            className="border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 font-bold h-10 text-xs px-4"
+          >
+            <Eye className="h-4 w-4 mr-1.5 text-amber-500" />
+            {isAr ? "معاينة صفحة إنهاء الطلب 👁️" : "Preview Checkout Page 👁️"}
+          </Button>
+        )}
+      </div>
 
       {/* Add Zone Modal */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
@@ -726,7 +857,7 @@ function ShippingSettings() {
   );
 }
 
-function NotificationsSettings() {
+function NotificationsSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => void }) {
   const { isAr } = useAdminT();
   const [saving, setSaving] = React.useState(false);
 
@@ -790,7 +921,7 @@ function NotificationsSettings() {
   );
 }
 
-function SecuritySettings() {
+function SecuritySettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => void }) {
   const { isAr } = useAdminT();
   const [resettingData, setResettingData] = React.useState(false);
 
