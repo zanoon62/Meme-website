@@ -69,10 +69,7 @@ const DEFAULT_NEW_PRODUCT: ProductInput = {
   collection: "Atelier Noir",
   colors: [{ name: "Noir", hex: "#0d0d0d" }],
   sizes: ["XS", "S", "M", "L"],
-  images: [
-    img("New Atelier Piece", "Dresses", "noir", 0),
-    img("New Atelier Piece", "Dresses", "noir", 1),
-  ],
+  images: [],
   badges: [],
   rating: 5,
   reviewCount: 0,
