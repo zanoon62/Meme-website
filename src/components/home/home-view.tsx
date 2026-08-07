@@ -20,20 +20,23 @@ import { EditorialSplit } from "@/components/home/editorial-split";
 import { ManifestoNewsletter } from "@/components/home/manifesto-newsletter";
 import { LimitedDropSpotlight } from "@/components/home/limited-drop-spotlight";
 import { reviews } from "@/data/products";
-import { useLiveProducts } from "@/components/providers/product-store";
+import { useLiveProducts, useLiveCategories } from "@/components/providers/product-store";
 import { useHomepageConfig } from "@/components/providers/homepage-store";
 import { useLang } from "@/components/layout/language-toggle";
 
 export function HomeView() {
   const products = useLiveProducts();
+  const activeCategories = useLiveCategories();
   const config = useHomepageConfig();
   const [lang] = useLang();
   const isRtl = lang === "ar";
   const limited = products.filter((p) => p.isLimited);
 
-  const bestTabs = ["Hoodies & Sweatshirts", "Tops", "Pants", "Accessories", "Footwear"];
-  const newTabs = ["Dresses", "Tailoring", "Outerwear", "Knitwear", "Hoodies & Sweatshirts"];
-  const trendingTabs = ["Dresses", "Pants", "Knitwear", "Accessories", "Footwear"];
+  const activeCategoryNames = new Set(activeCategories.map((c) => c.name));
+
+  const bestTabs = ["Hoodies & Sweatshirts", "Tops", "Pants", "Accessories", "Footwear"].filter((t) => activeCategoryNames.has(t));
+  const newTabs = ["Dresses", "Tailoring", "Outerwear", "Knitwear", "Hoodies & Sweatshirts"].filter((t) => activeCategoryNames.has(t));
+  const trendingTabs = ["Dresses", "Pants", "Knitwear", "Accessories", "Footwear"].filter((t) => activeCategoryNames.has(t));
   const brandedBestSellers = products.filter((p) => p.collection === "Premium Brands");
 
   const bs = config.bestSellers;

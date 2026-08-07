@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { Product, ProductColor, ProductSize } from "@/components/providers/ui-provider";
@@ -252,4 +253,71 @@ export function useLiveProducts(): Product[] {
   return useProductStore((s) => s.products);
 }
 
+export type CategoryItem = {
+  id: string;
+  slug: string;
+  name: string;
+  is_active: boolean;
+};
+
+// Hook for fetching active categories for storefront UI (header, shop page, homepage)
+export function useLiveCategories(): CategoryItem[] {
+  const products = useLiveProducts();
+  const [categories, setCategories] = React.useState<CategoryItem[]>([]);
+
+  React.useEffect(() => {
+    let mounted = true;
+    fetch("/api/categories")
+      .then((res) => (res.ok ? res.json() : { categories: [] }))
+      .then((data) => {
+        if (!mounted) return;
+        const dbCats: CategoryItem[] = data.categories ?? [];
+        if (dbCats.length > 0) {
+          // Keep only active categories
+          setCategories(dbCats.filter((c) => c.is_active !== false));
+        } else {
+          // Fallback: derive from live products if no categories DB rows exist
+          const seen = new Set<string>();
+          const fallback: CategoryItem[] = [];
+          for (const p of products) {
+            if (p.category && !seen.has(p.category)) {
+              seen.add(p.category);
+              fallback.push({
+                id: p.category,
+                slug: p.category.toLowerCase().replace(/\s+/g, "-"),
+                name: p.category,
+                is_active: true,
+              });
+            }
+          }
+          setCategories(fallback);
+        }
+      })
+      .catch(() => {
+        if (!mounted) return;
+        const seen = new Set<string>();
+        const fallback: CategoryItem[] = [];
+        for (const p of products) {
+          if (p.category && !seen.has(p.category)) {
+            seen.add(p.category);
+            fallback.push({
+              id: p.category,
+              slug: p.category.toLowerCase().replace(/\s+/g, "-"),
+              name: p.category,
+              is_active: true,
+            });
+          }
+        }
+        setCategories(fallback);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [products]);
+
+  return categories;
+}
+
 export type { ProductInput, ProductColor, ProductSize };
+

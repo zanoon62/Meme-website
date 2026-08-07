@@ -9,7 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { allSizes } from "@/data/products";
-import { useLiveProducts } from "@/components/providers/product-store";
+import { useLiveProducts, useLiveCategories } from "@/components/providers/product-store";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ProductSize } from "@/components/providers/ui-provider";
@@ -43,6 +43,7 @@ function ShopContent() {
   const filter = searchParams.get("filter") || "";
 
   const products = useLiveProducts();
+  const dbCategories = useLiveCategories();
   const t = useT();
   const dir = useLangDir();
 
@@ -54,18 +55,14 @@ function ShopContent() {
   const [visible, setVisible] = React.useState(12);
   const [mobileFiltersOpen, setMobileFiltersOpen] = React.useState(false);
 
-  // ─── Derive categories, colors, and price range from live products ────────
+  // ─── Derive categories, colors, and price range from active categories & live products ────────
   const liveCategories = React.useMemo(() => {
-    const slugSet = new Set<string>();
     const cats: { slug: string; name: string }[] = [{ slug: "all", name: "All" }];
-    for (const p of products) {
-      if (p.category && !slugSet.has(p.category)) {
-        slugSet.add(p.category);
-        cats.push({ slug: p.category, name: p.category });
-      }
+    for (const c of dbCategories) {
+      cats.push({ slug: c.slug || c.name, name: c.name });
     }
     return cats;
-  }, [products]);
+  }, [dbCategories]);
 
   const liveColors = React.useMemo(
     () =>

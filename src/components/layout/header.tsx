@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useUI, useCartCount, useWishlistCount } from "@/components/providers/ui-provider";
-import { useLiveProducts } from "@/components/providers/product-store";
+import { useLiveCategories } from "@/components/providers/product-store";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
 import { LanguageToggle } from "./language-toggle";
@@ -28,20 +28,7 @@ export function Header() {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const t = useT();
   const dir = useLangDir();
-  const allProducts = useLiveProducts();
-
-  // Derive unique categories from live products (always in sync with DB)
-  const liveCategories = React.useMemo(() => {
-    const seen = new Set<string>();
-    const cats: { slug: string; name: string }[] = [];
-    for (const p of allProducts) {
-      if (p.category && !seen.has(p.category)) {
-        seen.add(p.category);
-        cats.push({ slug: p.category, name: p.category });
-      }
-    }
-    return cats;
-  }, [allProducts]);
+  const liveCategories = useLiveCategories();
 
   React.useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
