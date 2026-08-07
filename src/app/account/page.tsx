@@ -1050,7 +1050,12 @@ export default function AccountPage() {
           const data: SessionData = await res.json();
           setSession(data);
           if (data.user) {
-            fetch("/api/admin/auth/elevate", { method: "POST" }).catch(() => {});
+            fetch("/api/admin/auth/elevate", { method: "POST" })
+              .then((r) => r.json())
+              .then((d) => {
+                if (d?.isAdmin) window.dispatchEvent(new Event("adminSessionGranted"));
+              })
+              .catch(() => {});
           }
         }
       } catch {

@@ -36,12 +36,15 @@ export function Header() {
   React.useEffect(() => {
     const check = () => setAdminEmail(getAdminEmailClient());
     check();
-    // Re-check when tab regains focus (e.g. after OAuth redirect completes)
+    // Re-check when tab regains focus (e.g. after OAuth redirect)
     document.addEventListener("visibilitychange", check);
     window.addEventListener("focus", check);
+    // Re-check when account page's elevate call confirms admin
+    window.addEventListener("adminSessionGranted", check);
     return () => {
       document.removeEventListener("visibilitychange", check);
       window.removeEventListener("focus", check);
+      window.removeEventListener("adminSessionGranted", check);
     };
   }, []);
 
