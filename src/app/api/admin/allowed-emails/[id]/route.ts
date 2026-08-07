@@ -29,9 +29,9 @@ export async function DELETE(
       .from("admin_allowed_emails")
       .select("email")
       .eq("id", id)
-      .single();
+      .single() as { data: { email: string } | null; error: unknown };
 
-    if (target?.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+    if ((target as { email?: string } | null)?.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
       return NextResponse.json({ ok: false, error: "Cannot remove super-admin." }, { status: 400 });
     }
 
