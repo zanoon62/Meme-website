@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 3. Identify customer (if logged in)
+  // 3. Identify customer (if logged in or matching email)
   let customerId: string | undefined;
   try {
     const serverClient = await createSupabaseServerClient();
@@ -137,7 +137,15 @@ export async function POST(req: NextRequest) {
         .from("customers")
         .select("id")
         .eq("auth_user_id", user.id)
-        .single();
+        .maybeSingle();
+      if (cust) customerId = cust.id;
+    }
+    if (!customerId && payload.email) {
+      const { data: cust } = await supabase
+        .from("customers")
+        .select("id")
+        .ilike("email", payload.email)
+        .maybeSingle();
       if (cust) customerId = cust.id;
     }
   } catch {

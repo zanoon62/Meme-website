@@ -36,55 +36,90 @@ export async function GET(req: NextRequest) {
     }
 
     const serviceClient = createSupabaseServiceClient();
+    const userEmail = user.email;
 
-    // Look up the customer row
-    const { data: customer } = await serviceClient
+    // Look up the customer row by auth_user_id or email
+    let { data: customer } = await serviceClient
       .from("customers")
-      .select("id")
+      .select("id, email")
       .eq("auth_user_id", user.id)
       .maybeSingle();
 
-    if (!customer) {
+    if (!customer && userEmail) {
+      const { data: custByEmail } = await serviceClient
+        .from("customers")
+        .select("id, email")
+        .ilike("email", userEmail)
+        .maybeSingle();
+      customer = custByEmail;
+    }
+
+    // Build order fetch query: match customer_id OR email
+    let query = serviceClient.from("orders").select(
+      `
+      id,
+      order_number,
+      status,
+      payment_status,
+      fulfillment_status,
+      subtotal,
+      discount_total,
+      shipping_total,
+      tax_total,
+      total,
+      currency,
+      shipping_address,
+      shipping_method,
+      placed_at,
+      shipped_at,
+      delivered_at,
+      tracking_number,
+      tracking_url,
+      order_items (
+        id,
+        product_name,
+        product_slug,
+        product_image,
+        variant_color,
+        variant_size,
+        quantity,
+        unit_price,
+        total
+      )
+    `
+    );
+
+    if (customer && userEmail) {
+      query = query.or(`customer_id.eq.${customer.id},email.ilike.${userEmail}`);
+    } else if (customer) {
+      query = query.eq("customer_id", customer.id);
+    } else if (userEmail) {
+      query = query.ilike("email", userEmail);
+    } else {
       return NextResponse.json({ orders: [] });
     }
 
-    // Fetch orders for this customer, with their line items
-    const { data: orders, error } = await serviceClient
-      .from("orders")
-      .select(
-        `
-        id,
-        order_number,
-        status,
-        payment_status,
-        fulfillment_status,
-        total,
-        currency,
-        placed_at,
-        shipped_at,
-        delivered_at,
-        tracking_number,
-        tracking_url,
-        order_items (
-          id,
-          product_name,
-          product_slug,
-          product_image,
-          variant_color,
-          variant_size,
-          quantity,
-          unit_price,
-          total
-        )
-      `
-      )
-      .eq("customer_id", customer.id)
+    const { data: orders, error } = await query
       .order("placed_at", { ascending: false })
       .limit(50);
 
     if (error) {
       logger.error("account orders fetch failed", { error: error.message });
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Backfill customer_id on unlinked orders matching this customer
+    if (customer && orders && orders.length > 0) {
+      const unlinkedIds = orders.filter((o: any) => !o.customer_id).map((o: any) => o.id);
+      if (unlinkedIds.length > 0) {
+        serviceClient
+          .from("orders")
+          .update({ customer_id: customer.id })
+          .in("id", unlinkedIds)
+          .then(({ error: updateErr }) => {
+            if (updateErr) logger.warn("Failed to backfill customer_id on orders", { error: updateErr.message });
+          });
+      }
     }
 
     return NextResponse.json({ orders: orders ?? [] });

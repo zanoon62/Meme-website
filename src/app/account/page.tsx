@@ -15,6 +15,10 @@ import {
   Loader2,
   ShoppingBag,
   User,
+  Plus,
+  Phone,
+  Trash2,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +26,12 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useWishlistCount, useWishlist } from "@/components/providers/ui-provider";
 import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -69,11 +79,24 @@ type Order = {
   order_number: string;
   status: string;
   payment_status: string;
+  subtotal?: number;
+  discount_total?: number;
+  shipping_total?: number;
+  tax_total?: number;
   total: number;
   currency: string;
   placed_at: string;
   tracking_number: string | null;
   tracking_url: string | null;
+  shipping_address?: {
+    first_name?: string;
+    last_name?: string;
+    address1?: string;
+    address2?: string;
+    city?: string;
+    state?: string;
+    phone?: string;
+  } | null;
   order_items: OrderItem[];
 };
 
@@ -338,6 +361,84 @@ function Dashboard({ session }: { session: SessionData }) {
   const initials = getInitials(customer, user?.email);
   const avatarUrl = user?.avatar_url ?? null;
 
+  // Saved custom addresses state
+  const [customAddresses, setCustomAddresses] = React.useState<any[]>([]);
+  const [showAddAddressModal, setShowAddAddressModal] = React.useState(false);
+  const [newAddrForm, setNewAddrForm] = React.useState({
+    first_name: customer?.first_name ?? "",
+    last_name: customer?.last_name ?? "",
+    address1: "",
+    address2: "",
+    city: "",
+    state: "Cairo",
+    phone: customer?.phone ?? "",
+  });
+
+  // Load custom saved addresses from localStorage
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem("meme-saved-addresses");
+      if (saved) setCustomAddresses(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  const handleSaveNewAddress = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAddrForm.address1 || !newAddrForm.city) {
+      toast.error("Address and city are required");
+      return;
+    }
+    const updated = [...customAddresses, { id: `custom-${Date.now()}`, ...newAddrForm }];
+    setCustomAddresses(updated);
+    localStorage.setItem("meme-saved-addresses", JSON.stringify(updated));
+    toast.success("New address saved successfully!");
+    setShowAddAddressModal(false);
+    setNewAddrForm({
+      first_name: customer?.first_name ?? "",
+      last_name: customer?.last_name ?? "",
+      address1: "",
+      address2: "",
+      city: "",
+      state: "Cairo",
+      phone: customer?.phone ?? "",
+    });
+  };
+
+  const handleDeleteAddress = (id: string) => {
+    const updated = customAddresses.filter((a) => a.id !== id);
+    setCustomAddresses(updated);
+    localStorage.setItem("meme-saved-addresses", JSON.stringify(updated));
+    toast.success("Address removed");
+  };
+
+  // Combine custom addresses + addresses extracted from real orders
+  const allAddresses = React.useMemo(() => {
+    const fromOrders = orders
+      .map((o) => o.shipping_address)
+      .filter(Boolean)
+      .map((a, i) => ({
+        id: `order-addr-${i}`,
+        first_name: a?.first_name || customer?.first_name || "",
+        last_name: a?.last_name || customer?.last_name || "",
+        address1: a?.address1 || "",
+        address2: a?.address2 || "",
+        city: a?.city || "",
+        state: a?.state || "",
+        phone: a?.phone || "",
+        source: "order",
+      }));
+
+    const combined = [...customAddresses, ...fromOrders];
+    const seen = new Set();
+    return combined.filter((item) => {
+      if (!item.address1) return false;
+      const key = `${item.address1.toLowerCase()}-${item.city?.toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [orders, customAddresses, customer]);
+
   // Load real orders
   React.useEffect(() => {
     (async () => {
@@ -550,6 +651,20 @@ function Dashboard({ session }: { session: SessionData }) {
                         </div>
                       ))}
                     </div>
+
+                    {order.shipping_address && (
+                      <div className="bg-accent/20 px-5 py-3 border-t border-border/40 text-xs text-muted-foreground flex flex-wrap items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5 font-medium text-foreground">
+                          <MapPin className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                          Delivery: {order.shipping_address.address1} {order.shipping_address.address2 ? `(${order.shipping_address.address2})` : ""}, {order.shipping_address.city}
+                        </span>
+                        {order.shipping_address.phone && (
+                          <span className="flex items-center gap-1">
+                            <Phone className="h-3 w-3" /> {order.shipping_address.phone}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -601,18 +716,84 @@ function Dashboard({ session }: { session: SessionData }) {
           {/* ── Addresses ── */}
           <TabsContent value="addresses" className="mt-0">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-display text-2xl tracking-tight">Saved addresses</h2>
-              <Button variant="outline" size="sm" className="rounded-full">Add new</Button>
-            </div>
-            <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
-              <MapPin className="h-12 w-12 text-muted-foreground/40" />
               <div>
-                <p className="font-medium">No saved addresses</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Addresses from your orders will appear here.
+                <h2 className="font-display text-2xl tracking-tight">Saved addresses</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Addresses from your orders and saved shipping locations
                 </p>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full flex items-center gap-1.5"
+                onClick={() => setShowAddAddressModal(true)}
+              >
+                <Plus className="h-3.5 w-3.5" /> Add new
+              </Button>
             </div>
+
+            {allAddresses.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-4 text-center border border-dashed border-border/70 rounded-2xl">
+                <MapPin className="h-12 w-12 text-muted-foreground/40" />
+                <div>
+                  <p className="font-medium">No saved addresses</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Addresses from your orders will appear here automatically, or you can add one now.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  className="rounded-full mt-2 bg-amber-500 hover:bg-amber-600 text-black font-semibold"
+                  onClick={() => setShowAddAddressModal(true)}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Add Address
+                </Button>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-4">
+                {allAddresses.map((addr, idx) => (
+                  <div
+                    key={addr.id || idx}
+                    className="border border-border/80 rounded-2xl p-5 bg-card relative shadow-xs hover:border-amber-500/50 transition-all space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-amber-500" />
+                        <h4 className="font-bold text-sm text-foreground">
+                          {addr.first_name || addr.last_name
+                            ? `${addr.first_name} ${addr.last_name}`
+                            : "Saved Address"}
+                        </h4>
+                      </div>
+                      {idx === 0 && (
+                        <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-500 font-bold">
+                          Default Shipping
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs font-semibold text-foreground">{addr.address1}</p>
+                    {addr.address2 && <p className="text-xs text-muted-foreground">{addr.address2}</p>}
+                    <p className="text-xs text-muted-foreground font-medium">
+                      {addr.city}{addr.state ? `, ${addr.state}` : ""}
+                    </p>
+                    {addr.phone && (
+                      <p className="text-xs text-muted-foreground pt-2 border-t border-border/40 flex items-center gap-1.5">
+                        <Phone className="h-3 w-3 text-amber-500" /> {addr.phone}
+                      </p>
+                    )}
+                    {addr.source !== "order" && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAddress(addr.id)}
+                        className="absolute bottom-4 right-4 text-muted-foreground hover:text-destructive text-xs"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           {/* ── Rewards ── */}
@@ -732,6 +913,102 @@ function Dashboard({ session }: { session: SessionData }) {
           </TabsContent>
         </div>
       </Tabs>
+
+      {/* Add New Address Modal */}
+      <Dialog open={showAddAddressModal} onOpenChange={setShowAddAddressModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl font-bold flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-amber-500" /> Add New Address
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveNewAddress} className="space-y-3 mt-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">First Name</Label>
+                <Input
+                  value={newAddrForm.first_name}
+                  onChange={(e) => setNewAddrForm({ ...newAddrForm, first_name: e.target.value })}
+                  placeholder="First name"
+                  className="h-10 text-sm mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Last Name</Label>
+                <Input
+                  value={newAddrForm.last_name}
+                  onChange={(e) => setNewAddrForm({ ...newAddrForm, last_name: e.target.value })}
+                  placeholder="Last name"
+                  className="h-10 text-sm mt-1"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Street Address / Building *</Label>
+              <Input
+                value={newAddrForm.address1}
+                onChange={(e) => setNewAddrForm({ ...newAddrForm, address1: e.target.value })}
+                placeholder="Building No., Street Name, Area"
+                required
+                className="h-10 text-sm mt-1"
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs">Apartment / Floor / Landmark (optional)</Label>
+              <Input
+                value={newAddrForm.address2}
+                onChange={(e) => setNewAddrForm({ ...newAddrForm, address2: e.target.value })}
+                placeholder="Floor 3, Apt 12, Near Mall"
+                className="h-10 text-sm mt-1"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">City / District *</Label>
+                <Input
+                  value={newAddrForm.city}
+                  onChange={(e) => setNewAddrForm({ ...newAddrForm, city: e.target.value })}
+                  placeholder="City"
+                  required
+                  className="h-10 text-sm mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Governorate</Label>
+                <Input
+                  value={newAddrForm.state}
+                  onChange={(e) => setNewAddrForm({ ...newAddrForm, state: e.target.value })}
+                  placeholder="Governorate"
+                  className="h-10 text-sm mt-1"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Phone Number</Label>
+              <Input
+                value={newAddrForm.phone}
+                onChange={(e) => setNewAddrForm({ ...newAddrForm, phone: e.target.value })}
+                placeholder="+20 1X XXXX XXXX"
+                className="h-10 text-sm mt-1"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3">
+              <Button type="button" variant="outline" onClick={() => setShowAddAddressModal(false)} size="sm">
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" className="bg-amber-500 hover:bg-amber-600 text-black font-semibold">
+                Save Address
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
