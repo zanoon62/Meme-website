@@ -40,6 +40,7 @@ import {
 import { toast } from "sonner";
 import { useAdminT } from "@/components/admin/admin-i18n";
 import { useShippingStore } from "@/lib/shipping-store";
+import { usePaymentStore } from "@/lib/payment-store";
 import type { ShippingZone } from "@/lib/format";
 
 export function SettingsSection() {
@@ -236,93 +237,198 @@ function StoreSettings() {
 
 function PaymentsSettings() {
   const { isAr } = useAdminT();
-  const [testMode, setTestMode] = React.useState(true);
-  const [autoCapture, setAutoCapture] = React.useState(true);
+  const paymentStore = usePaymentStore();
 
-  const handleSave = () => {
-    toast.success(isAr ? "تم حفظ إعدادات بوابة الدفع" : "Payment provider settings updated");
+  const [paymobApiKey, setPaymobApiKey] = React.useState(paymentStore.paymobApiKey);
+  const [paymobIntegrationId, setPaymobIntegrationId] = React.useState(paymentStore.paymobIntegrationId);
+  const [paymobFrameId, setPaymobFrameId] = React.useState(paymentStore.paymobFrameId);
+  const [paymobHmacSecret, setPaymobHmacSecret] = React.useState(paymentStore.paymobHmacSecret);
+  const [paymobTestMode, setPaymobTestMode] = React.useState(paymentStore.paymobTestMode);
+
+  const [vodafoneNumber, setVodafoneNumber] = React.useState(paymentStore.vodafoneCashNumber);
+  const [instapayAddr, setInstapayAddr] = React.useState(paymentStore.instapayAddress);
+  const [instapayPhone, setInstapayPhone] = React.useState(paymentStore.instapayPhone);
+  const [instapayName, setInstapayName] = React.useState(paymentStore.instapayAccountName);
+
+  const handleSaveAll = () => {
+    paymentStore.updatePaymob({
+      paymobApiKey,
+      paymobIntegrationId,
+      paymobFrameId,
+      paymobHmacSecret,
+      paymobTestMode,
+    });
+    paymentStore.updateVodafoneCash({
+      vodafoneCashNumber: vodafoneNumber,
+    });
+    paymentStore.updateInstapay({
+      instapayAddress: instapayAddr,
+      instapayPhone,
+      instapayAccountName: instapayName,
+    });
+    toast.success(isAr ? "تم حفظ إعدادات بوابات وأرقام التحويل بنجاح! 🎉" : "Payment gateway keys & numbers saved successfully!");
   };
 
   return (
-    <Card className="p-6 max-w-3xl shadow-sm border-border/80">
-      <h3 className="font-display text-lg font-bold mb-1">
-        {isAr ? "بوابات وسائل الدفع الإلكتروني" : "Payment Gateways & Options"}
-      </h3>
-      <p className="text-xs text-muted-foreground mb-6">
-        {isAr ? "إدارة طرق الدفع المتاحة للعملاء عند إنهاء الطلب." : "Manage supported payment methods for checkout."}
-      </p>
+    <Card className="p-6 max-w-3xl shadow-sm border-border/80 space-y-6">
+      <div>
+        <h3 className="font-display text-lg font-bold mb-1">
+          {isAr ? "بوابة دفع باي موب (PayMob) وإعدادات التحويلات" : "PayMob Gateway & Wallet Transfer Settings"}
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          {isAr
+            ? "ربط مادي وتكامل مباشر لبوابة باي موب (Visa/MasterCard/Meeza/Apple Pay) وتعديل أرقام فودافون كاش وإنستاباي."
+            : "Direct PayMob API integration keys (Visa, MasterCard, Meeza, Apple Pay) & mobile wallet numbers."}
+        </p>
+      </div>
 
-      <div className="space-y-3">
-        {[
-          {
-            name: isAr ? "الدفع عند الاستلام (COD)" : "Cash on Delivery (COD)",
-            desc: isAr ? "تحصيل النقدية عند وصول الشحنة للعميل" : "Collect payment in cash upon courier delivery",
-            connected: true,
-          },
-          {
-            name: isAr ? "إنستاباي / محفظة فودافون كاش" : "InstaPay & Vodafone Cash",
-            desc: isAr ? "تحويل فوري عبر رقم الهاتف المحمول" : "Instant mobile wallet & bank transfer in Egypt",
-            connected: true,
-          },
-          {
-            name: isAr ? "البطاقات البنكية (Visa / MasterCard)" : "Credit / Debit Cards",
-            desc: isAr ? "الدفع الإلكتروني المباشر عبر البنك" : "Direct online card payments via PayMob / Stripe",
-            connected: true,
-          },
-          {
-            name: isAr ? "خدمة فورى (Fawry Pay)" : "Fawry Pay",
-            desc: isAr ? "الدفع بكود مرجعي في منافذ فوري" : "Pay via reference code at Fawry retail outlets",
-            connected: true,
-          },
-        ].map((p) => (
-          <div
-            key={p.name}
-            className="flex items-center justify-between p-4 border border-border/60 rounded-xl bg-card hover:bg-accent/20 transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
-                <CreditCard className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-foreground">{p.name}</p>
-                <p className="text-xs text-muted-foreground">{p.desc}</p>
-              </div>
+      {/* PayMob Gateway Card */}
+      <div className="p-5 border border-amber-500/30 rounded-2xl bg-amber-500/5 dark:bg-amber-500/10 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-amber-500 text-black flex items-center justify-center font-bold">
+              <CreditCard className="h-5 w-5" />
             </div>
-            <span className="text-xs text-emerald-600 font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-              {isAr ? "مفعّـل" : "Active"}
-            </span>
+            <div>
+              <h4 className="font-bold text-sm text-foreground">
+                {isAr ? "ربط بوابة باي موب (PayMob Gateway)" : "PayMob Gateway (Visa, MasterCard, Meeza, Apple Pay)"}
+              </h4>
+              <p className="text-xs text-muted-foreground">
+                {isAr ? "البوابة المعتمدة للدفع بالبطاقات البنكية في مصر" : "Certified online payment gateway for cards in Egypt"}
+              </p>
+            </div>
           </div>
-        ))}
-      </div>
-
-      <Separator className="my-6" />
-
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-bold">{isAr ? "وضع التجربة والتدقيق (Test Mode)" : "Test Mode"}</p>
-            <p className="text-xs text-muted-foreground">
-              {isAr ? "السماح بالطلبات التجريبية دون سداد حقيقي" : "Allow placing test orders without live charges"}
-            </p>
-          </div>
-          <Switch checked={testMode} onCheckedChange={setTestMode} />
+          <span className="text-xs font-bold text-emerald-600 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+            {isAr ? "مفعل ومربوط" : "Connected"}
+          </span>
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
           <div>
-            <p className="text-sm font-bold">{isAr ? "تأكيد الدفع التلقائي" : "Auto-Capture Payments"}</p>
-            <p className="text-xs text-muted-foreground">
-              {isAr ? "تأكيد المبالغ فور إتمام الطلب" : "Automatically authorize and capture orders at checkout"}
-            </p>
+            <Label className="text-xs font-bold">{isAr ? "مفتاح API الخاص بباي موب (API Key)" : "PayMob API Key"}</Label>
+            <Input
+              type="password"
+              value={paymobApiKey}
+              onChange={(e) => setPaymobApiKey(e.target.value)}
+              className="mt-1.5 h-10 text-xs font-mono"
+            />
           </div>
-          <Switch checked={autoCapture} onCheckedChange={setAutoCapture} />
+          <div>
+            <Label className="text-xs font-bold">{isAr ? "رقم التكامل (Integration ID)" : "Integration ID"}</Label>
+            <Input
+              value={paymobIntegrationId}
+              onChange={(e) => setPaymobIntegrationId(e.target.value)}
+              className="mt-1.5 h-10 text-xs font-mono"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-bold">{isAr ? "رقم الإطار (Frame ID)" : "Iframe ID"}</Label>
+            <Input
+              value={paymobFrameId}
+              onChange={(e) => setPaymobFrameId(e.target.value)}
+              className="mt-1.5 h-10 text-xs font-mono"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-bold">{isAr ? "المفتاح السري (HMAC Secret)" : "HMAC Secret Key"}</Label>
+            <Input
+              type="password"
+              value={paymobHmacSecret}
+              onChange={(e) => setPaymobHmacSecret(e.target.value)}
+              className="mt-1.5 h-10 text-xs font-mono"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-2">
+          <Label className="text-xs font-bold">{isAr ? "تفعيل بيئة التجربة (PayMob Test Mode)" : "PayMob Sandbox / Test Mode"}</Label>
+          <Switch checked={paymobTestMode} onCheckedChange={setPaymobTestMode} />
         </div>
       </div>
 
-      <div className="flex justify-end mt-6">
-        <Button onClick={handleSave} className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-10 px-6">
+      <Separator />
+
+      {/* Vodafone Cash Card */}
+      <div className="p-5 border border-border/80 rounded-2xl bg-card space-y-4 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 rounded-xl bg-red-500 text-white flex items-center justify-center font-bold text-sm">
+            🔴
+          </div>
+          <div>
+            <h4 className="font-bold text-sm text-foreground">
+              {isAr ? "محفظة فودافون كاش (Vodafone Cash Wallet)" : "Vodafone Cash Wallet"}
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              {isAr ? "تعديل رقم محفظة التحويل المستهدفة للعملاء" : "Set target receiver wallet number shown at checkout"}
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <Label className="text-xs font-bold">{isAr ? "رقم محفظة فودافون كاش (Vodafone Cash Number)" : "Vodafone Cash Receiver Number"} *</Label>
+          <Input
+            value={vodafoneNumber}
+            onChange={(e) => setVodafoneNumber(e.target.value)}
+            placeholder="010XXXXXXXX"
+            className="mt-1.5 h-11 text-sm font-bold font-mono border-amber-500/40 focus:border-amber-500"
+          />
+          <p className="text-[11px] text-muted-foreground mt-1">
+            {isAr ? "يظهر هذا الرقم مباشرة للعميل عند اختيار طريقة فودافون كاش في صفحة إنهاء الطلب." : "This number is dynamically rendered on checkout when customer selects Vodafone Cash."}
+          </p>
+        </div>
+      </div>
+
+      {/* InstaPay Card */}
+      <div className="p-5 border border-border/80 rounded-2xl bg-card space-y-4 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 rounded-xl bg-purple-500 text-white flex items-center justify-center font-bold text-sm">
+            ⚡
+          </div>
+          <div>
+            <h4 className="font-bold text-sm text-foreground">
+              {isAr ? "عنوان وشبكة إنستاباي (InstaPay Account)" : "InstaPay Account Details"}
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              {isAr ? "تعديل عنوان الدفع الفوري IPA واسم الحساب" : "Set target IPA address & phone shown at checkout"}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs font-bold">{isAr ? "عنوان الدفع الفوري (InstaPay Address IPA)" : "InstaPay Address (IPA)"} *</Label>
+            <Input
+              value={instapayAddr}
+              onChange={(e) => setInstapayAddr(e.target.value)}
+              placeholder="username@instapay"
+              className="mt-1.5 h-10 text-xs font-bold font-mono"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-bold">{isAr ? "رقم الهاتف المسجل بإنستاباي" : "InstaPay Registered Mobile"}</Label>
+            <Input
+              value={instapayPhone}
+              onChange={(e) => setInstapayPhone(e.target.value)}
+              placeholder="010XXXXXXXX"
+              className="mt-1.5 h-10 text-xs font-mono"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Label className="text-xs font-bold">{isAr ? "اسم صاحب الحساب المستلم" : "Account Holder Name"}</Label>
+            <Input
+              value={instapayName}
+              onChange={(e) => setInstapayName(e.target.value)}
+              placeholder="SUITED BY MEME Atelier"
+              className="mt-1.5 h-10 text-xs"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end pt-2">
+        <Button onClick={handleSaveAll} className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-11 px-8 text-sm shadow-md">
           <Save className="h-4 w-4 mr-2" />
-          {isAr ? "حفظ التغييرات" : "Save Changes"}
+          {isAr ? "حفظ مفاتيح باي موب وأرقام المحافظ" : "Save PayMob Keys & Wallet Numbers"}
         </Button>
       </div>
     </Card>

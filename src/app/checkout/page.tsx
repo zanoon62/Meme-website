@@ -41,6 +41,7 @@ import {
   EGYPTIAN_GOVERNORATES,
   getZoneForGovernorate,
 } from "@/lib/shipping-store";
+import { usePaymentStore } from "@/lib/payment-store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -63,6 +64,7 @@ export default function CheckoutPage() {
   const lines = useCart((s) => s.lines);
   const clear = useCart((s) => s.clear);
   const sub = useCartSubtotal();
+  const paymentStore = usePaymentStore();
   const [currentStep, setCurrentStep] = React.useState(1);
   const [completed, setCompleted] = React.useState(false);
   const [form, setForm] = React.useState({
@@ -643,62 +645,101 @@ export default function CheckoutPage() {
 
                 {/* Payment-specific fields */}
                 {form.paymentMethod === "card" && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 p-4 border border-border/60 rounded-sm">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground">Card details</p>
-                    <Input placeholder="Card number (Visa / Mastercard / Meeza)" value={form.cardNumber} onChange={(e) => updateForm("cardNumber", e.target.value)} className="h-12" />
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 p-4 border border-border/80 rounded-2xl bg-card">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">PayMob Online Card Payment</p>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                        PayMob Secured
+                      </span>
+                    </div>
+                    <Input placeholder="Card number (Visa / Mastercard / Meeza)" value={form.cardNumber} onChange={(e) => updateForm("cardNumber", e.target.value)} className="h-12 font-mono" />
                     <Input placeholder="Name on card" value={form.cardName} onChange={(e) => updateForm("cardName", e.target.value)} className="h-12" />
                     <div className="grid grid-cols-2 gap-3">
-                      <Input placeholder="MM / YY" value={form.cardExpiry} onChange={(e) => updateForm("cardExpiry", e.target.value)} className="h-12" />
-                      <Input placeholder="CVC" value={form.cardCvc} onChange={(e) => updateForm("cardCvc", e.target.value)} className="h-12" />
+                      <Input placeholder="MM / YY" value={form.cardExpiry} onChange={(e) => updateForm("cardExpiry", e.target.value)} className="h-12 font-mono" />
+                      <Input placeholder="CVC" value={form.cardCvc} onChange={(e) => updateForm("cardCvc", e.target.value)} className="h-12 font-mono" />
                     </div>
-                    <p className="text-[11px] text-muted-foreground">Powered by Paymob · 3D Secure enabled · PCI-DSS compliant</p>
+                    <p className="text-[11px] text-muted-foreground">Encrypted & processed directly via PayMob Payment Gateway · 3D Secure & Apple Pay supported</p>
                   </motion.div>
                 )}
 
                 {form.paymentMethod === "vodafone" && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 p-4 border border-border/60 rounded-sm">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground">Vodafone Cash</p>
-                    <div className="relative">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 p-4 border border-red-500/30 rounded-2xl bg-red-500/5 dark:bg-red-500/10">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold uppercase tracking-wider text-red-600 dark:text-red-400 flex items-center gap-1.5">
+                        <span>🔴</span> Vodafone Cash Transfer Number
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs font-mono font-bold"
+                        onClick={() => {
+                          navigator.clipboard.writeText(paymentStore.vodafoneCashNumber);
+                          toast.success("Vodafone Cash number copied to clipboard!");
+                        }}
+                      >
+                        Copy Number
+                      </Button>
+                    </div>
+                    <div className="p-3 bg-card border border-border rounded-xl text-center font-mono font-bold text-lg text-foreground tracking-wider shadow-xs">
+                      {paymentStore.vodafoneCashNumber}
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {paymentStore.vodafoneCashInstructionsEn}
+                    </p>
+                    <div className="relative pt-1">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         type="tel"
-                        placeholder="Vodafone Cash wallet number (+20 1X XXXX XXXX)"
+                        placeholder="Your sender phone number (+20 1X XXXX XXXX) *"
                         value={form.vodafonePhone}
                         onChange={(e) => updateForm("vodafonePhone", e.target.value)}
                         className="h-12 pl-10"
                       />
                     </div>
-                    <p className="text-[11px] text-muted-foreground">You'll receive a USSD prompt on your phone to confirm the payment.</p>
-                  </motion.div>
-                )}
-
-                {form.paymentMethod === "fawry" && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 p-4 border border-orange-200 dark:border-orange-900 bg-orange-50 dark:bg-orange-950/20 rounded-sm">
-                    <p className="text-xs uppercase tracking-wider text-orange-700 dark:text-orange-300">Fawry Reference Code</p>
-                    <p className="text-sm text-orange-800 dark:text-orange-200">
-                      A unique reference code will be generated after you place the order. Pay at any Fawry outlet (supermarket, pharmacy, post office) within 24 hours. Your order ships the moment payment is confirmed.
-                    </p>
                   </motion.div>
                 )}
 
                 {form.paymentMethod === "instapay" && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 p-4 border border-border/60 rounded-sm">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground">InstaPay</p>
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 p-4 border border-purple-500/30 rounded-2xl bg-purple-500/5 dark:bg-purple-500/10">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 flex items-center gap-1.5">
+                        <span>⚡</span> InstaPay Address (IPA)
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs font-mono font-bold"
+                        onClick={() => {
+                          navigator.clipboard.writeText(paymentStore.instapayAddress);
+                          toast.success("InstaPay IPA address copied!");
+                        }}
+                      >
+                        Copy IPA
+                      </Button>
+                    </div>
+                    <div className="p-3 bg-card border border-border rounded-xl text-center font-mono font-bold text-base text-foreground tracking-wide shadow-xs">
+                      {paymentStore.instapayAddress}
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-1 bg-card/60 p-2.5 rounded-lg border border-border/50">
+                      <p>Account Holder Name: <span className="font-bold text-foreground">{paymentStore.instapayAccountName}</span></p>
+                      <p>Registered Phone: <span className="font-bold font-mono text-foreground">{paymentStore.instapayPhone}</span></p>
+                    </div>
                     <Input
-                      placeholder="Your InstaPay handle (e.g. name@instapay)"
+                      placeholder="Your InstaPay handle / Sender Name (e.g. name@instapay) *"
                       value={form.instapayHandle}
                       onChange={(e) => updateForm("instapayHandle", e.target.value)}
                       className="h-12"
                     />
-                    <p className="text-[11px] text-muted-foreground">Open the InstaPay app and transfer to the MEME handle shown on the next screen. Order ships after confirmation.</p>
                   </motion.div>
                 )}
 
                 {form.paymentMethod === "cod" && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 p-4 border border-border/60 rounded-sm bg-accent/30">
-                    <p className="text-xs uppercase tracking-wider">Cash on Delivery</p>
-                    <p className="text-sm text-muted-foreground">
-                      Pay in cash when your order arrives. Please have the exact amount ready. COD is available across Egypt except for Red Sea & Sinai regions.
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 p-4 border border-border/80 rounded-2xl bg-accent/30">
+                    <p className="text-xs font-bold uppercase tracking-wider">Cash on Delivery (COD)</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Pay in cash when your order arrives. Please have the exact amount ready upon courier delivery.
                     </p>
                   </motion.div>
                 )}

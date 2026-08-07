@@ -20,6 +20,9 @@ import {
   Sparkles,
   RotateCcw,
   Loader2,
+  Eye,
+  Smartphone,
+  Monitor,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -79,6 +82,9 @@ export function AdminShell({
   const { t, isAr, dir } = useAdminT();
   const [showResetDialog, setShowResetDialog] = React.useState(false);
   const [resettingData, setResettingData] = React.useState(false);
+  const [showPreviewModal, setShowPreviewModal] = React.useState(false);
+  const [previewPath, setPreviewPath] = React.useState("/");
+  const [previewMode, setPreviewMode] = React.useState<"desktop" | "mobile">("desktop");
 
   const handleResetData = async () => {
     setResettingData(true);
@@ -262,6 +268,18 @@ export function AdminShell({
 
             {/* Header Right / Left Action Icons Bar with iPhone Frosted Pill Effect */}
             <div className="flex items-center gap-2 sm:gap-2.5 p-1 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-xl">
+              {/* Live Preview Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPreviewModal(true)}
+                className="h-9 px-3 rounded-xl border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs"
+                title={isAr ? "معاينة حية وتفاعلية للموقع" : "Live Storefront Preview"}
+              >
+                <Eye className="h-3.5 w-3.5 text-amber-500" />
+                <span className="hidden md:inline">{isAr ? "معاينة حية" : "Live Preview"}</span>
+              </Button>
+
               {/* Reset Test Data & Revenue button */}
               <Button
                 variant="outline"
@@ -353,6 +371,76 @@ export function AdminShell({
           </div>
         </div>
       </div>
+
+      {/* Live Storefront Interactive Preview Modal */}
+      <Dialog open={showPreviewModal} onOpenChange={setShowPreviewModal}>
+        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 overflow-hidden rounded-2xl flex flex-col bg-background">
+          <div className="p-3 px-5 border-b border-border bg-card flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3">
+              <Eye className="h-5 w-5 text-amber-500 animate-pulse" />
+              <div>
+                <h3 className="font-display font-bold text-base text-foreground">
+                  {isAr ? "معاينة حية ومباشرة لموقع الأتيليه" : "Live Storefront Interactive Preview"}
+                </h3>
+                <p className="text-[11px] text-muted-foreground">
+                  {isAr ? "استعرض شكل الصفحات والتغييرات فور حدوثها في الوقت الفعلي." : "Real-time interactive viewport of your live storefront website."}
+                </p>
+              </div>
+            </div>
+
+            {/* Path selector tabs & responsive mode toggles */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 bg-accent/60 p-1 rounded-xl text-xs">
+                <button
+                  onClick={() => setPreviewPath("/")}
+                  className={cn("px-3 py-1 rounded-lg font-bold transition-all", previewPath === "/" ? "bg-amber-500 text-black shadow-xs" : "text-muted-foreground hover:text-foreground")}
+                >
+                  {isAr ? "الرئيسية" : "Home"}
+                </button>
+                <button
+                  onClick={() => setPreviewPath("/shop")}
+                  className={cn("px-3 py-1 rounded-lg font-bold transition-all", previewPath === "/shop" ? "bg-amber-500 text-black shadow-xs" : "text-muted-foreground hover:text-foreground")}
+                >
+                  {isAr ? "المتجر" : "Shop"}
+                </button>
+                <button
+                  onClick={() => setPreviewPath("/checkout")}
+                  className={cn("px-3 py-1 rounded-lg font-bold transition-all", previewPath === "/checkout" ? "bg-amber-500 text-black shadow-xs" : "text-muted-foreground hover:text-foreground")}
+                >
+                  {isAr ? "إنهاء الطلب" : "Checkout"}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1 bg-accent/60 p-1 rounded-xl text-xs">
+                <button
+                  onClick={() => setPreviewMode("desktop")}
+                  className={cn("p-1.5 rounded-lg transition-all", previewMode === "desktop" ? "bg-foreground text-background shadow-xs" : "text-muted-foreground")}
+                  title="Desktop View"
+                >
+                  <Monitor className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setPreviewMode("mobile")}
+                  className={cn("p-1.5 rounded-lg transition-all", previewMode === "mobile" ? "bg-foreground text-background shadow-xs" : "text-muted-foreground")}
+                  title="Mobile View"
+                >
+                  <Smartphone className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 bg-zinc-950 flex items-center justify-center p-2 sm:p-4 overflow-hidden relative">
+            <iframe
+              src={previewPath}
+              className={cn(
+                "h-full border-0 transition-all duration-300 shadow-2xl rounded-xl bg-background",
+                previewMode === "mobile" ? "w-[395px] max-h-[780px] rounded-[40px] border-4 border-zinc-800" : "w-full"
+              )}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Reset Test Store Data Modal */}
       <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
