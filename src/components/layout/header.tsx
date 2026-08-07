@@ -34,8 +34,23 @@ export function Header() {
   const [adminEmail, setAdminEmail] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    const check = () => setAdminEmail(getAdminEmailClient());
+    const check = () => {
+      const email = getAdminEmailClient();
+      setAdminEmail(email);
+      if (!email) {
+        // Automatically check if logged-in user is an admin without needing to visit /account
+        fetch("/api/admin/auth/elevate", { method: "POST" })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data?.isAdmin) {
+              setAdminEmail(getAdminEmailClient());
+            }
+          })
+          .catch(() => {});
+      }
+    };
     check();
+
     // Re-check when tab regains focus (e.g. after OAuth redirect)
     document.addEventListener("visibilitychange", check);
     window.addEventListener("focus", check);
