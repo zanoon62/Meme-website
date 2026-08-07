@@ -49,7 +49,7 @@ export async function POST() {
       path: "/",
       maxAge: SESSION_MAX_AGE,
     });
-    cookieStore.set(ADMIN_EMAIL_COOKIE_NAME, encodeURIComponent(email), {
+    cookieStore.set(ADMIN_EMAIL_COOKIE_NAME, email, {
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

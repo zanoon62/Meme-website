@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     });
 
     // Non-HttpOnly email cookie (readable by JS for UI hints)
-    cookieStore.set(ADMIN_EMAIL_COOKIE_NAME, encodeURIComponent(email), {
+    cookieStore.set(ADMIN_EMAIL_COOKIE_NAME, email, {
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
