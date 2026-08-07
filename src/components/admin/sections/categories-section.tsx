@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -39,7 +40,7 @@ export function CategoriesSection() {
   const [creating, setCreating] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState<Category | null>(null);
   const [deleting, setDeleting] = React.useState(false);
-  const { t, isAr, dir } = useAdminT();
+  const { isAr, dir } = useAdminT();
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -84,8 +85,7 @@ export function CategoriesSection() {
   const filtered = categories.filter((c) =>
     !search
       ? true
-      : c.name.toLowerCase().includes(search.toLowerCase()) ||
-        c.slug.toLowerCase().includes(search.toLowerCase())
+      : c.name.toLowerCase().includes(search.toLowerCase())
   );
 
   const productCount = (catName: string) =>
@@ -113,7 +113,7 @@ export function CategoriesSection() {
 
       {loading ? (
         <Card className="p-12 text-center text-sm text-muted-foreground">
-          {t("loading")}
+          {isAr ? "جارٍ التحميل…" : "Loading…"}
         </Card>
       ) : filtered.length === 0 ? (
         <Card className="p-12 text-center border-dashed">
@@ -164,7 +164,6 @@ export function CategoriesSection() {
                 </div>
               </div>
               <p className="font-bold text-base text-foreground">{c.name}</p>
-              <p className="text-xs text-muted-foreground font-mono mt-0.5">/{c.slug}</p>
               {c.description && (
                 <p className="text-xs text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
                   {c.description}
@@ -251,33 +250,32 @@ function CategoryDialog({
   onSaved: () => void;
 }) {
   const [name, setName] = React.useState("");
-  const [slug, setSlug] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [isActive, setIsActive] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
-  const { t, isAr, dir } = useAdminT();
+  const { isAr, dir } = useAdminT();
 
   React.useEffect(() => {
     if (category) {
       setName(category.name);
-      setSlug(category.slug);
       setDescription(category.description ?? "");
       setIsActive(category.is_active);
     } else {
       setName("");
-      setSlug("");
       setDescription("");
       setIsActive(true);
     }
   }, [category, open]);
 
   const save = async () => {
-    if (!name || !slug) {
-      toast.error(isAr ? "الاسم والـ Slug مطلوبان" : "Name and slug are required");
+    if (!name.trim()) {
+      toast.error(isAr ? "اسم الفئة مطلوب" : "Category name is required");
       return;
     }
     setSaving(true);
     try {
+      // Auto-generate slug from name if creating or if slug doesn't exist
+      const computedSlug = category?.slug || name.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") || `cat-${Date.now()}`;
       const method = category ? "PATCH" : "POST";
       const url = category
         ? `/api/admin/categories?id=${category.id}`
@@ -285,7 +283,7 @@ function CategoryDialog({
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, slug, description, is_active: isActive }),
+        body: JSON.stringify({ name: name.trim(), slug: computedSlug, description, is_active: isActive }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -307,57 +305,32 @@ function CategoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      {/* dir applied to DialogContent so all labels/inputs follow RTL/LTR */}
-      <DialogContent dir={dir}>
+      <DialogContent dir={dir} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
             {category ? (isAr ? "تعديل الفئة" : "Edit Category") : (isAr ? "فئة جديدة" : "New Category")}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <div className="space-y-4 py-2">
           {/* Name */}
-          <div>
-            <Label className="text-xs">
-              {isAr ? "الاسم *" : "Name *"}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold">
+              {isAr ? "اسم الفئة *" : "Category Name *"}
             </Label>
             <Input
               value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                if (!category) {
-                  setSlug(
-                    e.target.value
-                      .toLowerCase()
-                      .replace(/\s+/g, "-")
-                      .replace(/[^a-z0-9-]/g, "")
-                  );
-                }
-              }}
+              onChange={(e) => setName(e.target.value)}
               placeholder={isAr ? "مثال: فساتين" : "e.g. Dresses"}
               className="mt-1"
               dir="auto"
+              autoFocus
             />
-          </div>
-
-          {/* Slug */}
-          <div>
-            <Label className="text-xs">Slug *</Label>
-            <Input
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              placeholder="dresses"
-              className="mt-1 font-mono text-sm"
-              dir="ltr"
-            />
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              {isAr ? "يُستخدم في الرابط: /shop?category=…" : "Used in the URL: /shop?category=…"}
-            </p>
           </div>
 
           {/* Description */}
-          <div>
-            <Label className="text-xs">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold">
               {isAr ? "الوصف" : "Description"}
             </Label>
             <Textarea
@@ -370,37 +343,22 @@ function CategoryDialog({
             />
           </div>
 
-          {/* Active toggle — layout aware of RTL */}
-          <div className="flex items-center justify-between rounded-lg border border-border/60 p-3">
-            {/* Text always on the natural "start" side */}
+          {/* Active switch using radix UI switch component */}
+          <div className="flex items-center justify-between rounded-lg border border-border/70 bg-card p-3.5">
             <div>
               <p className="text-xs font-medium">{isAr ? "نشط" : "Active"}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {isAr ? "مرئي في فلتر المتجر" : "Visible in store filter"}
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {isAr ? "تظهر الفئة في فلتر صفحة المتجر" : "Visible in store filter"}
               </p>
             </div>
-            {/* Toggle always on the "end" side */}
-            <button
-              type="button"
-              role="switch"
-              aria-checked={isActive}
-              onClick={() => setIsActive((v) => !v)}
-              className={cn(
-                "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                isActive ? "bg-primary" : "bg-input"
-              )}
-            >
-              <span
-                className={cn(
-                  "pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform duration-200",
-                  isActive ? "translate-x-5" : "translate-x-0"
-                )}
-              />
-            </button>
+            <Switch
+              checked={isActive}
+              onCheckedChange={setIsActive}
+            />
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={onClose}>
             {isAr ? "إلغاء" : "Cancel"}
           </Button>
