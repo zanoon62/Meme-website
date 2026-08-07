@@ -496,4 +496,17 @@ export const demoStore = {
     store.reviews[idx] = { ...store.reviews[idx], ...patch };
     return store.reviews[idx];
   },
+
+  // Reset demo store orders & money stats
+  reset(): void {
+    store.orders = [];
+    store.orderItems = [];
+    store.customers.forEach((c) => {
+      c.total_orders = 0;
+      c.total_spent = 0;
+    });
+    store.coupons.forEach((cp) => {
+      cp.usage_count = 0;
+    });
+  },
 };

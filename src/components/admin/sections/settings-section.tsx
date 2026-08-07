@@ -12,6 +12,7 @@ import {
   Globe,
   DollarSign,
   ExternalLink,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -416,6 +417,28 @@ function NotificationsSettings() {
 }
 
 function SecuritySettings() {
+  const { isAr } = useAdminT();
+  const [resettingData, setResettingData] = React.useState(false);
+
+  const handleResetData = async () => {
+    if (!confirm(isAr ? "هل أنت متأكد من تصفير جميع الإيرادات والطلبات والاختبارات إلى 0؟" : "Are you sure you want to reset all test orders, revenue, and analytics to LE 0?")) return;
+    setResettingData(true);
+    try {
+      const res = await fetch("/api/admin/reset-store-data", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        toast.error(data.error || "Failed to reset store data.");
+        return;
+      }
+      toast.success(isAr ? "تم تصفير جميع بيانات الاختبار بنجاح! 🎉" : "All test data reset to LE 0!");
+      window.location.reload();
+    } catch {
+      toast.error("Network error during reset.");
+    } finally {
+      setResettingData(false);
+    }
+  };
+
   return (
     <Card className="p-6 max-w-2xl">
       <h3 className="font-display text-lg mb-1">Security & access</h3>
@@ -451,6 +474,34 @@ function SecuritySettings() {
           </div>
           <Switch defaultChecked />
         </div>
+      </div>
+
+      <Separator className="my-6" />
+
+      {/* Danger Zone: Reset Store Test Data */}
+      <div className="p-4 border border-rose-500/40 rounded-xl bg-rose-500/5 dark:bg-rose-500/10 space-y-3">
+        <div>
+          <p className="text-sm font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2">
+            <RotateCcw className="h-4 w-4" />
+            {isAr ? "تصفير بيانات الاختبار والإيرادات (LE 0)" : "Reset Test Data & Revenue (LE 0)"}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+            {isAr
+              ? "استخدم هذا الزر لمسح طلبات وتدريبات الاختبار وتصفير مبالغ الإيرادات للبدء من جديد مع الطلبات الحقيقية."
+              : "Use this button after testing to wipe test orders, sales figures, and analytics back to LE 0 before launching live sales."}
+          </p>
+        </div>
+        <Button
+          variant="destructive"
+          size="sm"
+          disabled={resettingData}
+          onClick={handleResetData}
+          className="bg-rose-600 hover:bg-rose-700 font-bold text-xs"
+        >
+          {resettingData
+            ? (isAr ? "جاري التصفير..." : "Resetting...")
+            : (isAr ? "تصفير جميع الإيرادات والطلبات إلى 0" : "Reset All Orders & Money to 0")}
+        </Button>
       </div>
 
       <Separator className="my-6" />

@@ -18,6 +18,8 @@ import {
   ChevronDown,
   LayoutTemplate,
   Sparkles,
+  RotateCcw,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -29,6 +31,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
@@ -68,6 +77,27 @@ export function AdminShell({
   const router = useRouter();
   const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
   const { t, isAr, dir } = useAdminT();
+  const [showResetDialog, setShowResetDialog] = React.useState(false);
+  const [resettingData, setResettingData] = React.useState(false);
+
+  const handleResetData = async () => {
+    setResettingData(true);
+    try {
+      const res = await fetch("/api/admin/reset-store-data", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        toast.error(data.error || "Failed to reset store data.");
+        return;
+      }
+      toast.success(isAr ? "تم تصفير جميع طلبات الاختبار والإيرادات بنجاح! 🎉" : "All test orders & revenue figures reset to LE 0!");
+      setShowResetDialog(false);
+      window.location.reload();
+    } catch {
+      toast.error("Network error during reset.");
+    } finally {
+      setResettingData(false);
+    }
+  };
 
   const navGroups = React.useMemo(
     () => [
@@ -232,6 +262,18 @@ export function AdminShell({
 
             {/* Header Right / Left Action Icons Bar with iPhone Frosted Pill Effect */}
             <div className="flex items-center gap-2 sm:gap-2.5 p-1 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-xl">
+              {/* Reset Test Data & Revenue button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowResetDialog(true)}
+                className="h-9 px-3 rounded-xl border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs"
+                title={isAr ? "تصفير بيانات الاختبار والإيرادات" : "Reset Test Data & Revenue to LE 0"}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">{isAr ? "تصفير البيانات" : "Reset Test Data"}</span>
+              </Button>
+
               {/* Quick link back to storefront website */}
               <Link href="/" title={isAr ? "العودة للموقع" : "Back to Website"}>
                 <Button
@@ -303,7 +345,7 @@ export function AdminShell({
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
               >
                 {children}
               </motion.div>
@@ -311,6 +353,48 @@ export function AdminShell({
           </div>
         </div>
       </div>
+
+      {/* Reset Test Store Data Modal */}
+      <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2">
+              <RotateCcw className="h-5 w-5" />
+              {isAr ? "تصفير بيانات الاختبار والإيرادات" : "Reset Test Orders & Revenue"}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-2 leading-relaxed">
+              {isAr
+                ? "هل أنت متأكد من تصفير جميع طلبات الاختبار، قيم المبيعات، الإيرادات وتحديثات العملاء إلى صفر (LE 0)؟ هذا الإجراء مفيد لبدء تحليلات وطلبات حقيقية جديدة."
+                : "Are you sure you want to delete all test orders, revenue metrics, sales analytics, and customer order histories back to LE 0? This lets you start completely fresh for real customer orders."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={resettingData}
+              onClick={() => setShowResetDialog(false)}
+            >
+              {isAr ? "إلغاء" : "Cancel"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={resettingData}
+              onClick={handleResetData}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-bold"
+            >
+              {resettingData ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-1.5" /> {isAr ? "جاري التصفير..." : "Resetting..."}</>
+              ) : (
+                isAr ? "نعم، صفر الإيرادات والطلبات" : "Yes, Reset All Data to LE 0"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
