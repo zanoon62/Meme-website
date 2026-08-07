@@ -1,14 +1,20 @@
 /**
- * Simple hardcoded authentication for the MEME Atelier admin panel.
- * No Supabase auth needed for admin login.
+ * Admin authentication for the MEME Atelier admin panel.
+ * Auth is Gmail-based via Supabase Google OAuth + email whitelist.
  */
 
+// Legacy — kept for backward compat during transition
 export const ADMIN_CREDENTIALS = {
   username: "admin",
   password: "admin123",
 };
 
 export const ADMIN_COOKIE_NAME = "meme_admin_session";
+/** Stores the verified admin email (NOT HttpOnly — readable by JS for UI hints). */
+export const ADMIN_EMAIL_COOKIE_NAME = "meme_admin_email";
+
+/** Default super-admin that can manage the email whitelist. */
+export const SUPER_ADMIN_EMAIL = "zanoon.bis@gmail.com";
 
 /**
  * Validates admin credentials.
@@ -20,6 +26,11 @@ export function validateAdminCredentials(username: string, pass: string): boolea
     user === ADMIN_CREDENTIALS.username ||
     user === "admin@memeatelier.com";
   return validUser && pass === ADMIN_CREDENTIALS.password;
+}
+
+/** Client-side check if current user is the super-admin (can manage whitelist). */
+export function isSuperAdmin(email: string): boolean {
+  return email.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase();
 }
 
 /**
@@ -36,6 +47,8 @@ export function setAdminSession(): void {
 export async function clearAdminSession(): Promise<void> {
   if (typeof window !== "undefined") {
     localStorage.removeItem(ADMIN_COOKIE_NAME);
+    // Clear the non-HttpOnly email cookie
+    document.cookie = `${ADMIN_EMAIL_COOKIE_NAME}=; path=/; max-age=0`;
   }
   try {
     await fetch("/api/admin/login", { method: "DELETE" });
@@ -46,12 +59,19 @@ export async function clearAdminSession(): Promise<void> {
 
 /**
  * Client-side check if admin session exists.
- * Note: HttpOnly cookie is not readable from JS — this checks localStorage only
- * as a UI hint. Real auth is always verified server-side.
+ * Reads the meme_admin_email cookie (NOT HttpOnly) as a UI hint.
+ * Real auth is always verified server-side.
  */
 export function isAdminLoggedInClient(): boolean {
   if (typeof window !== "undefined") {
-    return localStorage.getItem(ADMIN_COOKIE_NAME) === "true";
+    return Boolean(getAdminEmailClient());
   }
   return false;
+}
+
+/** Client-side: get the admin email from non-HttpOnly cookie. */
+export function getAdminEmailClient(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(/(?:^|;\s*)meme_admin_email=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
 }

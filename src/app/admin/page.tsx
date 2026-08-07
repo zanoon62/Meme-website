@@ -15,6 +15,7 @@ import { AnalyticsSection } from "@/components/admin/sections/analytics-section"
 import { SettingsSection } from "@/components/admin/sections/settings-section";
 import { AdminGuideSection } from "@/components/admin/admin-guide";
 import { HomepageSection } from "@/components/admin/sections/homepage-section";
+import { AdminAccessSection } from "@/components/admin/sections/admin-access-section";
 import { ProductFormView } from "@/components/admin/product-form-view";
 import { useProductStore } from "@/components/providers/product-store";
 import type { Product } from "@/components/providers/ui-provider";
@@ -32,6 +33,7 @@ const VALID_SECTIONS: AdminSection[] = [
   "settings",
   "guide",
   "homepage",
+  "admin-access",
 ];
 
 export default function AdminPage() {
@@ -109,6 +111,7 @@ export default function AdminPage() {
       {section === "settings" && <SettingsSection />}
       {section === "guide" && <AdminGuideSection />}
       {section === "homepage" && <HomepageSection />}
+      {section === "admin-access" && <AdminAccessSection />}
     </AdminShell>
   );
 }

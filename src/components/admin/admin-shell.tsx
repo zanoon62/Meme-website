@@ -23,6 +23,7 @@ import {
   Eye,
   Smartphone,
   Monitor,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -64,7 +65,8 @@ export type AdminSection =
   | "analytics"
   | "settings"
   | "guide"
-  | "homepage";
+  | "homepage"
+  | "admin-access";
 
 export function AdminShell({
   section,
@@ -136,10 +138,11 @@ export function AdminShell({
           { id: "marketing" as AdminSection, icon: Megaphone, label: t("marketing") },
           { id: "homepage" as AdminSection, icon: LayoutTemplate, label: t("homepage") },
           { id: "settings" as AdminSection, icon: Settings, label: t("settings") },
+          { id: "admin-access" as AdminSection, icon: ShieldCheck, label: isAr ? "صلاحيات الإدارة" : "Admin Access" },
         ],
       },
     ],
-    [t]
+    [t, isAr]
   );
 
   const handleLogout = async () => {

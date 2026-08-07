@@ -9,6 +9,7 @@ import {
   Heart,
   User,
   Menu,
+  LayoutDashboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -18,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
 import { LanguageToggle } from "./language-toggle";
 import { useT, useLangDir } from "@/lib/i18n";
+import { getAdminEmailClient } from "@/lib/auth/simple-auth";
 
 export function Header() {
   const router = useRouter();
@@ -29,6 +31,11 @@ export function Header() {
   const t = useT();
   const dir = useLangDir();
   const liveCategories = useLiveCategories();
+  const [adminEmail, setAdminEmail] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setAdminEmail(getAdminEmailClient());
+  }, []);
 
   React.useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -87,6 +94,12 @@ export function Header() {
                   ))}
                   <Link href="/account" onClick={() => setMobileOpen(false)} className="py-3 text-base border-b border-white/5 mt-4">{t("nav.account")}</Link>
                   <Link href="/wishlist" onClick={() => setMobileOpen(false)} className="py-3 text-base border-b border-white/5">{t("nav.wishlist")}</Link>
+                  {adminEmail && (
+                    <Link href="/admin" onClick={() => setMobileOpen(false)} className="py-3 text-base border-b border-white/5 text-amber-600 font-medium flex items-center gap-2">
+                      <LayoutDashboard className="h-4 w-4" />
+                      Admin Panel
+                    </Link>
+                  )}
                 </nav>
               </div>
             </SheetContent>
@@ -159,6 +172,20 @@ export function Header() {
                 <User className="h-5 w-5" />
               </Button>
             </Link>
+
+            {adminEmail && (
+              <Link href="/admin" className="hidden sm:inline-flex">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-amber-600 hover:bg-amber-500/10"
+                  aria-label="Admin Panel"
+                  title={`Admin: ${adminEmail}`}
+                >
+                  <LayoutDashboard className="h-5 w-5" />
+                </Button>
+              </Link>
+            )}
 
             <Link href="/wishlist">
               <Button variant="ghost" size="icon" className="relative text-foreground hover:bg-white/5" aria-label="Wishlist">

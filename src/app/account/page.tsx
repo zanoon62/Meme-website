@@ -209,6 +209,7 @@ function LoginScreen() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) { toast.error(error.message); return; }
+        await fetch("/api/admin/auth/elevate", { method: "POST" });
         toast.success("Welcome back!");
         window.location.reload();
       }
@@ -1048,6 +1049,9 @@ export default function AccountPage() {
         if (res.ok) {
           const data: SessionData = await res.json();
           setSession(data);
+          if (data.user) {
+            fetch("/api/admin/auth/elevate", { method: "POST" }).catch(() => {});
+          }
         }
       } catch {
         setSession({ user: null, customer: null });

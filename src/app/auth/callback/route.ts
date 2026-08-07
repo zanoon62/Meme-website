@@ -36,14 +36,18 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error && data.user) {
-      // Upsert the customer row immediately after OAuth login
+      // Admin auth flow — skip customer upsert, go straight to whitelist check
+      if (next === "/api/admin/auth/check") {
+        return NextResponse.redirect(`${origin}/api/admin/auth/check`);
+      }
+
+      // Normal customer login — upsert customer row
       if (isSupabaseServiceConfigured()) {
         try {
           const serviceClient = createSupabaseServiceClient();
           const user = data.user;
           const meta = user.user_metadata ?? {};
 
-          // Google provides full_name and avatar_url in metadata
           const fullName = (meta.full_name as string) ?? "";
           const nameParts = fullName.split(" ");
           const firstName =
