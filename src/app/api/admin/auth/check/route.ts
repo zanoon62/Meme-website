@@ -37,7 +37,7 @@ export async function GET(request: Request) {
 
     // Check whitelist via service client (bypasses RLS)
     const serviceClient = createSupabaseServiceClient();
-    const { data: allowed, error: dbErr } = await serviceClient
+    const { data: allowed, error: dbErr } = await (serviceClient as any)
       .from("admin_allowed_emails")
       .select("id")
       .eq("email", email)

@@ -12,7 +12,7 @@ export async function GET() {
   if (!guard.ok) return guard.error;
 
   try {
-    const { data, error } = await guard.client
+    const { data, error } = await (guard.client as any)
       .from("admin_allowed_emails")
       .select("id, email, added_by, created_at")
       .order("created_at", { ascending: true });
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Invalid email." }, { status: 400 });
     }
 
-    const { data, error } = await guard.client
+    const { data, error } = await (guard.client as any)
       .from("admin_allowed_emails")
       .insert({ email: email.toLowerCase().trim(), added_by: adminEmail })
       .select("id, email, added_by, created_at")

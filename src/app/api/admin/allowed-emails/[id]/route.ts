@@ -25,17 +25,17 @@ export async function DELETE(
     const { id } = await params;
 
     // Prevent removing super-admin
-    const { data: target } = await guard.client
+    const { data: target } = await (guard.client as any)
       .from("admin_allowed_emails")
       .select("email")
       .eq("id", id)
-      .single() as { data: { email: string } | null; error: unknown };
+      .single();
 
-    if ((target as { email?: string } | null)?.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
+    if (target?.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
       return NextResponse.json({ ok: false, error: "Cannot remove super-admin." }, { status: 400 });
     }
 
-    const { error } = await guard.client
+    const { error } = await (guard.client as any)
       .from("admin_allowed_emails")
       .delete()
       .eq("id", id);

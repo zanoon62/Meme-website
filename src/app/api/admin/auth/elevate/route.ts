@@ -30,7 +30,7 @@ export async function POST() {
     const email = user.email.toLowerCase().trim();
 
     const serviceClient = createSupabaseServiceClient();
-    const { data: allowed } = await serviceClient
+    const { data: allowed } = await (serviceClient as any)
       .from("admin_allowed_emails")
       .select("id")
       .eq("email", email)
