@@ -79,7 +79,15 @@ export async function GET(req: NextRequest) {
       images: imageMap.get(p.id) ?? [],
     }));
 
-    return NextResponse.json({ products });
+    // Cache at the edge for 60s — fresh enough for price/inventory changes
+    // stale-while-revalidate=300 serves stale instantly while refreshing in background
+    return NextResponse.json({ products }, {
+      headers: {
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        "CDN-Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        "Vercel-CDN-Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+      },
+    });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Unknown error" },

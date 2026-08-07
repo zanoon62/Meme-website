@@ -317,6 +317,7 @@ type HomepageStore = {
   config: HomepageConfig;
   loading: boolean;
   saving: boolean;
+  _lastFetch: number;
 
   /** Pull the latest config from Supabase (no-op if not configured) */
   fetchFromServer: () => Promise<void>;
@@ -344,6 +345,7 @@ export const useHomepageStore = create<HomepageStore>()(
       config: DEFAULT_HOMEPAGE_CONFIG,
       loading: false,
       saving: false,
+      _lastFetch: 0,
 
       fetchFromServer: async () => {
         if (!isSupabaseConfigured()) return;
@@ -362,7 +364,7 @@ export const useHomepageStore = create<HomepageStore>()(
           }
           // Deep-merge server config with defaults (so new sections added later still appear)
           const merged = deepMerge(DEFAULT_HOMEPAGE_CONFIG, data.config as Partial<HomepageConfig>);
-          set({ config: merged as HomepageConfig, loading: false });
+          set({ config: merged as HomepageConfig, loading: false, _lastFetch: Date.now() });
         } catch (e) {
           console.error("fetchFromServer (homepage) failed:", e);
           set({ loading: false });

@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
   },
   images: {
     formats: ["image/avif", "image/webp"],
+    // Keep optimized images cached for 30 days — prevents re-processing the same
+    // image on every cache miss. Critical for conserving free-tier transform quota.
+    minimumCacheTTL: 2592000,
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     // Allow dynamic SVG product images served by /api/product-img with any

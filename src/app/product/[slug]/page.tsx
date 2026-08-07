@@ -10,7 +10,7 @@ import ProductPageClient from "./product-client";
 
 // Allow new products created at runtime to render dynamically
 export const dynamicParams = true;
-export const revalidate = 60; // seconds — refresh static pages every minute
+export const revalidate = 300; // 5 minutes — products don't change every minute; reduces function invocations on free tier
 
 export function generateStaticParams() {
   return seedProducts.map((p) => ({ slug: p.slug }));

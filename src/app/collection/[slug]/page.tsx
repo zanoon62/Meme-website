@@ -12,7 +12,7 @@ import CollectionPageClient from "./collection-client";
 // In production with Supabase, new collections added via admin will be picked
 // up on the next revalidate cycle (ISR).
 export const dynamicParams = false;
-export const revalidate = 60; // seconds
+export const revalidate = 600; // 10 minutes — collections are semi-static; reduces free-tier function invocations
 
 export function generateStaticParams() {
   return collections.map((c) => ({ slug: c.slug }));

@@ -32,6 +32,7 @@ type ProductStore = {
   products: Product[];
   hydrated: boolean;
   loading: boolean;
+  _lastFetch: number;
   setHydrated: (v: boolean) => void;
   setLoading: (v: boolean) => void;
   setProducts: (p: Product[]) => void;
@@ -74,6 +75,7 @@ export const useProductStore = create<ProductStore>()(
       products: isSupabaseConfigured() ? [] : seedProducts,
       hydrated: false,
       loading: false,
+      _lastFetch: 0,
       setHydrated: (v) => set({ hydrated: v }),
       setLoading: (v) => set({ loading: v }),
       setProducts: (p) => set({ products: p }),
@@ -106,7 +108,7 @@ export const useProductStore = create<ProductStore>()(
             ...dbProductToStore(p),
             images: imageMap.get(p.id) ?? [PLACEHOLDER_IMG],
           }));
-          set({ products, loading: false });
+          set({ products, loading: false, _lastFetch: Date.now() });
         } catch (e) {
           console.error("refreshFromServer failed:", e);
           set({ loading: false });

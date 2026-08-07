@@ -8,10 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Lock, User, ArrowLeft, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import {
-  validateAdminCredentials,
-  setAdminSession,
-} from "@/lib/auth/simple-auth";
+
 
 function LoginForm() {
   const router = useRouter();
@@ -26,11 +23,15 @@ function LoginForm() {
     e.preventDefault();
     setLoading(true);
     try {
-      const isValid = validateAdminCredentials(username, password);
-      if (!isValid) {
-        throw new Error("Invalid username or password (try admin / admin123)");
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error ?? "Invalid username or password");
       }
-      setAdminSession();
       toast.success("Welcome back to MEME Atelier.");
       router.push(redirect);
       router.refresh();
@@ -123,16 +124,9 @@ function LoginForm() {
             </Button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-800 flex items-start gap-2 text-xs text-neutral-500">
-            <ShieldCheck className="h-4 w-4 flex-shrink-0 mt-0.5" />
-            <div>
-              <p>
-                Default staff credentials: <strong>admin / admin123</strong>
-              </p>
-              <p className="text-[11px] text-neutral-400 mt-1">
-                (Configure in <code>src/lib/auth/simple-auth.ts</code>)
-              </p>
-            </div>
+          <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-800 flex items-center gap-2 text-xs text-neutral-500">
+            <ShieldCheck className="h-4 w-4 flex-shrink-0" />
+            <p>Staff access only.</p>
           </div>
         </div>
       </div>

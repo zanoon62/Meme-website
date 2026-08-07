@@ -87,7 +87,6 @@ export function Header() {
                   ))}
                   <Link href="/account" onClick={() => setMobileOpen(false)} className="py-3 text-base border-b border-white/5 mt-4">{t("nav.account")}</Link>
                   <Link href="/wishlist" onClick={() => setMobileOpen(false)} className="py-3 text-base border-b border-white/5">{t("nav.wishlist")}</Link>
-                  <Link href="/admin" onClick={() => setMobileOpen(false)} className="py-3 text-base border-b border-white/5 text-primary font-semibold">{t("nav.admin")} →</Link>
                 </nav>
               </div>
             </SheetContent>
@@ -137,7 +136,7 @@ export function Header() {
                 </div>
               </div>
             </div>
-            <Link href="/admin" className="link-underline hover:text-foreground/80 text-primary font-semibold">{t("nav.admin")}</Link>
+
           </nav>
 
           {/* Right Actions */}

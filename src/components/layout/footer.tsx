@@ -135,14 +135,7 @@ export function Footer() {
                   </Link>
                 </li>
               ))}
-              <li>
-                <Link
-                  href="/admin"
-                  className="text-sm text-white/75 hover:text-[#f6ec91] transition-colors link-underline"
-                >
-                  Admin Dashboard
-                </Link>
-              </li>
+
             </ul>
           </div>
 
@@ -242,7 +235,6 @@ export function Footer() {
             <Link href="/" className="hover:text-[#f6ec91] transition-colors">Privacy Policy</Link>
             <Link href="/" className="hover:text-[#f6ec91] transition-colors">Terms of Service</Link>
             <Link href="/" className="hover:text-[#f6ec91] transition-colors">Cookies</Link>
-            <Link href="/admin" className="hover:text-[#f6ec91] transition-colors">Admin</Link>
           </div>
         </div>
       </div>
