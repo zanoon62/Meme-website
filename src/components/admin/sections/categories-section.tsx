@@ -344,17 +344,22 @@ function CategoryDialog({
           </div>
 
           {/* Active switch using radix UI switch component */}
-          <div className="flex items-center justify-between rounded-lg border border-border/70 bg-card p-3.5">
+          <div
+            className="flex items-center justify-between rounded-lg border border-border/70 bg-card p-3.5 cursor-pointer hover:bg-accent/30 transition-colors select-none"
+            onClick={() => setIsActive((prev) => !prev)}
+          >
             <div>
               <p className="text-xs font-medium">{isAr ? "نشط" : "Active"}</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
                 {isAr ? "تظهر الفئة في فلتر صفحة المتجر" : "Visible in store filter"}
               </p>
             </div>
-            <Switch
-              checked={isActive}
-              onCheckedChange={setIsActive}
-            />
+            <div onClick={(e) => e.stopPropagation()}>
+              <Switch
+                checked={Boolean(isActive)}
+                onCheckedChange={setIsActive}
+              />
+            </div>
           </div>
         </div>
 
