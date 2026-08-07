@@ -198,14 +198,58 @@ export function ProductFormView({ product, onBack }: Props) {
     update("colors", form.colors.filter((_, i) => i !== idx));
   };
 
-  // Sizes
+  const [customSizeInput, setCustomSizeInput] = React.useState("");
+
+  // Sizes & Size Chart Sync
   const toggleSize = (size: ProductSize) => {
-    update(
-      "sizes",
-      form.sizes.includes(size)
-        ? form.sizes.filter((s) => s !== size)
-        : [...form.sizes, size]
-    );
+    const isSelecting = !form.sizes.includes(size);
+    const nextSizes = isSelecting
+      ? [...form.sizes, size]
+      : form.sizes.filter((s) => s !== size);
+
+    setForm((f) => {
+      let nextChart = f.sizeChart;
+      if (nextChart) {
+        const sizeHeader = nextChart.headers.find((h) => h.toLowerCase().includes("size")) || nextChart.headers[0];
+        if (isSelecting) {
+          // Add default row for newly selected size if not already present
+          const exists = nextChart.rows.some((r) => String(r[sizeHeader] || "").toUpperCase() === String(size).toUpperCase());
+          if (!exists) {
+            const defaultRows = getDefaultSizeChart(f.category).rows;
+            const foundDef = defaultRows.find((r) => String(r[sizeHeader] || "").toUpperCase() === String(size).toUpperCase());
+            const newRow: Record<string, string> = {};
+            nextChart.headers.forEach((h) => {
+              newRow[h] = foundDef?.[h] || (h === sizeHeader ? size : "0");
+            });
+            nextChart = { ...nextChart, rows: [...nextChart.rows, newRow] };
+          }
+        } else {
+          // Remove size chart row for deselected size
+          nextChart = {
+            ...nextChart,
+            rows: nextChart.rows.filter((r) => String(r[sizeHeader] || "").toUpperCase() !== String(size).toUpperCase()),
+          };
+        }
+      }
+
+      return {
+        ...f,
+        sizes: nextSizes,
+        sizeChart: nextChart,
+      };
+    });
+  };
+
+  const addCustomSize = () => {
+    const trimmed = customSizeInput.trim().toUpperCase() as ProductSize;
+    if (!trimmed) return;
+    if (form.sizes.includes(trimmed)) {
+      toast.error(isAr ? "المقاس موجود بالفعل" : "Size already added");
+      return;
+    }
+    toggleSize(trimmed);
+    setCustomSizeInput("");
+    toast.success(isAr ? `تمت إضافة المقاس ${trimmed}` : `Added size ${trimmed}`);
   };
 
   // Size Chart Cell Editor
@@ -216,8 +260,28 @@ export function ProductFormView({ product, onBack }: Props) {
     update("sizeChart", { ...form.sizeChart, rows: newRows });
   };
 
+  const removeSizeChartRow = (idx: number) => {
+    if (!form.sizeChart) return;
+    const sizeHeader = form.sizeChart.headers.find((h) => h.toLowerCase().includes("size")) || form.sizeChart.headers[0];
+    const removedSize = form.sizeChart.rows[idx]?.[sizeHeader];
+    const newRows = form.sizeChart.rows.filter((_, i) => i !== idx);
+
+    setForm((f) => ({
+      ...f,
+      sizes: removedSize ? f.sizes.filter((s) => String(s).toUpperCase() !== String(removedSize).toUpperCase()) : f.sizes,
+      sizeChart: f.sizeChart ? { ...f.sizeChart, rows: newRows } : undefined,
+    }));
+  };
+
   const resetSizeChart = () => {
-    update("sizeChart", getDefaultSizeChart(form.category));
+    const defaultChart = getDefaultSizeChart(form.category);
+    // Keep only rows matching form.sizes if specified
+    const sizeHeader = defaultChart.headers.find((h) => h.toLowerCase().includes("size")) || defaultChart.headers[0];
+    const filteredRows = form.sizes.length > 0
+      ? defaultChart.rows.filter((r) => form.sizes.some((s) => String(s).toUpperCase() === String(r[sizeHeader] || "").toUpperCase()))
+      : defaultChart.rows;
+
+    update("sizeChart", { ...defaultChart, rows: filteredRows.length > 0 ? filteredRows : defaultChart.rows });
     toast.success(isAr ? "تم إعادة ضبط جدول المقاسات حسب الفئة" : "Reset size chart to category defaults");
   };
 
@@ -453,25 +517,54 @@ export function ProductFormView({ product, onBack }: Props) {
               </Field>
 
               <Field label={`${t("sizesLabel")} *`} error={errors.sizes}>
-                <div className="flex flex-wrap gap-2">
-                  {ALL_SIZES.map((size) => {
-                    const selected = form.sizes.includes(size);
-                    return (
-                      <button
-                        key={size}
-                        type="button"
-                        onClick={() => toggleSize(size)}
-                        className={cn(
-                          "h-10 min-w-10 px-4 rounded-lg border text-xs font-bold transition-all",
-                          selected
-                            ? "border-amber-500 bg-amber-500/10 text-amber-500"
-                            : "border-border hover:border-foreground"
-                        )}
-                      >
-                        {size}
-                      </button>
-                    );
-                  })}
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {Array.from(new Set([...ALL_SIZES, ...form.sizes])).map((size) => {
+                      const selected = form.sizes.includes(size);
+                      return (
+                        <button
+                          key={size}
+                          type="button"
+                          onClick={() => toggleSize(size)}
+                          className={cn(
+                            "h-10 min-w-10 px-4 rounded-lg border text-xs font-bold transition-all flex items-center gap-1.5",
+                            selected
+                              ? "border-amber-500 bg-amber-500/10 text-amber-500 shadow-xs"
+                              : "border-border hover:border-foreground text-muted-foreground"
+                          )}
+                        >
+                          {size}
+                          {selected && <Check className="h-3 w-3" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Custom Size Addition */}
+                  <div className="flex items-center gap-2 max-w-xs">
+                    <Input
+                      placeholder={isAr ? "مقاس مخصص (مثال: 3XL أو 38)" : "Custom size (e.g. 3XL or 38)"}
+                      value={customSizeInput}
+                      onChange={(e) => setCustomSizeInput(e.target.value)}
+                      className="h-9 text-xs"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addCustomSize();
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addCustomSize}
+                      className="h-9 text-xs font-semibold whitespace-nowrap"
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1 text-amber-500" />
+                      {isAr ? "إضافة" : "Add Size"}
+                    </Button>
+                  </div>
                 </div>
               </Field>
             </section>
@@ -491,14 +584,14 @@ export function ProductFormView({ product, onBack }: Props) {
 
                 <Button type="button" variant="ghost" size="sm" onClick={resetSizeChart} className="h-7 text-xs text-muted-foreground">
                   <RotateCcw className="h-3 w-3 mr-1" />
-                  {isAr ? "إعادة الضبط للفئة" : "Reset for category"}
+                  {isAr ? "إعادة الضبط للمقاسات المحددة" : "Sync with selected sizes"}
                 </Button>
               </div>
 
               <p className="text-xs text-muted-foreground">
                 {isAr
-                  ? `جدول القياسات مخصص تلقائياً لفئة (${currentCategoryLabel}). يمكن التعديل المباشر على قيم المقاسات.`
-                  : `Size measurements customized for ${currentCategoryLabel}. Edit cell values directly.`}
+                  ? `جدول القياسات يتزامن تلقائياً مع المقاسات المحددة لفئة (${currentCategoryLabel}). يمكن التعديل المباشر على القياسات أو حذف/إضافة صفوف.`
+                  : `Size measurements sync automatically with your selected sizes for ${currentCategoryLabel}. Edit cell values directly or manage rows.`}
               </p>
 
               {form.sizeChart && (
@@ -512,6 +605,7 @@ export function ProductFormView({ product, onBack }: Props) {
                               {h}
                             </th>
                           ))}
+                          <th className="p-3 w-10 text-center font-bold text-muted-foreground">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/60">
@@ -526,6 +620,18 @@ export function ProductFormView({ product, onBack }: Props) {
                                 />
                               </td>
                             ))}
+                            <td className="p-2 text-center">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                onClick={() => removeSizeChartRow(rIdx)}
+                                title="Remove size row"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
