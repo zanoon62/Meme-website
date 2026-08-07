@@ -268,18 +268,6 @@ export function AdminShell({
 
             {/* Header Right / Left Action Icons Bar with iPhone Frosted Pill Effect */}
             <div className="flex items-center gap-2 sm:gap-2.5 p-1 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-xl">
-              {/* Live Preview Button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowPreviewModal(true)}
-                className="h-9 px-3 rounded-xl border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs"
-                title={isAr ? "معاينة حية وتفاعلية للموقع" : "Live Storefront Preview"}
-              >
-                <Eye className="h-3.5 w-3.5 text-amber-500" />
-                <span className="hidden md:inline">{isAr ? "معاينة حية" : "Live Preview"}</span>
-              </Button>
-
               {/* Reset Test Data & Revenue button */}
               <Button
                 variant="outline"

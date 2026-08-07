@@ -86,27 +86,6 @@ export function SettingsSection() {
             </button>
           ))}
         </div>
-
-        {/* Live Preview Header Action */}
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => openPreview()}
-            className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold text-xs h-9 px-4 rounded-xl flex items-center gap-2 shrink-0"
-          >
-            <Eye className="h-4 w-4 text-amber-500 animate-pulse" />
-            {isAr ? "معاينة حية للموقع (Live Preview) 👁️" : "Live Storefront Preview 👁️"}
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={() => window.open(previewPath, "_blank")}
-            className="h-9 px-3 text-xs font-bold flex items-center gap-1.5 shrink-0"
-            title={isAr ? "فتح في نافذة جديدة" : "Open in new browser tab"}
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{isAr ? "تبويب جديد" : "New Tab"}</span>
-          </Button>
-        </div>
       </div>
 
       {tab === "store" && <StoreSettings onOpenPreview={openPreview} />}
