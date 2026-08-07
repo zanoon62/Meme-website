@@ -34,9 +34,13 @@ import { useCart, useCartSubtotal } from "@/components/providers/ui-provider";
 import {
   formatPrice,
   FREE_SHIPPING_THRESHOLD,
-  SHIPPING_ZONES,
   PAYMENT_METHODS,
 } from "@/lib/format";
+import {
+  useShippingStore,
+  EGYPTIAN_GOVERNORATES,
+  getZoneForGovernorate,
+} from "@/lib/shipping-store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -103,7 +107,17 @@ export default function CheckoutPage() {
     freeShipping?: boolean;
   } | null>(null);
 
-  const zone = SHIPPING_ZONES.find((z) => z.id === form.shippingZone) ?? SHIPPING_ZONES[0];
+  const liveZones = useShippingStore((s) => s.zones);
+
+  // Auto-detect & sync shipping zone based on selected governorate
+  React.useEffect(() => {
+    const autoZone = getZoneForGovernorate(form.governorate, liveZones);
+    if (autoZone && autoZone.id !== form.shippingZone) {
+      setForm((f) => ({ ...f, shippingZone: autoZone.id }));
+    }
+  }, [form.governorate, liveZones]);
+
+  const zone = liveZones.find((z) => z.id === form.shippingZone) ?? getZoneForGovernorate(form.governorate, liveZones);
   const method = PAYMENT_METHODS.find((m) => m.id === form.paymentMethod) ?? PAYMENT_METHODS[0];
 
   // Calculate discount amount
@@ -486,14 +500,34 @@ export default function CheckoutPage() {
                         <SelectValue placeholder="Governorate (المحافظة) *" />
                       </SelectTrigger>
                       <SelectContent className="max-h-72">
-                        {GOVERNORATES.map((g) => (
-                          <SelectItem key={g} value={g}>{g}</SelectItem>
+                        {EGYPTIAN_GOVERNORATES.map((g) => (
+                          <SelectItem key={g.id} value={g.nameEn}>
+                            {g.nameEn} — {g.nameAr}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Smart shipping zone auto-detected confirmation banner */}
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-between text-xs mt-3">
+                    <div className="flex items-center gap-2">
+                      <Truck className="h-4 w-4 text-amber-500 shrink-0" />
+                      <div>
+                        <p className="font-bold text-foreground">
+                          Auto-Selected Shipping: {zone.nameAr || zone.name}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Delivery in {zone.estimatedDays} {!zone.codAvailable && "· (No COD)"}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="font-bold text-amber-600 dark:text-amber-400 font-mono text-xs">
+                      {sub >= FREE_SHIPPING_THRESHOLD ? "FREE SHIPPING" : formatPrice(zone.cost)}
+                    </span>
+                  </div>
                 </div>
-                <Button onClick={nextStep} size="lg" className="w-full h-12 rounded-full">
+                <Button onClick={nextStep} size="lg" className="w-full h-12 rounded-full font-bold">
                   Continue to shipping <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               </motion.div>
@@ -509,36 +543,36 @@ export default function CheckoutPage() {
               >
                 <h2 className="font-display text-2xl mb-4">Shipping zone</h2>
                 <p className="text-sm text-muted-foreground -mt-3 mb-4">
-                  Select your delivery region within Egypt. All shipments are dispatched from our Cairo atelier.
+                  Confirm or change your delivery region within Egypt. Auto-selected based on your address.
                 </p>
                 <RadioGroup
                   value={form.shippingZone}
                   onValueChange={(v) => updateForm("shippingZone", v)}
                   className="space-y-3"
                 >
-                  {SHIPPING_ZONES.map((zone) => {
+                  {liveZones.map((z) => {
                     const isFree = sub >= FREE_SHIPPING_THRESHOLD;
-                    const price = isFree ? "FREE" : formatPrice(zone.cost);
+                    const price = isFree ? "FREE" : formatPrice(z.cost);
                     return (
                       <Label
-                        key={zone.id}
-                        htmlFor={zone.id}
+                        key={z.id}
+                        htmlFor={z.id}
                         className={cn(
-                          "flex items-center justify-between p-4 border rounded-sm cursor-pointer transition-all",
-                          form.shippingZone === zone.id ? "border-foreground bg-accent/30" : "border-border hover:border-foreground"
+                          "flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all",
+                          form.shippingZone === z.id ? "border-amber-500 bg-amber-500/5 dark:bg-amber-500/10 shadow-xs" : "border-border hover:border-foreground"
                         )}
                       >
                         <div className="flex items-center gap-3">
-                          <RadioGroupItem value={zone.id} id={zone.id} />
+                          <RadioGroupItem value={z.id} id={z.id} />
                           <div>
-                            <p className="font-medium text-sm">{zone.name}</p>
+                            <p className="font-bold text-sm">{z.nameAr} ({z.name})</p>
                             <p className="text-xs text-muted-foreground">
-                              {zone.estimatedDays}
-                              {!zone.codAvailable && " · COD unavailable"}
+                              {z.estimatedDays}
+                              {!z.codAvailable && " · COD unavailable"}
                             </p>
                           </div>
                         </div>
-                        <span className="font-medium text-sm">{price}</span>
+                        <span className="font-bold text-sm text-amber-600 dark:text-amber-400 font-mono">{price}</span>
                       </Label>
                     );
                   })}

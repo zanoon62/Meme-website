@@ -7,12 +7,15 @@ import {
   Bell,
   Truck,
   Shield,
-  Mail,
   Save,
+  RotateCcw,
+  Plus,
+  Trash2,
+  Edit2,
+  Check,
   Globe,
   DollarSign,
-  ExternalLink,
-  RotateCcw,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -28,8 +31,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useAdminT } from "@/components/admin/admin-i18n";
+import { useShippingStore } from "@/lib/shipping-store";
+import type { ShippingZone } from "@/lib/format";
 
 export function SettingsSection() {
   const { t, isAr } = useAdminT();
@@ -38,28 +49,28 @@ export function SettingsSection() {
   >("store");
 
   const tabs = [
-    { id: "store" as const, label: isAr ? "المتجر" : "Store", icon: Store },
-    { id: "payments" as const, label: isAr ? "الدفع" : "Payments", icon: CreditCard },
-    { id: "shipping" as const, label: isAr ? "الشحن" : "Shipping", icon: Truck },
+    { id: "store" as const, label: isAr ? "إعدادات المتجر" : "Store Profile", icon: Store },
+    { id: "payments" as const, label: isAr ? "وسائل الدفع" : "Payments", icon: CreditCard },
+    { id: "shipping" as const, label: isAr ? "مناطق الشحن" : "Shipping Zones", icon: Truck },
     { id: "notifications" as const, label: isAr ? "الإشعارات" : "Notifications", icon: Bell },
-    { id: "security" as const, label: isAr ? "الأمان" : "Security", icon: Shield },
+    { id: "security" as const, label: isAr ? "الأمان والنظام" : "Security & System", icon: Shield },
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex gap-1 border-b border-border/60 overflow-x-auto">
-        {tabs.map((t) => (
+        {tabs.map((tabItem) => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm border-b-2 -mb-px transition-colors whitespace-nowrap ${
-              tab === t.id
-                ? "border-foreground text-foreground"
+            key={tabItem.id}
+            onClick={() => setTab(tabItem.id)}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap ${
+              tab === tabItem.id
+                ? "border-amber-500 text-amber-600 dark:text-amber-400 font-bold"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            <t.icon className="h-3.5 w-3.5" />
-            {t.label}
+            <tabItem.icon className="h-4 w-4" />
+            {tabItem.label}
           </button>
         ))}
       </div>
@@ -74,141 +85,149 @@ export function SettingsSection() {
 }
 
 function StoreSettings() {
+  const { isAr } = useAdminT();
   const [form, setForm] = React.useState({
     name: "MEME Atelier",
     tagline: "Tailored for the modern Egyptian woman",
     description:
       "Premium women's fashion — Italian wool tailoring, cashmere knits, and silk dresses designed to outlive every trend cycle. Designed in Cairo.",
-    email: "atelier@suitedbymeme.com",
+    email: "orders@meme-eg.store",
     phone: "+20 100 000 0000",
     currency: "EGP",
     timezone: "Africa/Cairo",
-    weightUnit: "kg",
     instagram: "https://instagram.com/suited_by_meme",
-    domain: "memeatelier.com",
+    domain: "meme-eg.store",
   });
 
+  const [saving, setSaving] = React.useState(false);
+
+  const handleSave = () => {
+    setSaving(true);
+    setTimeout(() => {
+      setSaving(false);
+      toast.success(isAr ? "تم حفظ إعدادات المتجر بنجاح" : "Store profile updated successfully");
+    }, 400);
+  };
+
   return (
-    <Card className="p-6 max-w-2xl">
-      <h3 className="font-display text-lg mb-1">Store profile</h3>
+    <Card className="p-6 max-w-3xl shadow-sm border-border/80">
+      <h3 className="font-display text-lg font-bold mb-1">
+        {isAr ? "ملف المتجر وتفاصيل العلامة التجارية" : "Store Profile & Branding"}
+      </h3>
       <p className="text-xs text-muted-foreground mb-6">
-        Basic information about your atelier shown across the storefront.
+        {isAr ? "المعلومات الأساسية عن الأتيليه والتي تظهر عبر المتجر والمطبوعات." : "Basic information about your atelier shown across the storefront and emails."}
       </p>
+
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <Label className="text-xs">Store name</Label>
+            <Label className="text-xs font-bold">{isAr ? "اسم المتجر" : "Store name"}</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              className="mt-1"
+              className="mt-1.5 h-10 text-xs"
             />
           </div>
           <div>
-            <Label className="text-xs">Tagline</Label>
+            <Label className="text-xs font-bold">{isAr ? "الشعار النصي (Tagline)" : "Tagline"}</Label>
             <Input
               value={form.tagline}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, tagline: e.target.value }))
-              }
-              className="mt-1"
+              onChange={(e) => setForm((f) => ({ ...f, tagline: e.target.value }))}
+              className="mt-1.5 h-10 text-xs"
             />
           </div>
         </div>
+
         <div>
-          <Label className="text-xs">Description</Label>
+          <Label className="text-xs font-bold">{isAr ? "وصف المتجر" : "Description"}</Label>
           <Textarea
             value={form.description}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, description: e.target.value }))
-            }
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
             rows={3}
-            className="mt-1"
+            className="mt-1.5 text-xs"
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <Label className="text-xs">Contact email</Label>
+            <Label className="text-xs font-bold">{isAr ? "البريد الإلكتروني الرسمي" : "Contact email"}</Label>
             <Input
               value={form.email}
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              className="mt-1"
+              className="mt-1.5 h-10 text-xs font-mono"
             />
           </div>
           <div>
-            <Label className="text-xs">Phone</Label>
+            <Label className="text-xs font-bold">{isAr ? "رقم الهاتف / واتساب" : "Phone / WhatsApp"}</Label>
             <Input
               value={form.phone}
               onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-              className="mt-1"
+              className="mt-1.5 h-10 text-xs"
             />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <Label className="text-xs">Currency</Label>
+            <Label className="text-xs font-bold">{isAr ? "العملة الأساسية" : "Currency"}</Label>
             <Select
               value={form.currency}
               onValueChange={(v) => setForm((f) => ({ ...f, currency: v }))}
             >
-              <SelectTrigger className="mt-1">
+              <SelectTrigger className="mt-1.5 h-10 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="EGP">EGP — Egyptian Pound</SelectItem>
-                <SelectItem value="SAR">SAR — Saudi Riyal</SelectItem>
-                <SelectItem value="AED">AED — UAE Dirham</SelectItem>
-                <SelectItem value="USD">USD — US Dollar</SelectItem>
-                <SelectItem value="EUR">EUR — Euro</SelectItem>
+                <SelectItem value="EGP">EGP — الجنيه المصري (LE)</SelectItem>
+                <SelectItem value="USD">USD — US Dollar ($)</SelectItem>
+                <SelectItem value="EUR">EUR — Euro (€)</SelectItem>
+                <SelectItem value="SAR">SAR — الريال السعودي</SelectItem>
+                <SelectItem value="AED">AED — الدرهم الإماراتي</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label className="text-xs">Timezone</Label>
+            <Label className="text-xs font-bold">{isAr ? "المنطقة الزمنية" : "Timezone"}</Label>
             <Select
               value={form.timezone}
               onValueChange={(v) => setForm((f) => ({ ...f, timezone: v }))}
             >
-              <SelectTrigger className="mt-1">
+              <SelectTrigger className="mt-1.5 h-10 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Africa/Cairo">Cairo (EET)</SelectItem>
-                <SelectItem value="Africa/Casablanca">Casablanca (WET)</SelectItem>
-                <SelectItem value="Asia/Dubai">Dubai (GST)</SelectItem>
-                <SelectItem value="Asia/Riyadh">Riyadh (AST)</SelectItem>
-                <SelectItem value="Europe/London">London (GMT)</SelectItem>
-                <SelectItem value="America/New_York">Eastern (ET)</SelectItem>
+                <SelectItem value="Africa/Cairo">Cairo (EET - GMT+2/3)</SelectItem>
+                <SelectItem value="Asia/Riyadh">Riyadh (AST - GMT+3)</SelectItem>
+                <SelectItem value="Asia/Dubai">Dubai (GST - GMT+4)</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
-        <div>
-          <Label className="text-xs">Instagram URL</Label>
-          <Input
-            value={form.instagram}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, instagram: e.target.value }))
-            }
-            className="mt-1"
-          />
-        </div>
-        <div>
-          <Label className="text-xs">Custom domain</Label>
-          <Input
-            value={form.domain}
-            onChange={(e) => setForm((f) => ({ ...f, domain: e.target.value }))}
-            className="mt-1"
-          />
-          <p className="text-[10px] text-muted-foreground mt-1">
-            Configure DNS in Vercel dashboard to point this domain to your
-            deployment.
-          </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <Label className="text-xs font-bold">{isAr ? "رابط انستغرام (Instagram)" : "Instagram URL"}</Label>
+            <Input
+              value={form.instagram}
+              onChange={(e) => setForm((f) => ({ ...f, instagram: e.target.value }))}
+              className="mt-1.5 h-10 text-xs"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-bold">{isAr ? "النطاق المخصص (Domain)" : "Custom domain"}</Label>
+            <Input
+              value={form.domain}
+              onChange={(e) => setForm((f) => ({ ...f, domain: e.target.value }))}
+              className="mt-1.5 h-10 text-xs font-mono"
+            />
+          </div>
         </div>
       </div>
+
       <div className="flex justify-end mt-6">
-        <Button onClick={() => toast.success("Settings saved")}>
-          <Save className="h-4 w-4 mr-1" /> Save changes
+        <Button onClick={handleSave} disabled={saving} className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-10 px-6">
+          <Save className="h-4 w-4 mr-2" />
+          {saving ? (isAr ? "جاري الحفظ..." : "Saving...") : (isAr ? "حفظ التغييرات" : "Save Changes")}
         </Button>
       </div>
     </Card>
@@ -216,201 +235,450 @@ function StoreSettings() {
 }
 
 function PaymentsSettings() {
+  const { isAr } = useAdminT();
+  const [testMode, setTestMode] = React.useState(true);
+  const [autoCapture, setAutoCapture] = React.useState(true);
+
+  const handleSave = () => {
+    toast.success(isAr ? "تم حفظ إعدادات بوابة الدفع" : "Payment provider settings updated");
+  };
+
   return (
-    <Card className="p-6 max-w-2xl">
-      <h3 className="font-display text-lg mb-1">Payment providers</h3>
+    <Card className="p-6 max-w-3xl shadow-sm border-border/80">
+      <h3 className="font-display text-lg font-bold mb-1">
+        {isAr ? "بوابات وسائل الدفع الإلكتروني" : "Payment Gateways & Options"}
+      </h3>
       <p className="text-xs text-muted-foreground mb-6">
-        Connect payment processors to accept checkout. Test mode recommended
-        during development.
+        {isAr ? "إدارة طرق الدفع المتاحة للعملاء عند إنهاء الطلب." : "Manage supported payment methods for checkout."}
       </p>
 
       <div className="space-y-3">
         {[
           {
-            name: "Stripe",
-            desc: "Accept cards, Apple Pay, Google Pay, Klarna",
+            name: isAr ? "الدفع عند الاستلام (COD)" : "Cash on Delivery (COD)",
+            desc: isAr ? "تحصيل النقدية عند وصول الشحنة للعميل" : "Collect payment in cash upon courier delivery",
             connected: true,
-            icon: CreditCard,
           },
           {
-            name: "PayPal",
-            desc: "PayPal balance & PayPal Credit",
-            connected: false,
-            icon: CreditCard,
+            name: isAr ? "إنستاباي / محفظة فودافون كاش" : "InstaPay & Vodafone Cash",
+            desc: isAr ? "تحويل فوري عبر رقم الهاتف المحمول" : "Instant mobile wallet & bank transfer in Egypt",
+            connected: true,
           },
           {
-            name: "Apple Pay",
-            desc: "Direct via Stripe — no separate setup",
+            name: isAr ? "البطاقات البنكية (Visa / MasterCard)" : "Credit / Debit Cards",
+            desc: isAr ? "الدفع الإلكتروني المباشر عبر البنك" : "Direct online card payments via PayMob / Stripe",
             connected: true,
-            icon: CreditCard,
+          },
+          {
+            name: isAr ? "خدمة فورى (Fawry Pay)" : "Fawry Pay",
+            desc: isAr ? "الدفع بكود مرجعي في منافذ فوري" : "Pay via reference code at Fawry retail outlets",
+            connected: true,
           },
         ].map((p) => (
           <div
             key={p.name}
-            className="flex items-center justify-between p-4 border border-border/60 rounded-md"
+            className="flex items-center justify-between p-4 border border-border/60 rounded-xl bg-card hover:bg-accent/20 transition-colors"
           >
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-md bg-foreground/5 flex items-center justify-center">
-                <p.icon className="h-4 w-4" />
+              <div className="h-9 w-9 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+                <CreditCard className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-sm font-medium">{p.name}</p>
+                <p className="text-sm font-bold text-foreground">{p.name}</p>
                 <p className="text-xs text-muted-foreground">{p.desc}</p>
               </div>
             </div>
-            {p.connected ? (
-              <span className="text-xs text-emerald-600 font-medium">
-                Connected
-              </span>
-            ) : (
-              <Button variant="outline" size="sm">
-                Connect
-              </Button>
-            )}
+            <span className="text-xs text-emerald-600 font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+              {isAr ? "مفعّـل" : "Active"}
+            </span>
           </div>
         ))}
       </div>
 
       <Separator className="my-6" />
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium">Test mode</p>
+            <p className="text-sm font-bold">{isAr ? "وضع التجربة والتدقيق (Test Mode)" : "Test Mode"}</p>
             <p className="text-xs text-muted-foreground">
-              Use test cards, no real charges
+              {isAr ? "السماح بالطلبات التجريبية دون سداد حقيقي" : "Allow placing test orders without live charges"}
             </p>
           </div>
-          <Switch defaultChecked />
+          <Switch checked={testMode} onCheckedChange={setTestMode} />
         </div>
+
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium">Capture payment automatically</p>
+            <p className="text-sm font-bold">{isAr ? "تأكيد الدفع التلقائي" : "Auto-Capture Payments"}</p>
             <p className="text-xs text-muted-foreground">
-              Authorize and capture at checkout
+              {isAr ? "تأكيد المبالغ فور إتمام الطلب" : "Automatically authorize and capture orders at checkout"}
             </p>
           </div>
-          <Switch defaultChecked />
+          <Switch checked={autoCapture} onCheckedChange={setAutoCapture} />
         </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">Allow partial refunds</p>
-            <p className="text-xs text-muted-foreground">
-              Issue partial refunds from order detail
-            </p>
-          </div>
-          <Switch defaultChecked />
-        </div>
+      </div>
+
+      <div className="flex justify-end mt-6">
+        <Button onClick={handleSave} className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-10 px-6">
+          <Save className="h-4 w-4 mr-2" />
+          {isAr ? "حفظ التغييرات" : "Save Changes"}
+        </Button>
       </div>
     </Card>
   );
 }
 
 function ShippingSettings() {
+  const { isAr } = useAdminT();
+  const zones = useShippingStore((s) => s.zones);
+  const addZone = useShippingStore((s) => s.addZone);
+  const updateZone = useShippingStore((s) => s.updateZone);
+  const deleteZone = useShippingStore((s) => s.deleteZone);
+  const resetToDefaults = useShippingStore((s) => s.resetToDefaults);
+
+  const [showAddModal, setShowAddModal] = React.useState(false);
+  const [editingZone, setEditingZone] = React.useState<ShippingZone | null>(null);
+
+  const [newForm, setNewForm] = React.useState({
+    name: "",
+    nameAr: "",
+    cost: 100,
+    estimatedDays: "2–3 days",
+    codAvailable: true,
+  });
+
+  const handleAddSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newForm.name.trim()) {
+      toast.error(isAr ? "يرجى كتابة اسم المنطقة" : "Zone name is required");
+      return;
+    }
+    addZone({
+      name: newForm.name,
+      nameAr: newForm.nameAr || newForm.name,
+      cost: Number(newForm.cost),
+      estimatedDays: newForm.estimatedDays,
+      codAvailable: newForm.codAvailable,
+    });
+    setShowAddModal(false);
+    setNewForm({ name: "", nameAr: "", cost: 100, estimatedDays: "2–3 days", codAvailable: true });
+    toast.success(isAr ? "تمت إضافة منطقة الشحن بنجاح!" : "Shipping zone added successfully!");
+  };
+
+  const handleUpdateSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingZone) return;
+    updateZone(editingZone.id, {
+      name: editingZone.name,
+      nameAr: editingZone.nameAr,
+      cost: Number(editingZone.cost),
+      estimatedDays: editingZone.estimatedDays,
+      codAvailable: editingZone.codAvailable,
+    });
+    setEditingZone(null);
+    toast.success(isAr ? "تم تحديث أسعار الشحن بنجاح!" : "Shipping zone updated!");
+  };
+
   return (
-    <Card className="p-6 max-w-2xl">
-      <h3 className="font-display text-lg mb-1">Shipping zones</h3>
-      <p className="text-xs text-muted-foreground mb-6">
-        Define rates by region. Free shipping threshold encourages larger carts.
-      </p>
+    <Card className="p-6 max-w-3xl shadow-sm border-border/80">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="font-display text-lg font-bold mb-1">
+            {isAr ? "مناطق وأسعار الشحن في مصر" : "Egyptian Shipping Zones & Rates"}
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            {isAr
+              ? "تحكم كامل في أسعار الشحن ومدة التوصيل المخصصة لكل محافظة في مصر."
+              : "Full control over shipping fees and estimated delivery times per Egyptian governorate."}
+          </p>
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            if (confirm(isAr ? "إعادة الضبط لأسعار الشحن الافتراضية؟" : "Reset all shipping zones to defaults?")) {
+              resetToDefaults();
+              toast.success(isAr ? "تمت إعادة الضبط بنجاح" : "Reset shipping zones");
+            }
+          }}
+          className="text-xs text-muted-foreground"
+        >
+          <RotateCcw className="h-3.5 w-3.5 mr-1" />
+          {isAr ? "إعادة الضبط" : "Reset Defaults"}
+        </Button>
+      </div>
 
       <div className="space-y-3">
-        {[
-          {
-            zone: "Cairo (Greater Cairo)",
-            rate: "Free over 7,500 EGP, else 75 EGP flat",
-            delivery: "1–2 business days",
-          },
-          {
-            zone: "Alexandria",
-            rate: "Free over 7,500 EGP, else 95 EGP flat",
-            delivery: "2–3 business days",
-          },
-          {
-            zone: "Delta & Canal Cities",
-            rate: "Free over 7,500 EGP, else 110 EGP flat",
-            delivery: "2–4 business days",
-          },
-          {
-            zone: "Upper Egypt",
-            rate: "Free over 7,500 EGP, else 145 EGP flat",
-            delivery: "3–5 business days",
-          },
-          {
-            zone: "Red Sea & Sinai (no COD)",
-            rate: "165 EGP flat",
-            delivery: "3–6 business days",
-          },
-        ].map((z) => (
+        {zones.map((z) => (
           <div
-            key={z.zone}
-            className="flex items-center justify-between p-4 border border-border/60 rounded-md"
+            key={z.id}
+            className="p-4 border border-border/80 rounded-xl bg-card hover:bg-accent/20 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs"
           >
-            <div>
-              <p className="text-sm font-medium">{z.zone}</p>
-              <p className="text-xs text-muted-foreground">{z.delivery}</p>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm text-foreground">
+                  {isAr ? z.nameAr : z.name}
+                </span>
+                {z.codAvailable && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                    COD Available
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground font-mono">
+                ⏱ {z.estimatedDays}
+              </p>
             </div>
-            <p className="text-xs font-medium">{z.rate}</p>
+
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="text-right">
+                <p className="text-sm font-display font-bold text-amber-600 dark:text-amber-400">
+                  LE {z.cost}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {isAr ? "سعر ثابت" : "Flat Shipping Rate"}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setEditingZone({ ...z })}
+                  title="Edit Zone"
+                >
+                  <Edit2 className="h-3.5 w-3.5" />
+                </Button>
+                {zones.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={() => {
+                      deleteZone(z.id);
+                      toast.success(isAr ? `تم حذف ${z.nameAr}` : `Deleted ${z.name}`);
+                    }}
+                    title="Delete Zone"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         ))}
       </div>
 
-      <Button variant="outline" size="sm" className="mt-4">
-        Add shipping zone
+      <Button
+        className="mt-6 bg-amber-500 hover:bg-amber-600 text-black font-bold h-10 px-5"
+        onClick={() => setShowAddModal(true)}
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        {isAr ? "+ إضافة منطقة شحن جديدة" : "+ Add New Shipping Zone"}
       </Button>
+
+      {/* Add Zone Modal */}
+      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg font-bold flex items-center gap-2">
+              <Truck className="h-5 w-5 text-amber-500" />
+              {isAr ? "إضافة منطقة شحن جديدة" : "Add New Shipping Zone"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleAddSubmit} className="space-y-4 pt-2">
+            <div>
+              <Label className="text-xs font-bold">{isAr ? "اسم المنطقة (إنجليزي)" : "Zone Name (English)"} *</Label>
+              <Input
+                required
+                placeholder="e.g. Red Sea & Sinai"
+                value={newForm.name}
+                onChange={(e) => setNewForm((f) => ({ ...f, name: e.target.value }))}
+                className="mt-1 h-10 text-xs"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-bold">{isAr ? "اسم المنطقة (عربي)" : "Zone Name (Arabic)"}</Label>
+              <Input
+                placeholder="مثال: البحر الأحمر وسيناء"
+                value={newForm.nameAr}
+                onChange={(e) => setNewForm((f) => ({ ...f, nameAr: e.target.value }))}
+                className="mt-1 h-10 text-xs"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-bold">{isAr ? "تكلفة الشحن (بالجنيه LE)" : "Shipping Fee (LE)"} *</Label>
+              <Input
+                type="number"
+                required
+                min={0}
+                value={newForm.cost}
+                onChange={(e) => setNewForm((f) => ({ ...f, cost: Number(e.target.value) }))}
+                className="mt-1 h-10 text-xs font-bold"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-bold">{isAr ? "مدة التوصيل المتوقعة" : "Estimated Delivery Timeframe"}</Label>
+              <Input
+                placeholder="e.g. 2–3 days"
+                value={newForm.estimatedDays}
+                onChange={(e) => setNewForm((f) => ({ ...f, estimatedDays: e.target.value }))}
+                className="mt-1 h-10 text-xs"
+              />
+            </div>
+            <div className="flex items-center justify-between pt-2">
+              <Label className="text-xs font-bold">{isAr ? "إتاحة الدفع عند الاستلام (COD)" : "Allow Cash on Delivery"}</Label>
+              <Switch
+                checked={newForm.codAvailable}
+                onCheckedChange={(c) => setNewForm((f) => ({ ...f, codAvailable: c }))}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t border-border">
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowAddModal(false)}>
+                {isAr ? "إلغاء" : "Cancel"}
+              </Button>
+              <Button type="submit" size="sm" className="bg-amber-500 hover:bg-amber-600 text-black font-bold">
+                {isAr ? "إضافة المنطقة" : "Add Zone"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Zone Modal */}
+      <Dialog open={!!editingZone} onOpenChange={(open) => !open && setEditingZone(null)}>
+        {editingZone && (
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="font-display text-lg font-bold flex items-center gap-2">
+                <Edit2 className="h-5 w-5 text-amber-500" />
+                {isAr ? `تعديل منطقة: ${editingZone.nameAr}` : `Edit Zone: ${editingZone.name}`}
+              </DialogTitle>
+            </DialogHeader>
+
+            <form onSubmit={handleUpdateSubmit} className="space-y-4 pt-2">
+              <div>
+                <Label className="text-xs font-bold">{isAr ? "اسم المنطقة (إنجليزي)" : "Zone Name (English)"}</Label>
+                <Input
+                  value={editingZone.name}
+                  onChange={(e) => setEditingZone({ ...editingZone, name: e.target.value })}
+                  className="mt-1 h-10 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-bold">{isAr ? "اسم المنطقة (عربي)" : "Zone Name (Arabic)"}</Label>
+                <Input
+                  value={editingZone.nameAr}
+                  onChange={(e) => setEditingZone({ ...editingZone, nameAr: e.target.value })}
+                  className="mt-1 h-10 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-bold">{isAr ? "تكلفة الشحن (LE)" : "Shipping Fee (LE)"}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={editingZone.cost}
+                  onChange={(e) => setEditingZone({ ...editingZone, cost: Number(e.target.value) })}
+                  className="mt-1 h-10 text-xs font-bold"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-bold">{isAr ? "مدة التوصيل" : "Estimated Delivery"}</Label>
+                <Input
+                  value={editingZone.estimatedDays}
+                  onChange={(e) => setEditingZone({ ...editingZone, estimatedDays: e.target.value })}
+                  className="mt-1 h-10 text-xs"
+                />
+              </div>
+              <div className="flex items-center justify-between pt-2">
+                <Label className="text-xs font-bold">{isAr ? "إتاحة الدفع عند الاستلام" : "Allow Cash on Delivery"}</Label>
+                <Switch
+                  checked={editingZone.codAvailable}
+                  onCheckedChange={(c) => setEditingZone({ ...editingZone, codAvailable: c })}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t border-border">
+                <Button type="button" variant="outline" size="sm" onClick={() => setEditingZone(null)}>
+                  {isAr ? "إلغاء" : "Cancel"}
+                </Button>
+                <Button type="submit" size="sm" className="bg-amber-500 hover:bg-amber-600 text-black font-bold">
+                  {isAr ? "حفظ التغييرات" : "Save Zone"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        )}
+      </Dialog>
     </Card>
   );
 }
 
 function NotificationsSettings() {
+  const { isAr } = useAdminT();
+  const [saving, setSaving] = React.useState(false);
+
+  const handleSave = () => {
+    setSaving(true);
+    setTimeout(() => {
+      setSaving(false);
+      toast.success(isAr ? "تم حفظ إعدادات الإشعارات" : "Notification preferences saved");
+    }, 300);
+  };
+
   return (
-    <Card className="p-6 max-w-2xl">
-      <h3 className="font-display text-lg mb-1">Notification preferences</h3>
+    <Card className="p-6 max-w-3xl shadow-sm border-border/80">
+      <h3 className="font-display text-lg font-bold mb-1">
+        {isAr ? "تفضيلات الإشعارات التلقائية" : "Notification Preferences"}
+      </h3>
       <p className="text-xs text-muted-foreground mb-6">
-        Choose which events trigger emails to staff and customers.
+        {isAr ? "تحديد الأحداث التفاعلية التي ترسل إشعارات ورسائل بريدية." : "Choose which events trigger automated notifications to staff and customers."}
       </p>
 
       <div className="space-y-4">
         {[
           {
-            label: "New order received",
-            desc: "Email staff when an order is placed",
+            label: isAr ? "إشعار طلب جديد" : "New order received",
+            desc: isAr ? "إرسال إشعار فور تأكيد العملاء للطلبات" : "Email staff instantly when an order is placed",
             on: true,
           },
           {
-            label: "Low stock alert",
-            desc: "Email when any SKU drops below 12 units",
+            label: isAr ? "تنبيه نقص المخزون" : "Low stock alert",
+            desc: isAr ? "تنبيه الأتيليه عند انخفاض كمية أي قطعة عن 5 قطع" : "Email when product stock drops below 5 units",
             on: true,
           },
           {
-            label: "New review submitted",
-            desc: "Email when a customer leaves a review",
-            on: false,
-          },
-          {
-            label: "Order shipped",
-            desc: "Send customer tracking notification",
+            label: isAr ? "تأكيد شحن الطلب للعميل" : "Order shipped notification",
+            desc: isAr ? "إرسال رسالة تتبع تفاعلية للعميل فور الشحن" : "Send customer tracking email & notification upon dispatch",
             on: true,
           },
           {
-            label: "Abandoned cart",
-            desc: "Email customer 1 hour after abandonment",
-            on: true,
-          },
-          {
-            label: "Weekly summary",
-            desc: "Monday morning recap of last week's sales",
+            label: isAr ? "تقارير المبيعات الأسبوعية" : "Weekly summary recap",
+            desc: isAr ? "ملخص أسبوعي بأرقام المبيعات والأداء" : "Weekly digest of revenue performance",
             on: true,
           },
         ].map((n) => (
-          <div key={n.label} className="flex items-center justify-between">
+          <div key={n.label} className="flex items-center justify-between p-3 border border-border/60 rounded-xl bg-card">
             <div>
-              <p className="text-sm font-medium">{n.label}</p>
+              <p className="text-sm font-bold">{n.label}</p>
               <p className="text-xs text-muted-foreground">{n.desc}</p>
             </div>
             <Switch defaultChecked={n.on} />
           </div>
         ))}
+      </div>
+
+      <div className="flex justify-end mt-6">
+        <Button onClick={handleSave} disabled={saving} className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-10 px-6">
+          <Save className="h-4 w-4 mr-2" />
+          {isAr ? "حفظ التغييرات" : "Save Preferences"}
+        </Button>
       </div>
     </Card>
   );
@@ -440,36 +708,30 @@ function SecuritySettings() {
   };
 
   return (
-    <Card className="p-6 max-w-2xl">
-      <h3 className="font-display text-lg mb-1">Security & access</h3>
+    <Card className="p-6 max-w-3xl shadow-sm border-border/80">
+      <h3 className="font-display text-lg font-bold mb-1">
+        {isAr ? "الأمان وإدارة صلاحيات النظام" : "Security & System Access"}
+      </h3>
       <p className="text-xs text-muted-foreground mb-6">
-        Manage staff accounts and security policies for the admin dashboard.
+        {isAr ? "إدارة حسابات الفريق وسجل التغييرات وإعادة التصفير." : "Manage admin accounts, security policies, and data resets."}
       </p>
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between p-4 border border-border/60 rounded-md">
+        <div className="flex items-center justify-between p-4 border border-border/60 rounded-xl bg-card">
           <div>
-            <p className="text-sm font-medium">Two-factor authentication</p>
+            <p className="text-sm font-bold">{isAr ? "التحقق بخطوتين (2FA)" : "Two-factor authentication"}</p>
             <p className="text-xs text-muted-foreground">
-              Require 2FA for all staff accounts
+              {isAr ? "طلب رمز الحماية عند تسجيل دخول المشرفين" : "Require 2FA verification for all admin logins"}
             </p>
           </div>
           <Switch />
         </div>
-        <div className="flex items-center justify-between p-4 border border-border/60 rounded-md">
+
+        <div className="flex items-center justify-between p-4 border border-border/60 rounded-xl bg-card">
           <div>
-            <p className="text-sm font-medium">IP allowlist</p>
+            <p className="text-sm font-bold">{isAr ? "إنهاء الجلسة التلقائي" : "Session timeout"}</p>
             <p className="text-xs text-muted-foreground">
-              Restrict admin access to specific IPs
-            </p>
-          </div>
-          <Switch />
-        </div>
-        <div className="flex items-center justify-between p-4 border border-border/60 rounded-md">
-          <div>
-            <p className="text-sm font-medium">Session timeout</p>
-            <p className="text-xs text-muted-foreground">
-              Auto sign-out after 30 minutes idle
+              {isAr ? "تسجيل الخروج التلقائي بعد 30 دقيقة خمول" : "Auto sign-out after 30 minutes of inactivity"}
             </p>
           </div>
           <Switch defaultChecked />
@@ -507,32 +769,26 @@ function SecuritySettings() {
       <Separator className="my-6" />
 
       <div>
-        <p className="text-sm font-medium mb-3">Staff accounts</p>
+        <p className="text-sm font-bold mb-3">{isAr ? "حسابات المشرفين والفريق" : "Staff Accounts"}</p>
         <div className="space-y-2">
           {[
-            { email: "admin@memeatelier.com", role: "Owner", last: "Active now" },
-            { email: "studio@memeatelier.com", role: "Staff", last: "2h ago" },
-            { email: "support@memeatelier.com", role: "Staff", last: "Yesterday" },
+            { email: "admin@memeatelier.com", role: isAr ? "المالك" : "Owner", status: isAr ? "نشط الآن" : "Active now" },
+            { email: "studio@meme-eg.store", role: isAr ? "مشرف الأتيليه" : "Atelier Staff", status: isAr ? "منذ ساعتين" : "2h ago" },
           ].map((s) => (
             <div
               key={s.email}
-              className="flex items-center justify-between p-3 border border-border/60 rounded-md"
+              className="flex items-center justify-between p-3.5 border border-border/60 rounded-xl bg-card"
             >
               <div>
-                <p className="text-xs font-medium">{s.email}</p>
+                <p className="text-xs font-bold text-foreground">{s.email}</p>
                 <p className="text-[10px] text-muted-foreground">
-                  {s.role} · {s.last}
+                  {s.role} · {s.status}
                 </p>
               </div>
-              <Button variant="ghost" size="sm">
-                Manage
-              </Button>
+              <span className="text-xs text-amber-600 font-bold">{isAr ? "مفوض" : "Authorized"}</span>
             </div>
           ))}
         </div>
-        <Button variant="outline" size="sm" className="mt-3">
-          Invite staff member
-        </Button>
       </div>
     </Card>
   );
