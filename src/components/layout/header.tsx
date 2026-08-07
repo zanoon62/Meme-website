@@ -34,7 +34,13 @@ export function Header() {
   const [adminEmail, setAdminEmail] = React.useState<string | null>(null);
 
   React.useEffect(() => {
+    // Read immediately on mount
     setAdminEmail(getAdminEmailClient());
+    // Poll every 2s so the icon appears right after OAuth redirect sets the cookie
+    const interval = setInterval(() => {
+      setAdminEmail(getAdminEmailClient());
+    }, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   React.useEffect(() => {

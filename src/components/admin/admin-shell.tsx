@@ -46,7 +46,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { clearAdminSession } from "@/lib/auth/simple-auth";
+import { clearAdminSession, getAdminEmailClient } from "@/lib/auth/simple-auth";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { LanguageToggle } from "@/components/layout/language-toggle";
 import { useAdminT } from "@/components/admin/admin-i18n";
@@ -87,6 +87,12 @@ export function AdminShell({
   const [showPreviewModal, setShowPreviewModal] = React.useState(false);
   const [previewPath, setPreviewPath] = React.useState("/");
   const [previewMode, setPreviewMode] = React.useState<"desktop" | "mobile">("desktop");
+  const [adminEmail, setAdminEmail] = React.useState<string>("Admin");
+
+  React.useEffect(() => {
+    const email = getAdminEmailClient();
+    if (email) setAdminEmail(email);
+  }, []);
 
   const handleResetData = async () => {
     setResettingData(true);
@@ -218,13 +224,13 @@ export function AdminShell({
                 <button className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-accent/70 text-left transition-colors">
                   <Avatar className="h-8 w-8 border border-amber-500/30">
                     <AvatarFallback className="bg-amber-500 text-black font-bold text-xs">
-                      AD
+                      {adminEmail ? adminEmail.slice(0, 2).toUpperCase() : "AD"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold truncate text-foreground">{t("atelierAdmin")}</p>
                     <p className="text-[10px] text-muted-foreground truncate">
-                      admin@memeatelier.com
+                      {adminEmail || "admin@memeatelier.com"}
                     </p>
                   </div>
                   <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
