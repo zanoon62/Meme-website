@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { createSupabaseServiceClient } from "@/lib/supabase/server";
+import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
 import { cookies } from "next/headers";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -29,8 +32,48 @@ export async function GET(request: Request) {
         },
       }
     );
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
+
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (!error && data.user) {
+      // Upsert the customer row immediately after OAuth login
+      if (isSupabaseServiceConfigured()) {
+        try {
+          const serviceClient = createSupabaseServiceClient();
+          const user = data.user;
+          const meta = user.user_metadata ?? {};
+
+          // Google provides full_name and avatar_url in metadata
+          const fullName = (meta.full_name as string) ?? "";
+          const nameParts = fullName.split(" ");
+          const firstName =
+            (meta.first_name as string) ??
+            (nameParts.length > 0 ? nameParts[0] : null) ??
+            null;
+          const lastName =
+            (meta.last_name as string) ??
+            (nameParts.length > 1 ? nameParts.slice(1).join(" ") : null) ??
+            null;
+
+          await serviceClient.from("customers").upsert(
+            {
+              auth_user_id: user.id,
+              email: user.email ?? "",
+              first_name: firstName,
+              last_name: lastName,
+              accepts_marketing: Boolean(meta.accepts_marketing),
+            },
+            { onConflict: "auth_user_id" }
+          );
+
+          logger.info("customer upserted after OAuth", { userId: user.id });
+        } catch (e) {
+          logger.warn("customer upsert failed in callback", {
+            error: e instanceof Error ? e.message : String(e),
+          });
+        }
+      }
+
       return NextResponse.redirect(`${origin}${next}`);
     }
   }
