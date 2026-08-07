@@ -43,6 +43,7 @@ type Customer = {
 type AuthUser = {
   id: string;
   email: string | undefined;
+  avatar_url: string | null;
   created_at: string;
 };
 
@@ -327,12 +328,15 @@ function Dashboard({ session }: { session: SessionData }) {
   const [ordersLoading, setOrdersLoading] = React.useState(true);
   const [signingOut, setSigningOut] = React.useState(false);
 
+  // Settings form state (controlled)
+  const [firstName, setFirstName] = React.useState(customer?.first_name ?? "");
+  const [lastName, setLastName] = React.useState(customer?.last_name ?? "");
+  const [phone, setPhone] = React.useState(customer?.phone ?? "");
+  const [savingProfile, setSavingProfile] = React.useState(false);
+
   const displayName = getDisplayName(customer, user?.email);
   const initials = getInitials(customer, user?.email);
-  const avatarUrl =
-    typeof window !== "undefined"
-      ? null
-      : null;
+  const avatarUrl = user?.avatar_url ?? null;
 
   // Load real orders
   React.useEffect(() => {
@@ -352,12 +356,42 @@ function Dashboard({ session }: { session: SessionData }) {
   const handleSignOut = async () => {
     setSigningOut(true);
     try {
+      // Sign out from browser Supabase session first
+      const { getSupabaseBrowser } = await import("@/lib/supabase/browser");
+      const supabase = getSupabaseBrowser();
+      await supabase.auth.signOut();
+      // Also invalidate server-side session cookie
       await fetch("/api/auth/signout", { method: "POST" });
       toast.success("Signed out");
-      window.location.reload();
+      window.location.href = "/account";
     } catch {
       toast.error("Sign out failed");
       setSigningOut(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      const res = await fetch("/api/account/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          first_name: firstName,
+          last_name: lastName,
+          phone: phone || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to save");
+      } else {
+        toast.success("Profile saved!");
+      }
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setSavingProfile(false);
     }
   };
 
@@ -368,10 +402,11 @@ function Dashboard({ session }: { session: SessionData }) {
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-foreground text-background flex items-center justify-center font-display text-2xl overflow-hidden flex-shrink-0">
             {avatarUrl ? (
-              <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
-            ) : (
-              initials
-            )}
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+          ) : (
+            initials
+          )}
           </div>
           <div>
             <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">MEME Member</p>
@@ -626,16 +661,20 @@ function Dashboard({ session }: { session: SessionData }) {
                 </p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label>First name</Label>
+                    <Label htmlFor="firstName">First name</Label>
                     <Input
-                      defaultValue={customer?.first_name ?? ""}
+                      id="firstName"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
                       className="h-11 mt-1"
                     />
                   </div>
                   <div>
-                    <Label>Last name</Label>
+                    <Label htmlFor="lastName">Last name</Label>
                     <Input
-                      defaultValue={customer?.last_name ?? ""}
+                      id="lastName"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
                       className="h-11 mt-1"
                     />
                   </div>
@@ -643,15 +682,18 @@ function Dashboard({ session }: { session: SessionData }) {
                 <div className="mt-3">
                   <Label>Email</Label>
                   <Input
-                    defaultValue={user?.email ?? ""}
-                    className="h-11 mt-1"
+                    value={user?.email ?? ""}
+                    className="h-11 mt-1 opacity-60 cursor-not-allowed"
                     readOnly
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Email cannot be changed here.</p>
                 </div>
                 <div className="mt-3">
-                  <Label>Phone</Label>
+                  <Label htmlFor="phone">Phone</Label>
                   <Input
-                    defaultValue={customer?.phone ?? ""}
+                    id="phone"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
                     placeholder="+20 100 000 0000"
                     className="h-11 mt-1"
                   />
@@ -677,9 +719,14 @@ function Dashboard({ session }: { session: SessionData }) {
               </div>
               <Button
                 className="rounded-full h-11 px-6"
-                onClick={() => toast.success("Settings saved")}
+                onClick={handleSaveProfile}
+                disabled={savingProfile}
               >
-                Save changes
+                {savingProfile ? (
+                  <><Loader2 className="h-4 w-4 animate-spin mr-2" />Saving…</>
+                ) : (
+                  "Save changes"
+                )}
               </Button>
             </div>
           </TabsContent>
