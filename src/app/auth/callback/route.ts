@@ -23,7 +23,7 @@ export async function GET(request: Request) {
           setAll(cookiesToSet) {
             try {
               cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
+                cookieStore.set(name, value, { ...options, maxAge: 60 * 15 })
               );
             } catch {
               // Ignore if called from Server Component
