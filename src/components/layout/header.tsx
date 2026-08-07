@@ -41,10 +41,13 @@ export function Header() {
     window.addEventListener("focus", check);
     // Re-check when account page's elevate call confirms admin
     window.addEventListener("adminSessionGranted", check);
+    // Re-check on back/forward navigation (e.g. returning from /admin)
+    window.addEventListener("popstate", check);
     return () => {
       document.removeEventListener("visibilitychange", check);
       window.removeEventListener("focus", check);
       window.removeEventListener("adminSessionGranted", check);
+      window.removeEventListener("popstate", check);
     };
   }, []);
 
@@ -185,16 +188,13 @@ export function Header() {
             </Link>
 
             {adminEmail && (
-              <Link href="/admin" className="hidden sm:inline-flex">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-amber-600 hover:bg-amber-500/10"
-                  aria-label="Admin Panel"
-                  title={`Admin: ${adminEmail}`}
-                >
-                  <LayoutDashboard className="h-5 w-5" />
-                </Button>
+              <Link
+                href="/admin"
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500 hover:bg-amber-400 text-black text-[11px] font-bold uppercase tracking-widest transition-all duration-200 shadow-[0_0_12px_rgba(245,158,11,0.5)] hover:shadow-[0_0_20px_rgba(245,158,11,0.7)] animate-in fade-in slide-in-from-top-1"
+                title={`Admin: ${adminEmail}`}
+              >
+                <LayoutDashboard className="h-3.5 w-3.5" />
+                Admin
               </Link>
             )}
 
