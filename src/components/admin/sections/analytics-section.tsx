@@ -15,6 +15,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { DollarSign, ShoppingCart, TrendingUp, Eye } from "lucide-react";
 import { formatPrice } from "@/lib/format";
+import { useAdminT } from "../admin-i18n";
 
 type Analytics = {
   kpis: {
@@ -31,6 +32,7 @@ type Analytics = {
 };
 
 export function AnalyticsSection() {
+  const { t } = useAdminT();
   const [data, setData] = React.useState<Analytics | null>(null);
   const [loading, setLoading] = React.useState(true);
 
@@ -49,25 +51,25 @@ export function AnalyticsSection() {
 
   const kpis = [
     {
-      label: "Total Revenue",
+      label: t("totalRevenue"),
       value: kpi ? (kpi.revenue > 0 ? formatPrice(kpi.revenue) : "\u2014") : "\u2014",
       delta: kpi && kpi.revenueDelta !== 0 ? `${kpi.revenueDelta > 0 ? "+" : ""}${kpi.revenueDelta}%` : "\u2014",
       icon: DollarSign,
     },
     {
-      label: "Orders",
+      label: t("orders"),
       value: kpi ? kpi.orders.toString() : "\u2014",
       delta: "\u2014",
       icon: ShoppingCart,
     },
     {
-      label: "Avg Order Value",
+      label: t("avgOrderValue"),
       value: kpi ? (kpi.aov > 0 ? formatPrice(kpi.aov) : "\u2014") : "\u2014",
       delta: "\u2014",
       icon: TrendingUp,
     },
     {
-      label: "Conversion Rate",
+      label: t("conversionRate"),
       value: "\u2014",
       delta: "\u2014",
       icon: Eye,
@@ -100,19 +102,19 @@ export function AnalyticsSection() {
       <Card className="p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="font-display text-lg">Revenue trend</h3>
-            <p className="text-xs text-muted-foreground">Last 30 days</p>
+            <h3 className="font-display text-lg">{t("revenueTrend")}</h3>
+            <p className="text-xs text-muted-foreground">{t("last30Days")}</p>
           </div>
         </div>
         {loading ? (
           <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground">
-            Loading…
+            {t("loading")}
           </div>
         ) : !hasSeriesData ? (
           <div className="h-[300px] flex flex-col items-center justify-center text-center gap-2">
             <TrendingUp className="h-8 w-8 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground font-medium">No revenue data yet</p>
-            <p className="text-xs text-muted-foreground/70">Revenue will appear here once orders are placed</p>
+            <p className="text-sm text-muted-foreground font-medium">{t("noRevenueData")}</p>
+            <p className="text-xs text-muted-foreground/70">{t("revenueAppearHere")}</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={300}>
@@ -158,17 +160,17 @@ export function AnalyticsSection() {
 
       {/* Orders per day */}
       <Card className="p-6">
-        <h3 className="font-display text-lg mb-1">Orders per day</h3>
-        <p className="text-xs text-muted-foreground mb-4">Last 30 days</p>
+        <h3 className="font-display text-lg mb-1">{t("ordersPerDay")}</h3>
+        <p className="text-xs text-muted-foreground mb-4">{t("last30Days")}</p>
         {loading ? (
           <div className="h-[240px] flex items-center justify-center text-sm text-muted-foreground">
-            Loading…
+            {t("loading")}
           </div>
         ) : !hasSeriesData ? (
           <div className="h-[240px] flex flex-col items-center justify-center text-center gap-2">
             <ShoppingCart className="h-8 w-8 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground font-medium">No orders yet</p>
-            <p className="text-xs text-muted-foreground/70">Order volume will appear here once customers start buying</p>
+            <p className="text-sm text-muted-foreground font-medium">{t("noOrdersYet")}</p>
+            <p className="text-xs text-muted-foreground/70">{t("orderVolumeAppearHere")}</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={240}>
