@@ -1,495 +1,319 @@
-import type { Product, ProductSize } from "@/components/providers/ui-provider";
-import { img, editorialImg } from "@/lib/img";
+import type { Product } from "@/components/providers/ui-provider";
 
-// ============ MEME Women's Atelier Catalog (Egypt / EGP) ============
-// All prices in Egyptian Pound (ج.م). All imagery is locally generated.
-// Each product is original to the MEME women's identity.
+// ============ SUITED BY MEME Atelier Catalog (Egypt / EGP) ============
+// Tailored suits, vest sets, blazer dresses & Parisian tailoring.
+// Inspired by @suited_by_meme Instagram collection.
 
 export const CURRENCY = "EGP";
 
 export const products: Product[] = [
   {
-    id: "w-001",
-    slug: "noir-tailored-blazer-dress",
-    name: "Noir Tailored Blazer Dress",
-    subtitle: "Single-button blazer dress in Italian wool",
+    id: "meme-001",
+    slug: "burgundy-tailored-vest-wide-leg-set",
+    name: "The Marsala Burgundy Vest & Trouser Set",
+    subtitle: "Tailored V-neck vest with high-waisted wide-leg trousers",
     description:
-      "A sharply tailored blazer dress cut from Italian virgin wool with a suppressed waist and structured shoulder. The Noir features a clean single-button front, peak lapels, and a hem that lands mid-thigh for an elongating silhouette. Fully canvassed interior with bemberg lining. Wear it solo with heels for evening, or layered over wide-leg trousers for a modern suiting moment. Designed in our Cairo atelier and tailored to order.",
+      "Signature 2-piece tailored suit set featured on @suited_by_meme. Crafted from rich Marsala burgundy wool-crepe, featuring a fitted asymmetrical buttoned vest with suppressed waist and floor-sweeping pleated wide-leg trousers. Designed to create a sleek, statuesque silhouette for modern power dressing.",
+    price: 16800,
+    compareAtPrice: 19500,
+    currency: "EGP",
+    category: "Tailored Suits & Vests",
+    collection: "Atelier Noir",
+    colors: [
+      { name: "Marsala Burgundy", hex: "#5c242e" },
+      { name: "Noir", hex: "#1a1817" },
+      { name: "Sand Beige", hex: "#e5dcd0" },
+    ],
+    sizes: ["XS", "S", "M", "L", "XL"],
+    images: [
+      "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?auto=format&fit=crop&w=1000&q=85",
+      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1000&q=85",
+      "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=1000&q=85",
+    ],
+    badges: ["Instagram Icon", "Best Seller"],
+    rating: 5.0,
+    reviewCount: 412,
+    inventory: 18,
+    material: "75% Fine Wool Crepe, 25% Silk Satin Lining",
+    care: "Dry clean only. Steam to refresh shape.",
+    isBestSeller: true,
+    isTrending: true,
+    isNew: true,
+    tags: ["suit", "vest", "burgundy", "tailored", "set", "wide-leg"],
+  },
+  {
+    id: "meme-002",
+    slug: "croppd-noir-blazer-denim-set",
+    name: "The Parisian Cropped Noir Blazer",
+    subtitle: "Structured cropped blazer with peak lapels & brass buttons",
+    description:
+      "As seen on @suited_by_meme — Parisian chic elevated. A lapel-free cropped blazer in structured obsidian Italian wool with horn-button cuffs and clean shoulder pads. Pair with wide-leg denim or matching high-waisted tailored trousers for an effortless off-duty look.",
     price: 14500,
+    compareAtPrice: 17200,
+    currency: "EGP",
+    category: "Blazers & Jackets",
+    collection: "Atelier Noir",
+    colors: [
+      { name: "Noir", hex: "#1a1817" },
+      { name: "Ecrù", hex: "#f0ebe1" },
+    ],
+    sizes: ["XS", "S", "M", "L"],
+    images: [
+      "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1000&q=85",
+      "https://images.unsplash.com/photo-1548624149-f1e967a5f644?auto=format&fit=crop&w=1000&q=85",
+    ],
+    badges: ["Editor's Pick"],
+    rating: 4.9,
+    reviewCount: 289,
+    inventory: 22,
+    material: "100% Virgin Italian Wool",
+    care: "Dry clean only.",
+    isBestSeller: true,
+    isTrending: true,
+    tags: ["blazer", "cropped", "noir", "tailored", "parisian"],
+  },
+  {
+    id: "meme-003",
+    slug: "midnight-navy-sleeveless-suit-set",
+    name: "The Midnight Navy Sleeveless Vest Set",
+    subtitle: "Double-breasted long vest & relaxed tailored pants",
+    description:
+      "The viral 2-piece navy suit set from @suited_by_meme. Crafted from tropical weight Italian wool in deep midnight navy. Longline double-breasted vest featuring fabric-covered buttons and high-rise relaxed trousers that taper subtly at the ankle.",
+    price: 17500,
+    compareAtPrice: 21000,
+    currency: "EGP",
+    category: "Tailored Suits & Vests",
+    collection: "Core Essentials",
+    colors: [
+      { name: "Midnight Navy", hex: "#1c2638" },
+      { name: "Charcoal", hex: "#2b2e34" },
+    ],
+    sizes: ["XS", "S", "M", "L", "XL"],
+    images: [
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1000&q=85",
+      "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=1000&q=85",
+    ],
+    badges: ["Trending", "Limited Drop"],
+    rating: 4.9,
+    reviewCount: 350,
+    inventory: 15,
+    material: "80% Wool, 20% Silk",
+    care: "Dry clean only.",
+    isTrending: true,
+    isLimited: true,
+    tags: ["navy", "suit", "sleeveless", "vest", "set"],
+  },
+  {
+    id: "meme-004",
+    slug: "executive-pinstripe-vest-trouser-set",
+    name: "The Executive Pinstripe Suit Vest & Trousers",
+    subtitle: "Pinstripe tailored vest with waist tie and tailored trousers",
+    description:
+      "Featured in the 'IT STARTS WITH YOU' campaign. Fine chalk pinstripe on deep charcoal fabric, tailored to perfection with an open back detail and sharp lapels. Made to empower your everyday presence.",
+    price: 18200,
+    currency: "EGP",
+    category: "Tailored Suits & Vests",
+    collection: "Atelier Noir",
+    colors: [
+      { name: "Charcoal Pinstripe", hex: "#22252a" },
+      { name: "Noir Pinstripe", hex: "#121316" },
+    ],
+    sizes: ["XS", "S", "M", "L"],
+    images: [
+      "https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=1000&q=85",
+      "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1000&q=85",
+    ],
+    badges: ["Campaign Hero"],
+    rating: 5.0,
+    reviewCount: 195,
+    inventory: 10,
+    material: "90% Fine Italian Wool, 10% Cashmere",
+    care: "Dry clean only.",
+    isNew: true,
+    isLimited: true,
+    tags: ["pinstripe", "executive", "vest", "suit", "trousers"],
+  },
+  {
+    id: "meme-005",
+    slug: "chocolate-brown-sleeveless-blazer-set",
+    name: "The Espresso Brown Sleeveless Tailored Vest Set",
+    subtitle: "Chocolate brown vest & tailored wide-leg trousers",
+    description:
+      "Rich espresso chocolate brown tailored co-ord set. Cut with sharp clean lines, side flap pockets, and a button-front closure. Versatile and timeless tailoring made to fit your silhouette seamlessly.",
+    price: 15900,
     compareAtPrice: 18500,
     currency: "EGP",
-    category: "Tailoring",
-    collection: "Atelier Noir",
-    colors: [
-      { name: "Noir", hex: "#0d0d0d" },
-      { name: "Bone", hex: "#e3dac9" },
-      { name: "Camel", hex: "#c19a6b" },
-    ],
-    sizes: ["XS", "S", "M", "L", "XL"],
-    images: [
-      img("Noir Blazer Dress", "Tailoring", "noir", 0),
-      img("Noir Blazer Dress", "Tailoring", "bone", 1),
-      img("Noir Blazer Dress", "Tailoring", "camel", 2),
-    ],
-    badges: ["Best Seller", "Premium Wool"],
-    rating: 4.9,
-    reviewCount: 327,
-    inventory: 24,
-    material: "100% Italian Virgin Wool",
-    care: "Dry clean only. Steam to refresh.",
-    isBestSeller: true,
-    isTrending: true,
-    tags: ["blazer", "dress", "tailored", "wool", "womens"],
-  },
-  {
-    id: "w-002",
-    slug: "cashmere-oversized-hoodie",
-    name: "Cashmere Oversized Hoodie",
-    subtitle: "Brushed cashmere blend hoodie in boxy fit",
-    description:
-      "Our signature oversized hoodie reimagined in a cashmere-cotton blend. The Cashmere Hoodie features a boxy silhouette, dropped shoulders, double-layer hood, and a kangaroo pocket engineered to hold its shape. Garment-dyed for depth of color and a lived-in hand feel from day one. Tonal embroidered MEME crest at the chest. The effortless layer for off-duty days in the city.",
-    price: 7800,
-    currency: "EGP",
-    category: "Hoodies & Sweatshirts",
+    category: "Tailored Suits & Vests",
     collection: "Core Essentials",
     colors: [
-      { name: "Bone", hex: "#e3dac9" },
-      { name: "Noir", hex: "#0d0d0d" },
-      { name: "Sage", hex: "#9caf88" },
-      { name: "Dusty Rose", hex: "#c8a0a0" },
+      { name: "Espresso Brown", hex: "#3e2723" },
+      { name: "Camel", hex: "#a17a4a" },
     ],
     sizes: ["XS", "S", "M", "L", "XL"],
     images: [
-      img("Cashmere Hoodie", "Hoodies & Sweatshirts", "bone", 0),
-      img("Cashmere Hoodie", "Hoodies & Sweatshirts", "noir", 1),
-      img("Cashmere Hoodie", "Hoodies & Sweatshirts", "sage", 2),
-    ],
-    badges: ["New", "Cashmere Blend"],
-    rating: 4.8,
-    reviewCount: 512,
-    inventory: 86,
-    material: "70% Cotton, 30% Mongolian Cashmere",
-    care: "Machine wash cold inside out, dry flat.",
-    isNew: true,
-    isTrending: true,
-    tags: ["hoodie", "oversized", "cashmere", "casual", "womens"],
-  },
-  {
-    id: "w-003",
-    slug: "wide-leg-silk-trouser",
-    name: "Wide-Leg Silk Trouser",
-    subtitle: "High-rise pleated trouser in silk-wool",
-    description:
-      "A high-rise, double-pleated wide-leg trouser cut from a silk-wool blend that drapes like water. The Wide-Leg features a clean fall from hip to hem, side pockets, and a single back welt pocket. Lightweight, breathable, and structured — the year-round trouser that moves with you. Pair with the Noir Blazer Dress for a full suiting moment, or a silk camisole for evening.",
-    price: 8900,
-    compareAtPrice: 11000,
-    currency: "EGP",
-    category: "Pants",
-    collection: "Atelier Noir",
-    colors: [
-      { name: "Noir", hex: "#0d0d0d" },
-      { name: "Stone", hex: "#8a8a7a" },
-      { name: "Bone", hex: "#e3dac9" },
-    ],
-    sizes: ["XS", "S", "M", "L", "XL"],
-    images: [
-      img("Wide-Leg Trouser", "Pants", "noir", 0),
-      img("Wide-Leg Trouser", "Pants", "stone", 1),
-      img("Wide-Leg Trouser", "Pants", "bone", 2),
+      "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1000&q=85",
+      "https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&w=1000&q=85",
     ],
     badges: ["Best Seller"],
-    rating: 4.7,
-    reviewCount: 198,
-    inventory: 42,
-    material: "55% Silk, 45% Wool",
-    care: "Dry clean recommended.",
+    rating: 4.8,
+    reviewCount: 164,
+    inventory: 28,
+    material: "70% Wool, 30% Linen Crepe",
+    care: "Dry clean only.",
     isBestSeller: true,
-    tags: ["trouser", "tailored", "silk", "wide-leg", "womens"],
+    tags: ["espresso", "brown", "vest", "wide-leg", "tailored"],
   },
   {
-    id: "w-004",
-    slug: "atelier-camel-overcoat",
-    name: "Atelier Camel Overcoat",
-    subtitle: "Double-breasted long overcoat in merino wool",
+    id: "meme-006",
+    slug: "off-white-asymmetric-draped-jumpsuit",
+    name: "The Draped Off-White One-Shoulder Jumpsuit",
+    subtitle: "Architectural draped silk jumpsuit with scarf detail",
     description:
-      "A floor-grazing double-breasted overcoat tailored from 100% Italian merino wool. The Atelier features peak lapels, a clean shoulder, and a welted pocket configuration that reads quiet luxury. Half-canvas construction ensures the coat breaks beautifully across the chest. The quintessential winter statement piece, designed to layer over everything from tailoring to knitwear — made for Cairo winters and Alexandrian evenings by the sea.",
-    price: 26500,
-    compareAtPrice: 32000,
+      "As seen on the stairs of Paris in @suited_by_meme feed. Ivory white draped one-shoulder jumpsuit crafted from silk wool with an integrated trailing neck scarf. Tailored trousers with hidden side zipper.",
+    price: 19500,
+    compareAtPrice: 23000,
     currency: "EGP",
-    category: "Outerwear",
+    category: "Co-Ords & Sets",
     collection: "Atelier Noir",
     colors: [
-      { name: "Camel", hex: "#c19a6b" },
-      { name: "Noir", hex: "#0d0d0d" },
-      { name: "Stone", hex: "#8a8a7a" },
+      { name: "Ivory White", hex: "#fcfbfa" },
+      { name: "Sand", hex: "#e2d7c5" },
     ],
     sizes: ["XS", "S", "M", "L"],
     images: [
-      img("Camel Overcoat", "Outerwear", "camel", 0),
-      img("Camel Overcoat", "Outerwear", "noir", 1),
-      img("Camel Overcoat", "Outerwear", "stone", 2),
+      "https://images.unsplash.com/photo-1566174053879-31528523f8ae?auto=format&fit=crop&w=1000&q=85",
+      "https://images.unsplash.com/photo-1550639525-c97d455acf70?auto=format&fit=crop&w=1000&q=85",
     ],
-    badges: ["Premium", "Limited"],
+    badges: ["Exclusive", "High Evening"],
     rating: 5.0,
-    reviewCount: 89,
-    inventory: 12,
-    material: "100% Italian Merino Wool",
-    care: "Dry clean only. Store on a wide hanger.",
-    isLimited: true,
-    isBestSeller: true,
-    tags: ["coat", "outerwear", "wool", "winter", "womens"],
-  },
-  {
-    id: "w-005",
-    slug: "silk-slip-dress",
-    name: "Bias-Cut Silk Slip Dress",
-    subtitle: "Floor-skimming slip in mulberry silk",
-    description:
-      "A bias-cut floor-skimming slip dress cut from 19-momme mulberry silk. The Slip features a cowl neckline, delicate adjustable straps, and a body-skimming silhouette that drapes over every curve. Lightweight enough to layer under a blazer, elegant enough to wear solo. A modern heirloom designed for every occasion — from Cairo Opera openings to Nile-side dinners.",
-    price: 11500,
-    currency: "EGP",
-    category: "Dresses",
-    collection: "Atelier Noir",
-    colors: [
-      { name: "Champagne", hex: "#f7e7c4" },
-      { name: "Noir", hex: "#0d0d0d" },
-      { name: "Burgundy", hex: "#5e1f2d" },
-      { name: "Sage", hex: "#9caf88" },
-    ],
-    sizes: ["XS", "S", "M", "L"],
-    images: [
-      img("Silk Slip Dress", "Dresses", "champagne", 0),
-      img("Silk Slip Dress", "Dresses", "noir", 1),
-      img("Silk Slip Dress", "Dresses", "burgundy", 2),
-    ],
-    badges: ["Best Seller", "100% Silk"],
-    rating: 4.9,
-    reviewCount: 412,
-    inventory: 56,
-    material: "100% Mulberry Silk (19mm)",
-    care: "Hand wash cold or dry clean. Hang dry.",
-    isBestSeller: true,
-    isTrending: true,
-    tags: ["dress", "slip", "silk", "evening", "womens"],
-  },
-  {
-    id: "w-006",
-    slug: "merino-crewneck-sweater",
-    name: "Fine Merino Crewneck Sweater",
-    subtitle: "Fine-gauge crewneck in extra-fine merino",
-    description:
-      "A fine-gauge crewneck sweater knit from 19.5-micron extra-fine merino wool. The Merino Crew features a clean ribbed collar, fitted cuff, and a body that skims without clinging. Lightweight enough to layer, warm enough to wear alone. Naturally temperature-regulating, moisture-wicking, and odor-resistant — the smart knit for every season, perfect for Cairo's mild winters.",
-    price: 6200,
-    compareAtPrice: 7500,
-    currency: "EGP",
-    category: "Knitwear",
-    collection: "Core Essentials",
-    colors: [
-      { name: "Bone", hex: "#e3dac9" },
-      { name: "Noir", hex: "#0d0d0d" },
-      { name: "Camel", hex: "#c19a6b" },
-      { name: "Dusty Rose", hex: "#c8a0a0" },
-      { name: "Slate", hex: "#708090" },
-    ],
-    sizes: ["XS", "S", "M", "L", "XL"],
-    images: [
-      img("Merino Crewneck", "Knitwear", "bone", 0),
-      img("Merino Crewneck", "Knitwear", "camel", 1),
-      img("Merino Crewneck", "Knitwear", "slate", 2),
-    ],
-    badges: ["Premium"],
-    rating: 4.8,
-    reviewCount: 312,
-    inventory: 67,
-    material: "100% Extra-Fine Merino Wool (19.5 micron)",
-    care: "Hand wash cold or dry clean. Reshape and dry flat.",
-    isTrending: true,
-    tags: ["sweater", "knit", "merino", "layering", "womens"],
-  },
-  {
-    id: "w-007",
-    slug: "leather-moto-jacket",
-    name: "Cropped Leather Moto Jacket",
-    subtitle: "Cropped biker in Italian lambskin",
-    description:
-      "A cropped moto jacket cut from butter-soft Italian lambskin. The Moto features an asymmetric zip front, snap-lapel collar, and quilted shoulder panels that break in beautifully. Silver-tone hardware, viscose lining, and four pockets engineered for daily carry. A heritage piece designed to outlive every trend — pair with the silk slip dress for high-low contrast.",
-    price: 38500,
-    currency: "EGP",
-    category: "Outerwear",
-    collection: "Atelier Noir",
-    colors: [
-      { name: "Noir", hex: "#0d0d0d" },
-      { name: "Cognac", hex: "#9a3833" },
-      { name: "Bone", hex: "#e3dac9" },
-    ],
-    sizes: ["XS", "S", "M", "L"],
-    images: [
-      img("Leather Moto Jacket", "Outerwear", "noir", 0),
-      img("Leather Moto Jacket", "Outerwear", "cognac", 1),
-      img("Leather Moto Jacket", "Outerwear", "bone", 2),
-    ],
-    badges: ["Limited", "Premium Leather"],
-    rating: 4.9,
-    reviewCount: 76,
+    reviewCount: 110,
     inventory: 8,
-    material: "100% Italian Lambskin Leather, Viscose Lining",
-    care: "Professional leather clean only.",
+    material: "60% Mulberry Silk, 40% Virgin Wool",
+    care: "Dry clean only.",
+    isNew: true,
     isLimited: true,
-    tags: ["jacket", "leather", "moto", "outerwear", "womens"],
+    tags: ["jumpsuit", "one-shoulder", "white", "draped", "evening"],
   },
   {
-    id: "w-008",
-    slug: "midi-pencil-skirt",
-    name: "Tailored Midi Pencil Skirt",
-    subtitle: "High-waist pencil skirt in tropical wool",
+    id: "meme-007",
+    slug: "obsidian-double-breasted-blazer-dress",
+    name: "The Obsidian Double-Breasted Blazer Dress",
+    subtitle: "Mini blazer dress with gold-rimmed horn buttons",
     description:
-      "A high-waisted midi pencil skirt cut from Italian tropical wool. The Pencil features a clean fall from waist to knee, a back vent for movement, and a hidden back zip. Polished, professional, and endlessly versatile — pair with the Merino Crewneck for the office, or a silk camisole for evening. The foundation piece of a modern wardrobe.",
-    price: 7400,
+      "Structured double-breasted mini blazer dress in obsidian black wool crepe. Feature lapels, padded shoulders, and tailored waistline creating an elongated leg line. Wear alone or over trousers.",
+    price: 15200,
     currency: "EGP",
-    category: "Skirts",
+    category: "Blazer Dresses",
     collection: "Atelier Noir",
     colors: [
-      { name: "Noir", hex: "#0d0d0d" },
-      { name: "Stone", hex: "#8a8a7a" },
-      { name: "Camel", hex: "#c19a6b" },
+      { name: "Obsidian Noir", hex: "#0d0d0d" },
+      { name: "Cream Ivory", hex: "#f4eee1" },
+    ],
+    sizes: ["XS", "S", "M", "L"],
+    images: [
+      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1000&q=85",
+      "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=1000&q=85",
+    ],
+    badges: ["Best Seller"],
+    rating: 4.9,
+    reviewCount: 275,
+    inventory: 30,
+    material: "100% Fine Italian Wool Crepe",
+    care: "Dry clean only.",
+    isBestSeller: true,
+    tags: ["blazer-dress", "black", "double-breasted", "mini"],
+  },
+  {
+    id: "meme-008",
+    slug: "sand-beige-linen-tailored-suit-set",
+    name: "The Sand Beige Linen Tailored Suit",
+    subtitle: "Lightweight summer wool-linen 2-piece tailored set",
+    description:
+      "Effortless summer luxury featured in @suited_by_meme 'OUR STORY BEGINS' series. Warm sand beige vest with matching pleated wide-leg trousers. Breathable, structured, and timeless.",
+    price: 14800,
+    compareAtPrice: 17000,
+    currency: "EGP",
+    category: "Tailored Suits & Vests",
+    collection: "Core Essentials",
+    colors: [
+      { name: "Sand Beige", hex: "#e5dcd0" },
+      { name: "Ecru", hex: "#f5efe6" },
     ],
     sizes: ["XS", "S", "M", "L", "XL"],
     images: [
-      img("Midi Pencil Skirt", "Skirts", "noir", 0),
-      img("Midi Pencil Skirt", "Skirts", "stone", 1),
-      img("Midi Pencil Skirt", "Skirts", "camel", 2),
+      "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1000&q=85",
+      "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=1000&q=85",
     ],
-    badges: ["New"],
-    rating: 4.7,
+    badges: ["Summer Suit"],
+    rating: 4.8,
     reviewCount: 142,
-    inventory: 53,
-    material: "100% Italian Tropical Wool",
+    inventory: 25,
+    material: "50% Irish Linen, 50% Italian Wool",
     care: "Dry clean recommended.",
-    isNew: true,
-    tags: ["skirt", "pencil", "tailored", "wool", "womens"],
-  },
-  {
-    id: "w-009",
-    slug: "cashmere-wrap-scarf",
-    name: "Cashmere Wrap Scarf",
-    subtitle: "Oversized scarf in Mongolian cashmere",
-    description:
-      "An oversized 200cm scarf woven from grade-A Mongolian cashmere. The Wrap features hand-knotted fringe, a generous width that doubles as a shawl, and a weightless warmth that feels like wearing a cloud. Naturally dyed in muted tones that complement every palette. A lifetime companion piece that elevates every coat in your closet.",
-    price: 7800,
-    currency: "EGP",
-    category: "Accessories",
-    collection: "Atelier Noir",
-    colors: [
-      { name: "Camel", hex: "#c19a6b" },
-      { name: "Noir", hex: "#0d0d0d" },
-      { name: "Bone", hex: "#e3dac9" },
-      { name: "Dusty Rose", hex: "#c8a0a0" },
-    ],
-    sizes: ["ONE SIZE"],
-    images: [
-      img("Cashmere Wrap Scarf", "Accessories", "camel", 0),
-      img("Cashmere Wrap Scarf", "Accessories", "noir", 1),
-      img("Cashmere Wrap Scarf", "Accessories", "dusty rose", 2),
-    ],
-    badges: ["Premium", "Cashmere"],
-    rating: 4.9,
-    reviewCount: 187,
-    inventory: 34,
-    material: "100% Grade-A Mongolian Cashmere",
-    care: "Dry clean or hand wash cold. Dry flat.",
     isTrending: true,
-    tags: ["scarf", "accessory", "cashmere", "winter", "womens"],
-  },
-  {
-    id: "w-010",
-    slug: "leather-shoulder-tote",
-    name: "Structured Leather Shoulder Tote",
-    subtitle: "Structured tote in full-grain Italian leather",
-    description:
-      "A structured everyday tote crafted from full-grain Italian leather with a magnetic snap closure, interior zip pocket, and laptop sleeve (fits 14\"). The Tote features tonal stitched MEME monogram, gold-tone hardware, and a base that holds its shape. Rugged enough for daily use, refined enough for the office. Develops a beautiful patina with age.",
-    price: 14500,
-    compareAtPrice: 17500,
-    currency: "EGP",
-    category: "Accessories",
-    collection: "Core Essentials",
-    colors: [
-      { name: "Noir", hex: "#0d0d0d" },
-      { name: "Cognac", hex: "#9a3833" },
-      { name: "Bone", hex: "#e3dac9" },
-    ],
-    sizes: ["ONE SIZE"],
-    images: [
-      img("Leather Tote", "Accessories", "noir", 0),
-      img("Leather Tote", "Accessories", "cognac", 1),
-      img("Leather Tote", "Accessories", "bone", 2),
-    ],
-    badges: ["New", "Best Seller"],
-    rating: 4.8,
-    reviewCount: 234,
-    inventory: 78,
-    material: "Full-Grain Italian Leather",
-    care: "Wipe clean with damp cloth. Use leather conditioner monthly.",
-    isNew: true,
-    isBestSeller: true,
-    tags: ["bag", "tote", "accessory", "leather", "womens"],
-  },
-  {
-    id: "w-011",
-    slug: "high-rise-skinny-denim",
-    name: "High-Rise Skinny Denim",
-    subtitle: "High-rise stretch skinny in Japanese denim",
-    description:
-      "A high-rise skinny jean cut from 12oz Japanese stretch denim with a true-to-size top block and a tapered leg. The Skinny features five-pocket construction, copper rivets, and a button fly. Engineered with just enough stretch to move with you while holding its shape all day. Made on vintage shuttle looms in Okayama.",
-    price: 6800,
-    currency: "EGP",
-    category: "Pants",
-    collection: "Core Essentials",
-    colors: [
-      { name: "Indigo Raw", hex: "#1a2960" },
-      { name: "Washed Black", hex: "#1a1a1a" },
-      { name: "Stone Wash", hex: "#a0a8b8" },
-    ],
-    sizes: ["XS", "S", "M", "L", "XL"],
-    images: [
-      img("Skinny Denim", "Pants", "indigo raw", 0),
-      img("Skinny Denim", "Pants", "washed black", 1),
-      img("Skinny Denim", "Pants", "stone wash", 2),
-    ],
-    badges: ["Japanese", "Stretch"],
-    rating: 4.8,
-    reviewCount: 421,
-    inventory: 91,
-    material: "98% Cotton, 2% Elastane (12oz Japanese Denim)",
-    care: "Wash sparingly, inside out, cold water. Hang dry.",
-    isTrending: true,
-    tags: ["denim", "jeans", "skinny", "japanese", "womens"],
-  },
-  {
-    id: "w-012",
-    slug: "minimal-leather-loafer",
-    name: "Minimal Leather Loafer",
-    subtitle: "Low-profile loafer in Italian nappa leather",
-    description:
-      "A low-profile minimalist loafer crafted from Italian nappa leather with a tonal rubber sole. The Loafer features a clean almond toe, blind-stitched seams, and a memory-foam footbed for all-day comfort. Tonal stitched MEME wordmark at the heel. Designed to be worn with everything from denim to dresses. A modern classic.",
-    price: 8900,
-    currency: "EGP",
-    category: "Footwear",
-    collection: "Core Essentials",
-    colors: [
-      { name: "Noir", hex: "#0d0d0d" },
-      { name: "Bone", hex: "#e3dac9" },
-      { name: "Cognac", hex: "#9a3833" },
-    ],
-    sizes: ["S", "M", "L", "XL"],
-    images: [
-      img("Leather Loafer", "Footwear", "noir", 0),
-      img("Leather Loafer", "Footwear", "bone", 1),
-      img("Leather Loafer", "Footwear", "cognac", 2),
-    ],
-    badges: ["Best Seller", "Italian Leather"],
-    rating: 4.9,
-    reviewCount: 678,
-    inventory: 47,
-    material: "Italian Nappa Leather, Rubber Sole",
-    care: "Wipe clean with damp cloth. Use leather conditioner monthly.",
-    isBestSeller: true,
-    isTrending: true,
-    tags: ["loafer", "shoes", "leather", "footwear", "womens"],
+    tags: ["sand", "beige", "linen", "summer", "suit"],
   },
 ];
 
-// ============ Collections ============
+export const reviews = [
+  {
+    id: "r1",
+    author: "Nour Al-Sayed",
+    rating: 5,
+    title: "Unmatched tailoring and silhouette!",
+    body: "I bought the Marsala Burgundy Vest Set for an event in Cairo — the fit is absolute perfection. The waist definition and trouser length were spot on. Highly recommended!",
+    date: "2 days ago",
+    productId: "meme-001",
+    productName: "The Marsala Burgundy Vest & Trouser Set",
+    is_published: true,
+    is_verified: true,
+    verified: true,
+  },
+  {
+    id: "r2",
+    author: "Yasmin Farouk",
+    rating: 5,
+    title: "Pure elegance and luxury quality",
+    body: "The Cropped Noir Blazer is my new staple. The fabric quality feels like designer houses in Paris. Suited by MEME never disappoints!",
+    date: "1 week ago",
+    productId: "meme-002",
+    productName: "The Parisian Cropped Noir Blazer",
+    is_published: true,
+    is_verified: true,
+    verified: true,
+  },
+];
+
+export const categories = [
+  { id: "cat-1", slug: "tailored-suits-vests", name: "Tailored Suits & Vests", description: "V-neck vests, trouser sets and suits" },
+  { id: "cat-2", slug: "blazers-jackets", name: "Blazers & Jackets", description: "Cropped blazers and tailored coats" },
+  { id: "cat-3", slug: "blazer-dresses", name: "Blazer Dresses", description: "Double-breasted mini blazer dresses" },
+  { id: "cat-4", slug: "co-ords-sets", name: "Co-Ords & Sets", description: "Jumpsuits, sets and tailored co-ords" },
+];
+
 export const collections = [
   {
+    id: "col-1",
     slug: "atelier-noir",
     name: "Atelier Noir",
-    tagline: "Tailored essentials in depth-of-color black",
-    description:
-      "Our tailoring capsule — precision-cut blazer dresses, overcoats, silk trousers, and pencil skirts in Italian wools and leathers. Designed for the modern Egyptian woman who demands both structure and ease.",
-    image: editorialImg("Atelier Noir Collection", "noir", 1600, 900),
-    count: products.filter((p) => p.collection === "Atelier Noir").length,
+    tagline: "M-ake E-very M-oment E-xceptional",
+    description: "Signature tailored suits & vests",
+    image: "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=1000&q=85&auto=format&fit=crop",
+    count: 5,
   },
   {
+    id: "col-2",
     slug: "core-essentials",
     name: "Core Essentials",
-    tagline: "The foundation of every great wardrobe",
-    description:
-      "Cashmere hoodies, fine merino knits, high-rise denim, and minimal loafers. The pieces you reach for every day, engineered to outlive every trend cycle.",
-    image: editorialImg("Core Essentials Collection", "bone", 1600, 900),
-    count: products.filter((p) => p.collection === "Core Essentials").length,
-  },
-  {
-    slug: "premium-brands",
-    name: "Premium Brands",
-    tagline: "Top brands, one store — Zara, H&M, Lacoste, Adidas & more",
-    description:
-      "Discover more than 30 brands in one place. The premium branded catalog you love — Zara, H&M, Lacoste, Adidas, Hollister, Pull&Bear, Bershka, Hugo Boss — shipped fast across Egypt with cash on delivery.",
-    image: editorialImg("Premium Brands Collection", "gold", 1600, 900),
-    count: products.filter((p) => p.collection === "Premium Brands").length,
+    tagline: "Suited by MEME",
+    description: "Essential tailoring and sets",
+    image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1000&q=85&auto=format&fit=crop",
+    count: 3,
   },
 ];
 
-// ============ Categories ============
-export const categories = [
-  { slug: "all", name: "All" },
-  { slug: "Dresses", name: "Dresses" },
-  { slug: "Tailoring", name: "Tailoring" },
-  { slug: "Outerwear", name: "Outerwear" },
-  { slug: "Knitwear", name: "Knitwear" },
-  { slug: "Hoodies & Sweatshirts", name: "Hoodies" },
-  { slug: "Tops", name: "Tops" },
-  { slug: "Skirts", name: "Skirts" },
-  { slug: "Pants", name: "Pants" },
-  { slug: "Footwear", name: "Footwear" },
-  { slug: "Accessories", name: "Accessories" },
-];
+export const allSizes: (typeof products)[0]["sizes"][number][] = ["XS", "S", "M", "L", "XL", "XXL", "ONE SIZE"];
 
-// ============ Helper queries ============
-export const getProductBySlug = (slug: string) =>
-  products.find((p) => p.slug === slug);
-
-export const getProductsByCategory = (category: string) =>
-  category === "all" ? products : products.filter((p) => p.category === category);
-
-export const getProductsByCollection = (collection: string) =>
-  products.filter((p) => p.collection.toLowerCase().replace(/\s+/g, "-") === collection);
-
-export const getNewArrivals = () => products.filter((p) => p.isNew);
-export const getBestSellers = () => products.filter((p) => p.isBestSeller);
-export const getTrending = () => products.filter((p) => p.isTrending);
-export const getLimited = () => products.filter((p) => p.isLimited);
-
-export const getRelatedProducts = (product: Product, count = 4) =>
-  products
-    .filter((p) => p.id !== product.id && (p.category === product.category || p.collection === product.collection))
-    .slice(0, count);
-
-// ============ All filters helper ============
-export const allColors = Array.from(
-  new Set(products.flatMap((p) => p.colors.map((c) => c.name)))
-).sort();
-
-export const allSizes: ProductSize[] = ["XS", "S", "M", "L", "XL", "XXL", "ONE SIZE"];
-
-export const priceRange = {
-  min: Math.min(...products.map((p) => p.price)),
-  max: Math.max(...products.map((p) => p.price)),
-};
-
-// ============ Reviews ============
-export type Review = {
-  id: string;
-  productId: string;
-  author: string;
-  rating: number;
-  title: string;
-  body: string;
-  date: string;
-  verified: boolean;
-  helpful: number;
-};
-
-export const reviews: Review[] = [];
-
-export const getReviewsForProduct = (productId: string) =>
-  reviews.filter((r) => r.productId === productId);
+export function getReviewsForProduct(productId: string) {
+  return reviews.filter((r) => r.productId === productId);
+}

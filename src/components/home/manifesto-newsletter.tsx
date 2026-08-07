@@ -44,7 +44,7 @@ export function ManifestoNewsletter() {
     >
       {/* Background watermark */}
       <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none select-none opacity-50">
-        <span className="brand-watermark">MEME</span>
+        <span className="brand-watermark">ME/ME</span>
       </div>
       {/* Manifesto hero */}
       <div className="relative z-10 mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-10 pt-20 lg:pt-28 pb-16 lg:pb-20">

@@ -177,7 +177,7 @@ export function ReviewsSection() {
                           />
                         ))}
                       </div>
-                      {r.verified && (
+                      {r.is_verified && (
                         <Badge variant="secondary" className="text-[10px]">
                           <Check className="h-2.5 w-2.5 mr-0.5" /> Verified
                         </Badge>
@@ -188,7 +188,7 @@ export function ReviewsSection() {
                   <p className="text-xs text-muted-foreground mt-1">{r.body}</p>
                   <div className="flex items-center gap-4 mt-3 text-[11px] text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      <ThumbsUp className="h-3 w-3" /> {r.helpful} helpful
+                      <ThumbsUp className="h-3 w-3" /> Helpful
                     </span>
                   </div>
 

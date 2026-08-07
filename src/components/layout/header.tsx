@@ -94,11 +94,16 @@ export function Header() {
           </Sheet>
 
           {/* Logo */}
-          <Link href="/" className="flex-shrink-0 flex items-center gap-2.5 lg:mr-8 group">
-            <img src="/logo.svg" alt="MEME" className="h-7 w-7 rounded-md object-contain group-hover:scale-105 transition-transform duration-300" />
-            <span className="font-display text-2xl lg:text-[26px] tracking-[0.18em] font-bold leading-none text-gold-gradient">
-              MEME
-            </span>
+          <Link href="/" className="flex-shrink-0 flex items-center gap-3 lg:mr-8 group">
+            <img src="/logo.svg" alt="SUITED BY MEME" className="h-9 w-9 rounded-full object-contain group-hover:scale-105 transition-transform duration-300 shadow-sm" />
+            <div className="flex flex-col">
+              <span className="font-display text-xl lg:text-2xl tracking-[0.2em] font-bold leading-none text-foreground">
+                ME<span className="text-amber-600/80">/</span>ME
+              </span>
+              <span className="text-[9px] uppercase tracking-[0.25em] text-muted-foreground mt-0.5 font-sans font-medium">
+                SUITED BY MEME
+              </span>
+            </div>
           </Link>
 
           {/* Desktop nav */}
