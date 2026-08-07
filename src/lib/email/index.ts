@@ -24,6 +24,14 @@ export interface OrderConfirmationEmailParams {
     size?: string;
     color?: string;
   }>;
+  subtotal?: number;
+  discountTotal?: number;
+  couponCode?: string;
+  shippingTotal?: number;
+  shippingZoneName?: string;
+  vatTotal?: number;
+  paymentFee?: number;
+  paymentMethodName?: string;
   total: number;
   shippingAddress: {
     fullName?: string;
@@ -39,6 +47,7 @@ export interface OrderConfirmationEmailParams {
     phone?: string;
   };
   shippingMethod?: string;
+  customerNote?: string;
 }
 
 /**
@@ -55,7 +64,7 @@ export async function sendOrderConfirmationEmail(
 
   const fromAddress =
     process.env.EMAIL_FROM || "MEME Atelier <orders@memefashion.com>";
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://memeatelier.com";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://meme-eg.store";
 
   const customerName =
     params.shippingAddress.fullName ||
@@ -100,6 +109,8 @@ export async function sendOrderConfirmationEmail(
     `;
     })
     .join("");
+
+  const calculatedSubtotal = params.subtotal ?? params.lines.reduce((s, l) => s + l.price * l.quantity, 0);
 
   const html = `
     <!DOCTYPE html>
@@ -154,18 +165,74 @@ export async function sendOrderConfirmationEmail(
                     </tbody>
                   </table>
 
-                  <!-- Total Section -->
-                  <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="margin-bottom: 32px;">
+                  <!-- Total Breakdown Section -->
+                  <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="margin-bottom: 32px; border-top: 1px solid #eeeeee; padding-top: 16px;">
                     <tr>
-                      <td style="padding: 6px 0; font-size: 14px; color: #777777;">Subtotal & Shipping</td>
-                      <td style="padding: 6px 0; font-size: 14px; text-align: right; color: #111111;">Included</td>
+                      <td style="padding: 6px 0; font-size: 14px; color: #666666;">Subtotal</td>
+                      <td style="padding: 6px 0; font-size: 14px; text-align: right; color: #111111; font-weight: 500;">
+                        EGP ${calculatedSubtotal.toLocaleString("en-US")}
+                      </td>
                     </tr>
+
+                    ${
+                      (params.discountTotal ?? 0) > 0
+                        ? `
                     <tr>
-                      <td style="padding: 12px 0; font-size: 16px; font-weight: 600; color: #111111; border-top: 1px solid #eeeeee;">Total Amount</td>
-                      <td style="padding: 12px 0; font-size: 18px; font-weight: 700; text-align: right; color: #111111; border-top: 1px solid #eeeeee;">
+                      <td style="padding: 6px 0; font-size: 14px; color: #059669;">Discount ${params.couponCode ? `(${params.couponCode})` : ""}</td>
+                      <td style="padding: 6px 0; font-size: 14px; text-align: right; color: #059669; font-weight: 600;">
+                        -EGP ${params.discountTotal!.toLocaleString("en-US")}
+                      </td>
+                    </tr>`
+                        : ""
+                    }
+
+                    <tr>
+                      <td style="padding: 6px 0; font-size: 14px; color: #666666;">Shipping ${params.shippingZoneName ? `(${params.shippingZoneName.split(" (")[0]})` : ""}</td>
+                      <td style="padding: 6px 0; font-size: 14px; text-align: right; color: #111111; font-weight: 500;">
+                        ${params.shippingTotal === 0 ? '<span style="color: #059669; font-weight: 600;">FREE</span>' : `EGP ${(params.shippingTotal ?? 75).toLocaleString("en-US")}`}
+                      </td>
+                    </tr>
+
+                    ${
+                      (params.vatTotal ?? 0) > 0
+                        ? `
+                    <tr>
+                      <td style="padding: 6px 0; font-size: 14px; color: #666666;">VAT (14% Egypt Tax)</td>
+                      <td style="padding: 6px 0; font-size: 14px; text-align: right; color: #111111; font-weight: 500;">
+                        EGP ${params.vatTotal!.toLocaleString("en-US")}
+                      </td>
+                    </tr>`
+                        : ""
+                    }
+
+                    ${
+                      (params.paymentFee ?? 0) > 0
+                        ? `
+                    <tr>
+                      <td style="padding: 6px 0; font-size: 14px; color: #666666;">Payment Fee ${params.paymentMethodName ? `(${params.paymentMethodName})` : ""}</td>
+                      <td style="padding: 6px 0; font-size: 14px; text-align: right; color: #111111; font-weight: 500;">
+                        EGP ${params.paymentFee!.toLocaleString("en-US")}
+                      </td>
+                    </tr>`
+                        : ""
+                    }
+
+                    <tr>
+                      <td style="padding: 14px 0 6px 0; font-size: 16px; font-weight: 700; color: #111111; border-top: 2px solid #111111;">Total Amount</td>
+                      <td style="padding: 14px 0 6px 0; font-size: 20px; font-weight: 800; text-align: right; color: #d97706; border-top: 2px solid #111111;">
                         EGP ${params.total.toLocaleString("en-US")}
                       </td>
                     </tr>
+                    ${
+                      params.paymentMethodName
+                        ? `
+                    <tr>
+                      <td colspan="2" style="font-size: 12px; color: #777777; text-align: right; padding-top: 4px;">
+                        Payment Method: <strong>${params.paymentMethodName}</strong>
+                      </td>
+                    </tr>`
+                        : ""
+                    }
                   </table>
 
                   <!-- Shipping Address -->
@@ -180,6 +247,14 @@ export async function sendOrderConfirmationEmail(
                       ${params.shippingAddress.city}${stateOrGov ? `, ${stateOrGov}` : ""}<br/>
                       ${phone ? `Phone: ${phone}` : ""}
                     </p>
+                    ${
+                      params.customerNote
+                        ? `
+                    <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #dddddd; font-size: 13px; color: #555555;">
+                      <strong>Note:</strong> ${params.customerNote}
+                    </div>`
+                        : ""
+                    }
                   </div>
 
                   <!-- CTA Button -->

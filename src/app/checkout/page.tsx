@@ -253,6 +253,8 @@ export default function CheckoutPage() {
             phone: form.phone,
           },
           shipping_method: "standard" as const,
+          shipping_zone_id: form.shippingZone,
+          payment_method_id: form.paymentMethod,
           coupon_code: appliedCoupon?.code,
           lines: lines.map((l) => ({
             productId: l.productId,

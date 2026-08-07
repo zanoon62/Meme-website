@@ -150,6 +150,8 @@ export async function POST(req: NextRequest) {
     lines: payload.lines,
     shipping_address: payload.shipping_address,
     shipping_method: payload.shipping_method,
+    shipping_zone_id: payload.shipping_zone_id,
+    payment_method_id: payload.payment_method_id,
     coupon_code: payload.coupon_code,
     customer_note: payload.customer_note,
     customer_id: customerId,
@@ -178,9 +180,17 @@ export async function POST(req: NextRequest) {
       orderNumber: result.order.order_number,
       recipientEmail: payload.email,
       lines: payload.lines,
+      subtotal: result.order.subtotal,
+      discountTotal: result.order.discount_total,
+      couponCode: result.order.coupon_code,
+      shippingTotal: result.order.shipping_total,
+      shippingZoneName: result.order.shipping_zone_name,
+      vatTotal: result.order.vat_total,
+      paymentFee: result.order.payment_fee,
+      paymentMethodName: result.order.payment_method_name,
       total: result.order.total,
       shippingAddress: payload.shipping_address,
-      shippingMethod: payload.shipping_method,
+      customerNote: payload.customer_note,
     }).catch((err) => {
       logger.error("Failed to send order confirmation email", { error: err });
     });

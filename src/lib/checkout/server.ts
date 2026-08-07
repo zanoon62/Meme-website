@@ -133,11 +133,19 @@ async function generateOrderNumber(supabase: ServiceClient): Promise<string> {
   return `MEME-${yy}${mm}${dd}-${rand}`;
 }
 
+import {
+  SHIPPING_ZONES,
+  PAYMENT_METHODS,
+  FREE_SHIPPING_THRESHOLD,
+} from "@/lib/format";
+
 export type CreateOrderInput = {
   email: string;
   lines: CartLine[];
   shipping_address: Address;
   shipping_method: string;
+  shipping_zone_id?: string;
+  payment_method_id?: string;
   coupon_code?: string;
   customer_note?: string;
   customer_id?: string;
@@ -151,8 +159,13 @@ export type CreatedOrder = {
   subtotal: number;
   discount_total: number;
   shipping_total: number;
+  vat_total: number;
+  payment_fee: number;
   tax_total: number;
   currency: string;
+  shipping_zone_name: string;
+  payment_method_name: string;
+  coupon_code?: string;
 };
 
 /**
@@ -169,20 +182,27 @@ export async function createOrder(
   const couponResult = await validateCoupon(supabase, input.coupon_code, subtotal);
 
   let discountTotal = 0;
-  let couponCode: string | null = null;
+  let couponCode: string | undefined = undefined;
   if (couponResult.ok) {
     discountTotal = couponResult.discount;
     couponCode = couponResult.coupon.code;
   }
 
-  const shippingTotal =
-    couponResult.ok && couponResult.coupon.type === "shipping"
-      ? 0
-      : calculateShipping(subtotal, input.shipping_method);
+  const discountedSub = Math.max(0, subtotal - discountTotal);
 
-  const taxableBase = Math.max(0, subtotal - discountTotal);
-  const taxTotal = calculateTax(taxableBase, input.shipping_address.state);
-  const total = Math.max(0, taxableBase + shippingTotal + taxTotal);
+  // Egypt 14% VAT
+  const vatTotal = Math.round(discountedSub * 0.14);
+
+  // Shipping zone calculation
+  const zone = SHIPPING_ZONES.find((z) => z.id === input.shipping_zone_id) ?? SHIPPING_ZONES[0];
+  const shippingTotal = (subtotal >= FREE_SHIPPING_THRESHOLD || (couponResult.ok && couponResult.coupon.type === "shipping")) ? 0 : zone.cost;
+
+  // Payment method fee calculation
+  const method = PAYMENT_METHODS.find((m) => m.id === input.payment_method_id) ?? PAYMENT_METHODS[0];
+  const paymentFee = (method.processingFee ?? 0) + Math.round(((method.feePercent ?? 0) / 100) * discountedSub);
+
+  // Grand Total
+  const total = discountedSub + shippingTotal + vatTotal + paymentFee;
 
   const orderNumber = await generateOrderNumber(supabase);
 
@@ -199,7 +219,7 @@ export async function createOrder(
       subtotal,
       discount_total: discountTotal,
       shipping_total: shippingTotal,
-      tax_total: taxTotal,
+      tax_total: vatTotal,
       total,
       currency: "EGP",
       coupon_code: couponCode,
@@ -289,8 +309,13 @@ export async function createOrder(
       subtotal,
       discount_total: discountTotal,
       shipping_total: shippingTotal,
-      tax_total: taxTotal,
+      vat_total: vatTotal,
+      payment_fee: paymentFee,
+      tax_total: vatTotal,
       currency: "EGP",
+      shipping_zone_name: zone.name,
+      payment_method_name: method.name,
+      coupon_code: couponCode,
     },
   };
 }
