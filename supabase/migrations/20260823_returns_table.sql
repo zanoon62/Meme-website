@@ -3,6 +3,28 @@
 -- Run this in Supabase Dashboard > SQL Editor
 -- ============================================================
 
+-- ── 1. Create Storage bucket for return images (public, 8MB max)
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'returns',
+  'returns',
+  true,
+  8388608,  -- 8 MB
+  array['image/jpeg','image/jpg','image/png','image/webp','image/gif','image/heic']
+)
+on conflict (id) do nothing;
+
+-- Public read policy for the returns bucket
+create policy "public_read_returns" on storage.objects
+  for select using (bucket_id = 'returns');
+
+-- Authenticated users can upload
+create policy "auth_upload_returns" on storage.objects
+  for insert with check (
+    bucket_id = 'returns'
+    and auth.role() = 'authenticated'
+  );
+
 create table if not exists public.returns (
   id             uuid primary key default gen_random_uuid(),
   order_id       uuid references public.orders(id) on delete set null,

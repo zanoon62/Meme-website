@@ -158,13 +158,13 @@ export function ReturnsClient() {
       const ext = file.name.split(".").pop() ?? "jpg";
       const path = `returns/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       const { error } = await supabase.storage
-        .from("product-images")
+        .from("returns")
         .upload(path, file, { upsert: false, contentType: file.type });
       if (error) {
         toast.error(isAr ? "فشل رفع الصورة" : "Failed to upload image");
         return null;
       }
-      const { data } = supabase.storage.from("product-images").getPublicUrl(path);
+      const { data } = supabase.storage.from("returns").getPublicUrl(path);
       return data.publicUrl;
     } finally {
       setUploadingImage(false);
