@@ -206,6 +206,9 @@ export const ADMIN_I18N = {
     cancelBtn: "Cancel",
     confirmDeleteTitle: "Are you sure you want to delete this product?",
     confirmDeleteDesc: "This action cannot be undone. This product will be removed from your catalog.",
+    // Returns
+    returns: "Returns",
+    manageReturns: "Manage customer return and refund requests",
   },
   ar: {
     overview: "نظرة عامة",
@@ -409,6 +412,9 @@ export const ADMIN_I18N = {
     cancelBtn: "إلغاء",
     confirmDeleteTitle: "هل أنت تأكد من رغبتك في حذف هذا المنتج؟",
     confirmDeleteDesc: "لا يمكن التراجع عن هذا الإجراء. سيتم إزالة هذا المنتج نهائياً من الكتالوج الخاص بك.",
+    // Returns
+    returns: "المرتجعات",
+    manageReturns: "إدارة طلبات الاسترجاع والاستبدال من العملاء",
   },
 } as const;
 

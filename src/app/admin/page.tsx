@@ -11,6 +11,7 @@ import { InventorySection } from "@/components/admin/sections/inventory-section"
 import { CategoriesSection } from "@/components/admin/sections/categories-section";
 import { MarketingSection } from "@/components/admin/sections/marketing-section";
 import { ReviewsSection } from "@/components/admin/sections/reviews-section";
+import { ReturnsSection } from "@/components/admin/sections/returns-section";
 import { AnalyticsSection } from "@/components/admin/sections/analytics-section";
 import { SettingsSection } from "@/components/admin/sections/settings-section";
 import { AdminGuideSection } from "@/components/admin/admin-guide";
@@ -29,6 +30,7 @@ const VALID_SECTIONS: AdminSection[] = [
   "categories",
   "marketing",
   "reviews",
+  "returns",
   "analytics",
   "settings",
   "guide",
@@ -107,6 +109,7 @@ export default function AdminPage() {
       {section === "categories" && <CategoriesSection />}
       {section === "marketing" && <MarketingSection />}
       {section === "reviews" && <ReviewsSection />}
+      {section === "returns" && <ReturnsSection />}
       {section === "analytics" && <AnalyticsSection />}
       {section === "settings" && <SettingsSection />}
       {section === "guide" && <AdminGuideSection />}

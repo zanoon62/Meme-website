@@ -62,6 +62,7 @@ export type AdminSection =
   | "categories"
   | "marketing"
   | "reviews"
+  | "returns"
   | "analytics"
   | "settings"
   | "guide"
@@ -136,6 +137,7 @@ export function AdminShell({
           { id: "orders" as AdminSection, icon: ShoppingCart, label: t("orders") },
           { id: "customers" as AdminSection, icon: Users, label: t("customers") },
           { id: "reviews" as AdminSection, icon: Star, label: t("reviews") },
+          { id: "returns" as AdminSection, icon: RotateCcw, label: t("returns") },
         ],
       },
       {

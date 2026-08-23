@@ -32,6 +32,7 @@ export function Header() {
   const dir = useLangDir();
   const liveCategories = useLiveCategories();
   const [adminEmail, setAdminEmail] = React.useState<string | null>(null);
+  const [isCustomerLoggedIn, setIsCustomerLoggedIn] = React.useState(false);
 
   React.useEffect(() => {
     const check = () => {
@@ -49,6 +50,21 @@ export function Header() {
         });
     };
     check();
+
+    // Also check Supabase customer session for Returns link
+    const checkCustomer = async () => {
+      try {
+        const { getSupabaseBrowser } = await import("@/lib/supabase/browser");
+        const { isSupabaseConfigured } = await import("@/lib/supabase/config");
+        if (!isSupabaseConfigured()) return;
+        const supabase = getSupabaseBrowser();
+        const { data: { user } } = await supabase.auth.getUser();
+        setIsCustomerLoggedIn(!!user);
+      } catch {
+        setIsCustomerLoggedIn(false);
+      }
+    };
+    checkCustomer();
 
     // Re-check when tab regains focus (e.g. after OAuth redirect)
     document.addEventListener("visibilitychange", check);
@@ -122,6 +138,11 @@ export function Header() {
                   ))}
                   <Link href="/account" onClick={() => setMobileOpen(false)} className="py-3 text-base border-b border-white/5 mt-4">{t("nav.account")}</Link>
                   <Link href="/wishlist" onClick={() => setMobileOpen(false)} className="py-3 text-base border-b border-white/5">{t("nav.wishlist")}</Link>
+                  {isCustomerLoggedIn && (
+                    <Link href="/returns" onClick={() => setMobileOpen(false)} className="py-3 text-base border-b border-white/5 flex items-center gap-2">
+                      {t("nav.returns")}
+                    </Link>
+                  )}
                   {adminEmail && (
                     <Link href="/admin" onClick={() => setMobileOpen(false)} className="py-3 text-base border-b border-white/5 text-amber-600 font-medium flex items-center gap-2">
                       <LayoutDashboard className="h-4 w-4" />
@@ -177,6 +198,11 @@ export function Header() {
                 </div>
               </div>
             </div>
+            {isCustomerLoggedIn && (
+              <Link href="/returns" className="link-underline hover:text-foreground/80">
+                {t("nav.returns")}
+              </Link>
+            )}
 
           </nav>
 

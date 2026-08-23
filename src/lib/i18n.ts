@@ -18,6 +18,7 @@ const DICT: Dict = {
   "nav.wishlist": { en: "Wishlist", ar: "المفضلة" },
   "nav.cart": { en: "Cart", ar: "السلة" },
   "nav.search": { en: "Search", ar: "بحث" },
+  "nav.returns": { en: "Returns", ar: "الاسترجاع" },
 
   // Hero
   "hero.shop_now": { en: "Shop Now", ar: "تسوق الآن" },
