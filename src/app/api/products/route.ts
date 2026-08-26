@@ -71,7 +71,6 @@ export async function GET(req: NextRequest) {
 
     const imageMap = new Map<string, string[]>();
     for (const img of images ?? []) {
-      if (img.url.startsWith("data:image")) continue; // Ignore base64 images
       const arr = imageMap.get(img.product_id) ?? [];
       arr.push(img.url);
       imageMap.set(img.product_id, arr);

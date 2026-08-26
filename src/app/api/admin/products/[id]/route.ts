@@ -25,9 +25,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       .order("sort_order", { ascending: true }),
   ]);
   if (error) return NextResponse.json({ error: error.message }, { status: 404 });
-  
-  const validImages = (images ?? []).filter(img => !img.url.startsWith("data:image"));
-  return NextResponse.json({ product: { ...product, images: validImages.map(img => img.url) } });
+  return NextResponse.json({ product: { ...product, images: images ?? [] } });
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
