@@ -15,6 +15,7 @@ import { products as seedProducts } from "@/data/products";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import type { Database } from "@/lib/supabase/database.types";
+import { getProductFallbackImages } from "@/lib/product-fallback-images";
 
 type SupabaseProduct = Database["public"]["Tables"]["products"]["Row"];
 
@@ -108,16 +109,13 @@ export async function fetchAllProducts(): Promise<Product[]> {
       imageMap.set(img.product_id, arr);
     }
 
-    return rows.map((p) => ({
-      ...dbProductToStore(p),
-      images:
-        imageMap.get(p.id) ??
-        (p.compare_at_price
-          ? [
-              "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1200&q=85&auto=format&fit=crop",
-            ]
-          : []),
-    }));
+    return rows.map((p) => {
+      const pImages = imageMap.get(p.id);
+      return {
+        ...dbProductToStore(p),
+        images: pImages && pImages.length > 0 ? pImages : getProductFallbackImages(p.slug, p.name),
+      };
+    });
   } catch {
     return seedProducts;
   }
@@ -146,15 +144,10 @@ export async function fetchProductBySlug(slug: string): Promise<Product | null> 
       .eq("product_id", data.id)
       .order("sort_order", { ascending: true });
 
+    const pImages = images?.map((i) => i.url);
     return {
       ...dbProductToStore(data),
-      images:
-        images?.map((i) => i.url) ??
-        (data.compare_at_price
-          ? [
-              "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1200&q=85&auto=format&fit=crop",
-            ]
-          : []),
+      images: pImages && pImages.length > 0 ? pImages : getProductFallbackImages(data.slug, data.name),
     };
   } catch {
     return seedProducts.find((p) => p.slug === slug) ?? null;

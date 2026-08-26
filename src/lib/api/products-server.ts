@@ -4,6 +4,7 @@ import { createSupabaseStaticClient } from "@/lib/supabase/server";
 import { products as seedProducts } from "@/data/products";
 import type { Product } from "@/components/providers/ui-provider";
 import { dbProductToStore } from "@/lib/api/products";
+import { getProductFallbackImages } from "@/lib/product-fallback-images";
 
 export async function fetchAllProductsServer(): Promise<Product[]> {
   if (!isSupabaseConfigured()) {
@@ -43,9 +44,7 @@ export async function fetchAllProductsServer(): Promise<Product[]> {
       ...dbProductToStore(product),
       images: productImages.length
         ? productImages
-        : product.compare_at_price
-          ? ["https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1200&q=85&auto=format&fit=crop"]
-          : [],
+        : getProductFallbackImages(product.slug, product.name),
     };
   });
 }

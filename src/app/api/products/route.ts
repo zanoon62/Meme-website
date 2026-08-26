@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseStaticClient } from "@/lib/supabase/server";
 import { products as seedProducts } from "@/data/products";
+import { getProductFallbackImages } from "@/lib/product-fallback-images";
 
 export const runtime = "nodejs";
 
@@ -92,9 +93,7 @@ export async function GET(req: NextRequest) {
         sizes: p.sizes ?? [],
         images: productImages.length 
           ? productImages 
-          : p.compare_at_price 
-            ? ["https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1200&q=85&auto=format&fit=crop"] 
-            : [],
+          : getProductFallbackImages(p.slug, p.name),
         badges: p.badges ?? [],
         rating: Number(p.rating ?? 5),
         reviewCount: p.review_count ?? 0,
