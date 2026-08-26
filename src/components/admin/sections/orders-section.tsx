@@ -114,30 +114,40 @@ const statusColor: Record<OrderStatus, string> = {
   refunded: "bg-neutral-100 text-neutral-800",
 };
 
+// Module-level cache so switching admin sections and coming back to Orders
+// shows the last-fetched data instantly instead of a blank reload every time.
+const ordersCache = new Map<
+  string,
+  { orders: Order[]; items: Record<string, OrderItem[]>; fetchedAt: number }
+>();
+const ORDERS_STALE_MS = 30_000;
+
 export function OrdersSection() {
   const { t } = useAdminT();
-  const [orders, setOrders] = React.useState<Order[]>([]);
-  const [items, setItems] = React.useState<Record<string, OrderItem[]>>({});
-  const [loading, setLoading] = React.useState(true);
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
+  const cached = ordersCache.get(statusFilter);
+  const [orders, setOrders] = React.useState<Order[]>(cached?.orders ?? []);
+  const [items, setItems] = React.useState<Record<string, OrderItem[]>>(cached?.items ?? {});
+  const [loading, setLoading] = React.useState(!cached);
   const [search, setSearch] = React.useState("");
   const [selected, setSelected] = React.useState<Order | null>(null);
 
-  const load = React.useCallback(async () => {
-    setLoading(true);
+  const load = React.useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     try {
       const res = await fetch(
         `/api/admin/orders?status=${statusFilter}&limit=100`
       );
       if (res.ok) {
         const data = await res.json();
-        setOrders(data.orders ?? []);
-        // group items by order_id
+        const nextOrders: Order[] = data.orders ?? [];
         const map: Record<string, OrderItem[]> = {};
         for (const it of data.items ?? []) {
           (map[it.order_id] ??= []).push(it);
         }
+        setOrders(nextOrders);
         setItems(map);
+        ordersCache.set(statusFilter, { orders: nextOrders, items: map, fetchedAt: Date.now() });
       }
     } catch {
       // ignore
@@ -147,8 +157,19 @@ export function OrdersSection() {
   }, [statusFilter]);
 
   React.useEffect(() => {
-    load();
-  }, [load]);
+    const entry = ordersCache.get(statusFilter);
+    if (entry) {
+      // Show cached data immediately; revalidate in the background if stale.
+      setOrders(entry.orders);
+      setItems(entry.items);
+      setLoading(false);
+      if (Date.now() - entry.fetchedAt > ORDERS_STALE_MS) {
+        load({ silent: true });
+      }
+    } else {
+      load();
+    }
+  }, [statusFilter, load]);
 
   const filtered = orders.filter((o) => {
     if (!search) return true;

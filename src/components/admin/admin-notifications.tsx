@@ -9,6 +9,7 @@ import {
   PackageX,
   Star,
   Sparkles,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +25,7 @@ import type { AdminSection } from "@/components/admin/admin-shell";
 
 type NotificationItem = {
   id: string;
-  type: "order" | "inventory" | "review" | "system";
+  type: "order" | "inventory" | "review" | "return" | "system";
   titleAr: string;
   titleEn: string;
   descAr: string;
@@ -48,14 +49,16 @@ export function AdminNotifications({
   const [notifications, setNotifications] =
     React.useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
 
-  // Fetch real order notifications & low inventory alerts
+  // Fetch real order notifications, low inventory alerts & return requests
   React.useEffect(() => {
     let isMounted = true;
-    (async () => {
+
+    const load = async () => {
       try {
-        const [ordersRes, productsRes] = await Promise.all([
+        const [ordersRes, productsRes, returnsRes] = await Promise.all([
           fetch("/api/admin/orders?limit=15"),
           fetch("/api/admin/products"),
+          fetch("/api/admin/returns?limit=15"),
         ]);
 
         const items: NotificationItem[] = [];
@@ -103,15 +106,45 @@ export function AdminNotifications({
           }
         }
 
+        if (returnsRes.ok) {
+          const { returns } = await returnsRes.json();
+          if (returns && Array.isArray(returns)) {
+            returns
+              .filter((r: any) => r.status === "pending" || r.status === "reviewing")
+              .forEach((r: any) => {
+                const dateObj = new Date(r.created_at || Date.now());
+                const timeStr = dateObj.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                items.push({
+                  id: `return-${r.id}`,
+                  type: "return",
+                  titleAr: `طلب مرتجع جديد #${r.order_number ?? r.id.slice(0, 8)}`,
+                  titleEn: `New Return Request #${r.order_number ?? r.id.slice(0, 8)}`,
+                  descAr: `${r.reason ? r.reason + " — " : ""}الحالة: ${r.status}`,
+                  descEn: `${r.reason ? r.reason + " — " : ""}Status: ${r.status}`,
+                  timeAr: timeStr,
+                  timeEn: timeStr,
+                  read: false,
+                  targetSection: "returns",
+                });
+              });
+          }
+        }
+
         if (isMounted && items.length > 0) {
           setNotifications(items);
         }
       } catch (err) {
         console.error("Failed to load admin notifications", err);
       }
-    })();
+    };
 
-    return () => { isMounted = false; };
+    load();
+    const interval = setInterval(load, 30_000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -143,6 +176,8 @@ export function AdminNotifications({
         return <PackageX className="h-4 w-4 text-amber-500" />;
       case "review":
         return <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />;
+      case "return":
+        return <RotateCcw className="h-4 w-4 text-indigo-500" />;
       default:
         return <Sparkles className="h-4 w-4 text-blue-500" />;
     }

@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/admin-guard";
+import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
 import { limiters } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 
@@ -21,6 +22,11 @@ export async function PATCH(
   const rl = limiters.admin(req);
   if (!rl.success) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
+  // Demo mode — no Supabase configured, so there's no returns table to update.
+  if (!isSupabaseServiceConfigured()) {
+    return NextResponse.json({ error: "Not available in demo mode" }, { status: 503 });
   }
 
   const guard = await requireAdmin();

@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/admin-guard";
+import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
 import { limiters } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 
@@ -13,6 +14,11 @@ export async function GET(req: NextRequest) {
   const rl = limiters.admin(req);
   if (!rl.success) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
+  // Demo mode — no Supabase configured, so there's no returns table to query.
+  if (!isSupabaseServiceConfigured()) {
+    return NextResponse.json({ returns: [], total: 0 });
   }
 
   const guard = await requireAdmin();
