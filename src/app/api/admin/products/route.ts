@@ -155,6 +155,15 @@ export async function POST(req: NextRequest) {
     }
 
     logger.info("product created", { productId: data.id, slug: payload.slug, by: guard.userId });
+    
+    // Purge cached products immediately
+    try {
+      const { revalidateTag, revalidatePath } = await import("next/cache");
+      (revalidateTag as any)("products");
+      revalidatePath("/", "page");
+      revalidatePath("/shop", "page");
+    } catch {}
+
     return NextResponse.json({ product: { ...data, images: insertedImages } }, { status: 201 });
   } catch (e) {
     logger.error("admin product create exception", {

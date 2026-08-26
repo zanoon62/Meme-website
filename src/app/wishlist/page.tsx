@@ -71,26 +71,26 @@ export default function WishlistPage() {
 
   return (
     <main className="flex-1 mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 py-10 lg:py-16">
-      <div className="flex items-end justify-between mb-10">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 sm:mb-10 pb-6 border-b border-border/40">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mb-3">Saved</p>
-          <h1 className="font-display text-4xl lg:text-6xl tracking-tight">Wishlist</h1>
-          <p className="text-sm text-muted-foreground mt-3">{items.length} items saved</p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Saved</p>
+          <h1 className="font-display text-3xl sm:text-4xl lg:text-6xl tracking-tight">Wishlist</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-2">{items.length} items saved</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="rounded-full" onClick={() => toast.success("Wishlist link copied!")}>
-            <Share2 className="h-4 w-4 mr-2" /> Share
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" className="rounded-full text-xs h-9" onClick={() => toast.success("Wishlist link copied!")}>
+            <Share2 className="h-3.5 w-3.5 mr-1.5" /> Share
           </Button>
-          <Button variant="outline" size="sm" className="rounded-full" onClick={handleAddAll}>
-            <ShoppingBag className="h-4 w-4 mr-2" /> Add all to cart
+          <Button variant="outline" size="sm" className="rounded-full text-xs h-9" onClick={handleAddAll}>
+            <ShoppingBag className="h-3.5 w-3.5 mr-1.5" /> Add all to cart
           </Button>
-          <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground" onClick={() => { clear(); toast.success("Wishlist cleared"); }}>
-            <Trash2 className="h-4 w-4 mr-2" /> Clear
+          <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground text-xs h-9" onClick={() => { clear(); toast.success("Wishlist cleared"); }}>
+            <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Clear
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-10 lg:gap-x-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3.5 gap-y-8 sm:gap-x-4 sm:gap-y-10 lg:gap-x-6">
         {items.map((item, i) => {
           const product = products.find((p) => p.id === item.productId);
           if (!product) return null;

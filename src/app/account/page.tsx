@@ -498,11 +498,11 @@ function Dashboard({ session }: { session: SessionData }) {
   };
 
   return (
-    <main className="flex-1 mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-10 py-10 lg:py-14">
+    <main className="flex-1 mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-10 py-8 lg:py-14">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 pb-8 border-b border-border/60">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-foreground text-background flex items-center justify-center font-display text-2xl overflow-hidden flex-shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-border/60">
+        <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-foreground text-background flex items-center justify-center font-display text-xl sm:text-2xl overflow-hidden flex-shrink-0">
             {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -510,16 +510,16 @@ function Dashboard({ session }: { session: SessionData }) {
             initials
           )}
           </div>
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">MEME Member</p>
-            <h1 className="font-display text-3xl tracking-tight">Welcome back, {displayName}</h1>
-            <p className="text-sm text-muted-foreground mt-1">{user?.email}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] text-muted-foreground">MEME Member</p>
+            <h1 className="font-display text-2xl sm:text-3xl tracking-tight truncate">Welcome back, {displayName}</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 truncate">{user?.email}</p>
           </div>
         </div>
         <Button
           variant="outline"
           size="sm"
-          className="rounded-full"
+          className="rounded-full self-start sm:self-auto shrink-0"
           onClick={handleSignOut}
           disabled={signingOut}
         >
@@ -532,9 +532,9 @@ function Dashboard({ session }: { session: SessionData }) {
         </Button>
       </div>
 
-      <Tabs defaultValue="orders" className="grid lg:grid-cols-[240px_1fr] gap-10">
+      <Tabs defaultValue="orders" className="grid lg:grid-cols-[240px_1fr] gap-6 lg:gap-10">
         {/* Sidebar */}
-        <TabsList className="flex lg:flex-col h-auto bg-transparent p-0 gap-1 self-start">
+        <TabsList className="flex lg:flex-col h-auto bg-transparent p-0 gap-1.5 self-start w-full overflow-x-auto scrollbar-none pb-2 lg:pb-0 border-b border-border/40 lg:border-b-0">
           {[
             { value: "orders", icon: Package, label: "Orders", count: orders.length || undefined },
             { value: "wishlist", icon: Heart, label: "Wishlist", count: itemsCount || undefined },
@@ -546,14 +546,14 @@ function Dashboard({ session }: { session: SessionData }) {
             <TabsTrigger
               key={tab.value}
               value={tab.value}
-              className="justify-start w-full px-3 py-2.5 text-sm data-[state=active]:bg-accent rounded-sm gap-2 relative"
+              className="justify-start shrink-0 lg:w-full px-3.5 py-2.5 text-xs sm:text-sm data-[state=active]:bg-accent data-[state=active]:text-foreground rounded-full lg:rounded-sm gap-2 relative border border-border/40 lg:border-none"
             >
-              <tab.icon className="h-4 w-4" />
-              <span className="flex-1 text-left">{tab.label}</span>
+              <tab.icon className="h-4 w-4 shrink-0" />
+              <span className="text-left whitespace-nowrap">{tab.label}</span>
               {tab.count ? (
                 <Badge
                   variant="secondary"
-                  className="rounded-full text-[10px] h-5 min-w-5 flex items-center justify-center px-1.5"
+                  className="rounded-full text-[10px] h-5 min-w-5 flex items-center justify-center px-1.5 ml-1"
                 >
                   {tab.count}
                 </Badge>
@@ -562,7 +562,7 @@ function Dashboard({ session }: { session: SessionData }) {
           ))}
         </TabsList>
 
-        <div>
+        <div className="min-w-0">
           {/* ── Orders ── */}
           <TabsContent value="orders" className="mt-0">
             <h2 className="font-display text-2xl tracking-tight mb-6">Your orders</h2>
@@ -588,23 +588,23 @@ function Dashboard({ session }: { session: SessionData }) {
               <div className="space-y-6">
                 {orders.map((order) => (
                   <div key={order.id} className="border border-border/60 rounded-sm overflow-hidden">
-                    <div className="bg-accent/30 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs">
+                    <div className="bg-accent/30 px-4 sm:px-5 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-x-4 sm:gap-x-6 gap-y-2 text-xs">
                         <div>
-                          <p className="text-muted-foreground uppercase tracking-wider">Order</p>
-                          <p className="font-medium font-mono">{order.order_number}</p>
+                          <p className="text-muted-foreground uppercase tracking-wider text-[10px]">Order</p>
+                          <p className="font-medium font-mono text-xs truncate">{order.order_number}</p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground uppercase tracking-wider">Date</p>
-                          <p className="font-medium">{formatDate(order.placed_at)}</p>
+                          <p className="text-muted-foreground uppercase tracking-wider text-[10px]">Date</p>
+                          <p className="font-medium text-xs">{formatDate(order.placed_at)}</p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground uppercase tracking-wider">Total</p>
-                          <p className="font-medium">{formatPrice(order.total)}</p>
+                          <p className="text-muted-foreground uppercase tracking-wider text-[10px]">Total</p>
+                          <p className="font-medium text-xs text-amber-500 font-bold">{formatPrice(order.total)}</p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground uppercase tracking-wider">Status</p>
-                          <Badge variant={statusVariant(order.status)} className="mt-0.5">
+                          <p className="text-muted-foreground uppercase tracking-wider text-[10px]">Status</p>
+                          <Badge variant={statusVariant(order.status)} className="mt-0.5 text-[10px]">
                             {statusLabel(order.status)}
                           </Badge>
                         </div>
@@ -613,7 +613,7 @@ function Dashboard({ session }: { session: SessionData }) {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="rounded-full"
+                          className="rounded-full self-start sm:self-auto shrink-0"
                           asChild
                         >
                           <a href={order.tracking_url} target="_blank" rel="noopener noreferrer">

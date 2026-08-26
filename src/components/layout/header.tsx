@@ -207,22 +207,22 @@ export function Header() {
           </nav>
 
           {/* Right Actions */}
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1 sm:gap-3">
             <ThemeToggle />
             <LanguageToggle />
 
             <Button
               variant="ghost"
               size="icon"
-              className="text-foreground hover:bg-white/5"
+              className="text-foreground hover:bg-white/5 h-8 w-8 sm:h-9 sm:w-9"
               onClick={() => setSearchOpen(!searchOpen)}
               aria-label="Search"
             >
-              <Search className="h-5 w-5" />
+              <Search className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
 
             <Link href="/account" className="hidden sm:inline-flex">
-              <Button variant="ghost" size="icon" className="text-foreground hover:bg-white/5" aria-label="Account">
+              <Button variant="ghost" size="icon" className="text-foreground hover:bg-white/5 h-9 w-9" aria-label="Account">
                 <User className="h-5 w-5" />
               </Button>
             </Link>
@@ -239,8 +239,8 @@ export function Header() {
             )}
 
             <Link href="/wishlist">
-              <Button variant="ghost" size="icon" className="relative text-foreground hover:bg-white/5" aria-label="Wishlist">
-                <Heart className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="relative text-foreground hover:bg-white/5 h-8 w-8 sm:h-9 sm:w-9" aria-label="Wishlist">
+                <Heart className="h-4 w-4 sm:h-5 sm:w-5" />
                 {wishlistCount > 0 && (
                   <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
                     {wishlistCount}
@@ -252,12 +252,12 @@ export function Header() {
             <Button
               variant="outline"
               onClick={() => setCartOpen(true)}
-              className="relative h-9 px-3 gap-2 border-white/20 hover:border-white/40 bg-background"
+              className="relative h-8 sm:h-9 px-2 sm:px-3 gap-1.5 sm:gap-2 border-white/20 hover:border-white/40 bg-background"
             >
               <ShoppingBag className="h-4 w-4" />
               <span className="hidden sm:inline text-xs font-semibold uppercase tracking-wider">{t("nav.cart")}</span>
               {cartCount > 0 && (
-                <span className="ml-1 h-5 min-w-[20px] px-1 rounded-full bg-primary text-primary-foreground text-[11px] font-bold inline-flex items-center justify-center">
+                <span className="ml-0.5 sm:ml-1 h-4 min-w-[16px] sm:h-5 sm:min-w-[20px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] sm:text-[11px] font-bold inline-flex items-center justify-center">
                   {cartCount}
                 </span>
               )}

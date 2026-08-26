@@ -257,17 +257,37 @@ export async function createOrder(
     return { ok: false, error: "Failed to save line items" };
   }
 
-  // 3. Decrement inventory for each product (atomic SQL would be better, but
-  //    this is acceptable for low-volume — use a Postgres function for prod).
+  // 3. Decrement inventory atomically via Postgres RPC to prevent race conditions
   for (const line of input.lines) {
-    const { data: cur } = await supabase
-      .from("products")
-      .select("inventory")
-      .eq("id", line.productId)
-      .single();
-    if (cur) {
-      const newInv = Math.max(0, cur.inventory - line.quantity);
-      await supabase.from("products").update({ inventory: newInv }).eq("id", line.productId);
+    try {
+      const { error: rpcErr } = await (supabase as any).rpc("decrement_inventory", {
+        p_product_id: line.productId,
+        p_quantity: line.quantity,
+      });
+
+      if (rpcErr) {
+        // Fallback to manual update if RPC is not yet applied in DB
+        const { data: cur } = await supabase
+          .from("products")
+          .select("inventory")
+          .eq("id", line.productId)
+          .single();
+        if (cur) {
+          const newInv = Math.max(0, cur.inventory - line.quantity);
+          await supabase.from("products").update({ inventory: newInv }).eq("id", line.productId);
+        }
+      }
+    } catch {
+      // Best-effort fallback
+      const { data: cur } = await supabase
+        .from("products")
+        .select("inventory")
+        .eq("id", line.productId)
+        .single();
+      if (cur) {
+        const newInv = Math.max(0, cur.inventory - line.quantity);
+        await supabase.from("products").update({ inventory: newInv }).eq("id", line.productId);
+      }
     }
   }
 

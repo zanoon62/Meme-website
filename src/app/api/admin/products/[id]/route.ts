@@ -72,6 +72,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   logger.info("product updated", { id, by: guard.userId });
+  try {
+    const { revalidateTag, revalidatePath } = await import("next/cache");
+    (revalidateTag as any)("products");
+    revalidatePath("/", "page");
+    revalidatePath("/shop", "page");
+  } catch {}
+
   return NextResponse.json({ product: data });
 }
 
@@ -92,5 +99,12 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   }
 
   logger.info("product archived", { id, by: guard.userId });
+  try {
+    const { revalidateTag, revalidatePath } = await import("next/cache");
+    (revalidateTag as any)("products");
+    revalidatePath("/", "page");
+    revalidatePath("/shop", "page");
+  } catch {}
+
   return NextResponse.json({ success: true });
 }
