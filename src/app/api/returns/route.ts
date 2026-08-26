@@ -17,7 +17,7 @@ import { logger } from "@/lib/logger";
 const RETURN_WINDOW_DAYS = 14;
 
 const SubmitReturnSchema = z.object({
-  order_number: z.string().min(1).max(100).trim(),
+  order_number: z.string().min(1).max(100).trim().transform(v => v.replace(/^#/, "")),
   reason: z.enum([
     "wrong_size",
     "wrong_item",

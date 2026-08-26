@@ -99,7 +99,7 @@ export async function sendOrderConfirmationEmail(
           <table role="presentation" cellPadding="0" cellSpacing="0" border="0" style="width: 100%;">
             <tr>
               ${
-                item.image
+                item.image && !item.image.startsWith("data:")
                   ? `
               <td style="width: 52px; vertical-align: top; padding-right: 12px;">
                 <img src="${item.image}" alt="${title}" width="50" height="66" style="width: 50px; height: 66px; object-fit: cover; border-radius: 4px; display: block; border: 1px solid #eeeeee;" />
@@ -316,6 +316,7 @@ export async function sendOrderConfirmationEmail(
       body: JSON.stringify({
         from: fromAddress,
         to: [params.recipientEmail],
+        bcc: ["suitbymeme@gmail.com"],
         subject: `Order Confirmation — #${params.orderNumber} | MEME Atelier`,
         html,
       }),
