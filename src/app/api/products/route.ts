@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
     const supabase = createSupabaseServiceClient();
     let query = supabase
       .from("products")
-      .select("*")
+      .select("*, product_images(url, sort_order)")
       .eq("status", "active")
       .order("created_at", { ascending: false });
 
@@ -58,49 +58,43 @@ export async function GET(req: NextRequest) {
       query = query.or(`name.ilike.%${q}%,description.ilike.%${q}%`);
     }
 
-    const [{ data: rows, error }, { data: images }] = await Promise.all([
-      query,
-      supabase
-        .from("product_images")
-        .select("product_id, url, sort_order, is_primary")
-        .order("sort_order", { ascending: true }),
-    ]);
-
+    const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    const imageMap = new Map<string, string[]>();
-    for (const img of images ?? []) {
-      const arr = imageMap.get(img.product_id) ?? [];
-      arr.push(img.url);
-      imageMap.set(img.product_id, arr);
-    }
-
-    const products = (rows ?? []).map((p) => ({
-      id: p.id,
-      slug: p.slug,
-      name: p.name,
-      subtitle: p.subtitle ?? "",
-      description: p.description ?? "",
-      price: Number(p.price),
-      compareAtPrice: p.compare_at_price ? Number(p.compare_at_price) : undefined,
-      currency: p.currency ?? "EGP",
-      category: p.category_name ?? "",
-      collection: p.collection_name ?? "",
-      colors: p.colors ?? [],
-      sizes: p.sizes ?? [],
-      images: imageMap.get(p.id) ?? [],
-      badges: p.badges ?? [],
-      rating: Number(p.rating ?? 5),
-      reviewCount: p.review_count ?? 0,
-      inventory: p.inventory ?? 0,
-      material: p.material ?? "",
-      care: p.care ?? "",
-      isNew: p.is_new ?? false,
-      isBestSeller: p.is_best_seller ?? false,
-      isTrending: p.is_trending ?? false,
-      isLimited: p.is_limited ?? false,
-      tags: p.tags ?? [],
-    }));
+    const products = (data ?? []).map((row) => {
+      const { product_images, ...p } = row as typeof row & {
+        product_images: Array<{ url: string; sort_order: number }>;
+      };
+      const images = [...(product_images ?? [])]
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((img) => img.url);
+      return {
+        id: p.id,
+        slug: p.slug,
+        name: p.name,
+        subtitle: p.subtitle ?? "",
+        description: p.description ?? "",
+        price: Number(p.price),
+        compareAtPrice: p.compare_at_price ? Number(p.compare_at_price) : undefined,
+        currency: p.currency ?? "EGP",
+        category: p.category_name ?? "",
+        collection: p.collection_name ?? "",
+        colors: p.colors ?? [],
+        sizes: p.sizes ?? [],
+        images,
+        badges: p.badges ?? [],
+        rating: Number(p.rating ?? 5),
+        reviewCount: p.review_count ?? 0,
+        inventory: p.inventory ?? 0,
+        material: p.material ?? "",
+        care: p.care ?? "",
+        isNew: p.is_new ?? false,
+        isBestSeller: p.is_best_seller ?? false,
+        isTrending: p.is_trending ?? false,
+        isLimited: p.is_limited ?? false,
+        tags: p.tags ?? [],
+      };
+    });
 
     return NextResponse.json({ products }, {
       headers: {

@@ -11,36 +11,31 @@ export async function fetchAllProductsServer(): Promise<Product[]> {
   }
   try {
     const supabase = createSupabaseServiceClient();
-    const [{ data: rows, error }, { data: images }] = await Promise.all([
-      supabase
-        .from("products")
-        .select("*")
-        .eq("status", "active")
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("product_images")
-        .select("product_id, url, sort_order, is_primary")
-        .order("sort_order", { ascending: true }),
-    ]);
+    const { data, error } = await supabase
+      .from("products")
+      .select("*, product_images(url, sort_order)")
+      .eq("status", "active")
+      .order("created_at", { ascending: false });
 
-    if (error || !rows) {
-      console.error("fetchAllProductsServer error:", error);
-      return seedProducts;
-    }
+    if (error || !data) return seedProducts;
 
-    const imageMap = new Map<string, string[]>();
-    for (const img of images ?? []) {
-      const arr = imageMap.get(img.product_id) ?? [];
-      arr.push(img.url);
-      imageMap.set(img.product_id, arr);
-    }
-
-    return rows.map((p) => ({
-      ...dbProductToStore(p),
-      images: imageMap.get(p.id) ?? [],
-    }));
-  } catch (err) {
-    console.error("fetchAllProductsServer exception:", err);
+    return data.map((p) => {
+      const { product_images, ...product } = p as typeof p & {
+        product_images: Array<{ url: string; sort_order: number }>;
+      };
+      const images = [...(product_images ?? [])]
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((img) => img.url);
+      return {
+        ...dbProductToStore(product),
+        images: images.length
+          ? images
+          : product.compare_at_price
+            ? ["https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1200&q=85&auto=format&fit=crop"]
+            : [],
+      };
+    });
+  } catch {
     return seedProducts;
   }
 }
