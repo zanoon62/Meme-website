@@ -38,7 +38,7 @@ type ProductStore = {
   setProducts: (p: Product[]) => void;
 
   /** Pull the latest catalog from Supabase (no-op if not configured) */
-  refreshFromServer: () => Promise<void>;
+  refreshFromServer: (force?: boolean) => Promise<void>;
 
   /** CRUD — calls Supabase if configured, otherwise mutates local state */
   addProduct: (input: ProductInput) => Promise<Product>;
@@ -80,14 +80,22 @@ export const useProductStore = create<ProductStore>()(
       setLoading: (v) => set({ loading: v }),
       setProducts: (p) => set({ products: p }),
 
-      refreshFromServer: async () => {
+      refreshFromServer: async (force = false) => {
         try {
+          const now = Date.now();
+          if (!force && now - get()._lastFetch < 60000 && get().products.length > 0) {
+            return; // Use stale-while-revalidate strategy in background or skip
+          }
           set({ loading: true });
           const res = await fetch("/api/products");
           if (res.ok) {
             const data = await res.json();
-            if (Array.isArray(data?.products) && data.products.length > 0) {
-              set({ products: data.products, loading: false, _lastFetch: Date.now() });
+            if (Array.isArray(data?.products)) {
+              set({ 
+                products: data.products, 
+                loading: false, 
+                _lastFetch: Date.now() 
+              });
               return;
             }
           }

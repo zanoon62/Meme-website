@@ -46,7 +46,7 @@ export function HomeView() {
   const es = config.editorialStory;
 
   return (
-    <main className="flex-1 bg-background">
+    <div className="w-full bg-background">
       {/* 1. Hero carousel */}
       <HeroCarousel />
 
@@ -148,7 +148,7 @@ export function HomeView() {
 
       {/* 13. Manifesto + newsletter */}
       <ManifestoNewsletter />
-    </main>
+    </div>
   );
 }
 

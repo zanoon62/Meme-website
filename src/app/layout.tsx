@@ -35,6 +35,16 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1, // Prevents auto-zooming on inputs in iOS and maintains rigid mobile app-like layout
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0c" },
+  ],
+};
+
 export const metadata: Metadata = {
   title: {
     default: "MEME — Premium Streetwear & Tailored Essentials · Egypt",

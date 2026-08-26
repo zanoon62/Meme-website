@@ -17,14 +17,14 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <>
+    <div className="relative flex min-h-screen flex-col overflow-x-hidden">
       <AnnouncementBar />
       <Header />
-      {children}
+      <main className="flex-1 flex flex-col">{children}</main>
       <Footer />
       <CartDrawer />
       <MobileBottomNav />
-      <div className="lg:hidden h-16" aria-hidden /> {/* Spacer for bottom nav */}
-    </>
+      <div className="lg:hidden h-16 shrink-0" aria-hidden /> {/* Spacer for bottom nav */}
+    </div>
   );
 }

@@ -447,15 +447,27 @@ function ShopContent() {
               </div>
 
               {visible < filtered.length && (
-                <div className="mt-16 text-center">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="rounded-full h-12 px-8"
-                    onClick={() => setVisible((v) => v + 8)}
-                  >
-                    {t("section.view_all")} ({filtered.length - visible})
-                  </Button>
+                <div className="mt-16 text-center pb-20 flex justify-center">
+                  {/* Intersection Observer Target */}
+                  <div
+                    ref={(node) => {
+                      if (!node) return;
+                      const observer = new IntersectionObserver(
+                        (entries) => {
+                          if (entries[0].isIntersecting) {
+                            // Smoothly load the next batch
+                            setTimeout(() => {
+                              setVisible((v) => Math.min(v + 12, filtered.length));
+                            }, 300);
+                            observer.disconnect();
+                          }
+                        },
+                        { rootMargin: "200px" }
+                      );
+                      observer.observe(node);
+                    }}
+                    className="h-10 w-10 border-2 border-foreground border-t-transparent rounded-full animate-spin opacity-50"
+                  />
                 </div>
               )}
             </>
