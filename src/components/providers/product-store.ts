@@ -87,7 +87,7 @@ export const useProductStore = create<ProductStore>()(
             return; // Use stale-while-revalidate strategy in background or skip
           }
           set({ loading: true });
-          const res = await fetch("/api/products");
+          const res = await fetch("/api/products?v=2");
           if (res.ok) {
             const data = await res.json();
             if (Array.isArray(data?.products)) {
