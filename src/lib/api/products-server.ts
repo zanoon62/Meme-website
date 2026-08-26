@@ -11,30 +11,38 @@ export async function fetchAllProductsServer(): Promise<Product[]> {
   }
   
   const supabase = createSupabaseStaticClient();
-  const { data, error } = await supabase
-    .from("products")
-    .select("*, product_images(url, sort_order)")
-    .eq("status", "active")
-    .order("created_at", { ascending: false });
+  const [{ data: rows, error }, { data: images }] = await Promise.all([
+    supabase
+      .from("products")
+      .select("*")
+      .eq("status", "active")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("product_images")
+      .select("product_id, url, sort_order")
+      .order("sort_order", { ascending: true }),
+  ]);
 
   if (error) {
     console.error("Supabase error fetching products:", error);
     throw new Error(`Failed to fetch products: ${error.message}`);
   }
 
-  if (!data) return [];
+  if (!rows) return [];
 
-  return data.map((p) => {
-    const { product_images, ...product } = p as typeof p & {
-      product_images: Array<{ url: string; sort_order: number }>;
-    };
-    const images = [...(product_images ?? [])]
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map((img) => img.url);
+  const imageMap = new Map<string, string[]>();
+  for (const img of images ?? []) {
+    const arr = imageMap.get(img.product_id) ?? [];
+    arr.push(img.url);
+    imageMap.set(img.product_id, arr);
+  }
+
+  return rows.map((product) => {
+    const productImages = imageMap.get(product.id) ?? [];
     return {
       ...dbProductToStore(product),
-      images: images.length
-        ? images
+      images: productImages.length
+        ? productImages
         : product.compare_at_price
           ? ["https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1200&q=85&auto=format&fit=crop"]
           : [],
