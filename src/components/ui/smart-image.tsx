@@ -18,11 +18,13 @@ type SmartImageProps = Omit<ImageProps, "src"> & {
 
 function isUnoptimizedSrc(src: string): boolean {
   // Bypass optimizer for any same-origin API path that returns SVGs
+  if (!src) return false;
   return src.startsWith("/api/") || src.startsWith("data:image/svg");
 }
 
 export const SmartImage = React.forwardRef<HTMLImageElement, SmartImageProps>(
   function SmartImage({ src, unoptimized, alt, ...rest }, ref) {
+    if (!src) return null;
     const bypass = isUnoptimizedSrc(src) || unoptimized === true;
     return (
       <Image

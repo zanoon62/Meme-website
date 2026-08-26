@@ -15,10 +15,12 @@ values (
 on conflict (id) do nothing;
 
 -- Public read policy for the returns bucket
+drop policy if exists "public_read_returns" on storage.objects;
 create policy "public_read_returns" on storage.objects
   for select using (bucket_id = 'returns');
 
 -- Authenticated users can upload
+drop policy if exists "auth_upload_returns" on storage.objects;
 create policy "auth_upload_returns" on storage.objects
   for insert with check (
     bucket_id = 'returns'
@@ -65,6 +67,7 @@ create trigger returns_updated_at
 alter table public.returns enable row level security;
 
 -- Customers can read/insert their own returns
+drop policy if exists "customers_select_own_returns" on public.returns;
 create policy "customers_select_own_returns" on public.returns
   for select using (
     auth.uid() is not null
@@ -73,6 +76,7 @@ create policy "customers_select_own_returns" on public.returns
     )
   );
 
+drop policy if exists "customers_insert_own_returns" on public.returns;
 create policy "customers_insert_own_returns" on public.returns
   for insert with check (
     auth.uid() is not null
