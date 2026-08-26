@@ -38,7 +38,7 @@ const VALID_SECTIONS: AdminSection[] = [
   "admin-access",
 ];
 
-export default function AdminPage() {
+function AdminPageContent() {
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get("tab") as AdminSection | null) ?? "dashboard";
   const [section, setSection] = React.useState<AdminSection>(
@@ -59,35 +59,39 @@ export default function AdminPage() {
   const handleSectionChange = React.useCallback(
     (s: AdminSection) => {
       setSection(s);
-      setIsProductFormActive(false);
-      if (typeof window !== "undefined") {
-        const params = new URLSearchParams(window.location.search);
-        params.set("tab", s);
-        window.history.replaceState(null, "", `/admin?${params.toString()}`);
+      const url = new URL(window.location.href);
+      if (s === "dashboard") {
+        url.searchParams.delete("tab");
+      } else {
+        url.searchParams.set("tab", s);
       }
+      window.history.replaceState({}, "", url.toString());
     },
     []
   );
 
-  const openAdd = () => {
+  // Workspace handlers
+  const openAdd = React.useCallback(() => {
     setEditingProduct(null);
     setIsProductFormActive(true);
-  };
-  const openEdit = (p: Product) => {
+  }, []);
+
+  const openEdit = React.useCallback((p: Product) => {
     setEditingProduct(p);
     setIsProductFormActive(true);
-  };
-  const closeForm = () => {
+  }, []);
+
+  const closeForm = React.useCallback(() => {
     setIsProductFormActive(false);
     setEditingProduct(null);
-  };
+  }, []);
 
-  // If full-page product form is active, render full-page spacious ProductFormView with free scrolling
   if (isProductFormActive) {
     return (
-      <main className="min-h-screen bg-background text-foreground">
-        <ProductFormView product={editingProduct} onBack={closeForm} />
-      </main>
+      <ProductFormView
+        product={editingProduct}
+        onBack={closeForm}
+      />
     );
   }
 
@@ -116,5 +120,13 @@ export default function AdminPage() {
       {section === "homepage" && <HomepageSection />}
       {section === "admin-access" && <AdminAccessSection />}
     </AdminShell>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen bg-neutral-950 flex items-center justify-center text-xs text-neutral-400">Loading Admin...</div>}>
+      <AdminPageContent />
+    </React.Suspense>
   );
 }

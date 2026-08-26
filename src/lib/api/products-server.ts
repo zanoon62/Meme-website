@@ -11,42 +11,45 @@ export async function fetchAllProductsServer(): Promise<Product[]> {
     return seedProducts;
   }
   
-  const supabase = createSupabaseStaticClient();
-  const [{ data: rows, error }, { data: images }] = await Promise.all([
-    supabase
-      .from("products")
-      .select("*")
-      .eq("status", "active")
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("product_images")
-      .select("product_id, url, sort_order")
-      .order("sort_order", { ascending: true }),
-  ]);
+  try {
+    const supabase = createSupabaseStaticClient();
+    const [{ data: rows, error }, { data: images }] = await Promise.all([
+      supabase
+        .from("products")
+        .select("*")
+        .eq("status", "active")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("product_images")
+        .select("product_id, url, sort_order")
+        .order("sort_order", { ascending: true }),
+    ]);
 
-  if (error) {
-    console.error("Supabase error fetching products:", error);
-    throw new Error(`Failed to fetch products: ${error.message}`);
+    if (error || !rows || rows.length === 0) {
+      console.warn("Supabase products fetch failed or empty:", error?.message);
+      return seedProducts;
+    }
+
+    const imageMap = new Map<string, string[]>();
+    for (const img of images ?? []) {
+      const arr = imageMap.get(img.product_id) ?? [];
+      arr.push(img.url);
+      imageMap.set(img.product_id, arr);
+    }
+
+    return rows.map((product) => {
+      const productImages = imageMap.get(product.id) ?? [];
+      return {
+        ...dbProductToStore(product),
+        images: productImages.length
+          ? productImages
+          : getProductFallbackImages(product.slug, product.name),
+      };
+    });
+  } catch (err) {
+    console.warn("Exception fetching products from Supabase, using seedProducts:", err);
+    return seedProducts;
   }
-
-  if (!rows) return [];
-
-  const imageMap = new Map<string, string[]>();
-  for (const img of images ?? []) {
-    const arr = imageMap.get(img.product_id) ?? [];
-    arr.push(img.url);
-    imageMap.set(img.product_id, arr);
-  }
-
-  return rows.map((product) => {
-    const productImages = imageMap.get(product.id) ?? [];
-    return {
-      ...dbProductToStore(product),
-      images: productImages.length
-        ? productImages
-        : getProductFallbackImages(product.slug, product.name),
-    };
-  });
 }
 
 export const getCachedProductsServer = unstable_cache(
