@@ -7,8 +7,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { products as seedProducts } from "@/data/products";
+
+export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -39,7 +41,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const supabase = createSupabaseBrowserClient();
+    const supabase = createSupabaseServiceClient();
     let query = supabase
       .from("products")
       .select("*")
@@ -61,31 +63,55 @@ export async function GET(req: NextRequest) {
 
     // Fetch images for these products
     const ids = (data ?? []).map((p) => p.id);
-    const { data: images } = await supabase
-      .from("product_images")
-      .select("product_id, url, sort_order")
-      .in("product_id", ids)
-      .order("sort_order", { ascending: true });
+    let images: Array<{ product_id: string; url: string; sort_order: number }> = [];
+    if (ids.length > 0) {
+      const { data: imgData } = await supabase
+        .from("product_images")
+        .select("product_id, url, sort_order")
+        .in("product_id", ids)
+        .order("sort_order", { ascending: true });
+      images = (imgData as typeof images) ?? [];
+    }
 
     const imageMap = new Map<string, string[]>();
-    for (const img of images ?? []) {
+    for (const img of images) {
       const arr = imageMap.get(img.product_id) ?? [];
       arr.push(img.url);
       imageMap.set(img.product_id, arr);
     }
 
     const products = (data ?? []).map((p) => ({
-      ...p,
+      id: p.id,
+      slug: p.slug,
+      name: p.name,
+      subtitle: p.subtitle ?? "",
+      description: p.description ?? "",
+      price: Number(p.price),
+      compareAtPrice: p.compare_at_price ? Number(p.compare_at_price) : undefined,
+      currency: p.currency ?? "EGP",
+      category: p.category_name ?? "",
+      collection: p.collection_name ?? "",
+      colors: p.colors ?? [],
+      sizes: p.sizes ?? [],
       images: imageMap.get(p.id) ?? [],
+      badges: p.badges ?? [],
+      rating: Number(p.rating ?? 5),
+      reviewCount: p.review_count ?? 0,
+      inventory: p.inventory ?? 0,
+      material: p.material ?? "",
+      care: p.care ?? "",
+      isNew: p.is_new ?? false,
+      isBestSeller: p.is_best_seller ?? false,
+      isTrending: p.is_trending ?? false,
+      isLimited: p.is_limited ?? false,
+      tags: p.tags ?? [],
     }));
 
-    // Cache at the edge for 60s — fresh enough for price/inventory changes
-    // stale-while-revalidate=300 serves stale instantly while refreshing in background
     return NextResponse.json({ products }, {
       headers: {
-        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
-        "CDN-Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
-        "Vercel-CDN-Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
+        "CDN-Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
+        "Vercel-CDN-Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
       },
     });
   } catch (e) {

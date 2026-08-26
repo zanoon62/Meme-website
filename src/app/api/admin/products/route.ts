@@ -104,21 +104,22 @@ export async function POST(req: NextRequest) {
     const supabase = guard.client;
 
     const payload = storeProductToDb(body);
-    if (!payload.slug || !payload.name || payload.price === undefined) {
-      return NextResponse.json(
-        { error: "Missing required fields: slug, name, price" },
-        { status: 400 },
-      );
-    }
 
     // Auto-generate slug from name if not provided
-    if (!payload.slug) {
-      payload.slug = body.name
+    if (!payload.slug && payload.name) {
+      payload.slug = payload.name
         .toLowerCase()
         .trim()
         .replace(/[^a-z0-9\s-]/g, "")
         .replace(/\s+/g, "-")
         .replace(/-+/g, "-");
+    }
+
+    if (!payload.slug || !payload.name || payload.price === undefined || isNaN(payload.price)) {
+      return NextResponse.json(
+        { error: "Missing required fields: slug, name, price" },
+        { status: 400 },
+      );
     }
 
     const { data, error } = await supabase
@@ -133,22 +134,28 @@ export async function POST(req: NextRequest) {
     }
 
     // Insert images if provided
-    if (body.images?.length) {
-      const imgPayload = body.images.map((url: string, i: number) => ({
-        product_id: data.id,
-        url,
-        sort_order: i,
-        is_primary: i === 0,
-        alt: body.name,
-      }));
-      const { error: imgErr } = await supabase.from("product_images").insert(imgPayload);
-      if (imgErr) {
-        logger.warn("product image insert failed", { productId: data.id, error: imgErr.message });
+    const insertedImages: string[] = [];
+    if (Array.isArray(body.images) && body.images.length > 0) {
+      const validImages = body.images.filter((u: unknown) => typeof u === "string" && u.trim().length > 0);
+      if (validImages.length > 0) {
+        const imgPayload = validImages.map((url: string, i: number) => ({
+          product_id: data.id,
+          url: url.trim(),
+          sort_order: i,
+          is_primary: i === 0,
+          alt: body.name || "",
+        }));
+        const { error: imgErr } = await supabase.from("product_images").insert(imgPayload);
+        if (imgErr) {
+          logger.warn("product image insert failed", { productId: data.id, error: imgErr.message });
+        } else {
+          insertedImages.push(...validImages);
+        }
       }
     }
 
     logger.info("product created", { productId: data.id, slug: payload.slug, by: guard.userId });
-    return NextResponse.json({ product: data }, { status: 201 });
+    return NextResponse.json({ product: { ...data, images: insertedImages } }, { status: 201 });
   } catch (e) {
     logger.error("admin product create exception", {
       error: e instanceof Error ? e.message : String(e),

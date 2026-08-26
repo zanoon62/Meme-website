@@ -53,15 +53,6 @@ export function calculateShipping(subtotal: number, method: string): number {
   return 8; // standard
 }
 
-export function calculateTax(subtotal: number, state?: string): number {
-  // Flat fallback — real prod should call TaxJar/Avalara based on nexus
-  const rates: Record<string, number> = {
-    NY: 0.08875,
-    CA: 0.0925,
-    TX: 0.0825,
-    FL: 0.07,
-    IL: 0.0625,
-  };
-  const rate = (state && rates[state] ? rates[state] : 0.08) as number;
-  return Math.round(subtotal * rate * 100) / 100;
+export function calculateTax(_subtotal: number, _state?: string): number {
+  return 0;
 }

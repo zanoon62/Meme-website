@@ -21,6 +21,7 @@ import {
   Palette,
   Ruler,
   Info,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,6 +110,9 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = React.useState<"form" | "preview" | "guide">("form");
   const [focusedField, setFocusedField] = React.useState<string | null>(null);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [uploadingImages, setUploadingImages] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Hydrate form when dialog opens or product changes
   React.useEffect(() => {
@@ -136,6 +140,44 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
     });
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingImages(true);
+    const uploadedUrls: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch("/api/admin/product-image", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.url) uploadedUrls.push(data.url);
+        }
+      } catch (err) {
+        console.error("Upload error:", err);
+      }
+    }
+
+    if (uploadedUrls.length > 0) {
+      setForm((f) => ({
+        ...f,
+        images: [...f.images, ...uploadedUrls],
+      }));
+      toast.success(isAr ? `تم رفع ${uploadedUrls.length} صورة بنجاح ✓` : `Uploaded ${uploadedUrls.length} image(s) ✓`);
+    }
+    setUploadingImages(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const validate = (): boolean => {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = isAr ? "اسم المنتج مطلوب" : "Name is required";
@@ -151,34 +193,42 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) {
       toast.error(isAr ? "يرجى تصحيح الأخطاء قبل الحفظ" : "Please fix the errors before saving");
       return;
     }
-    const finalSlug = form.slug || form.name.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
-    const payload = { ...form, slug: finalSlug };
+    setIsSaving(true);
+    try {
+      const finalSlug = form.slug || form.name.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
+      const payload = { ...form, slug: finalSlug };
 
-    if (isEdit && product) {
-      updateProduct(product.id, payload);
-      toast.success(isAr ? `تم تحديث "${form.name}"` : `Updated "${form.name}"`);
-    } else {
-      const isDefaultImg =
-        form.images.length === 2 &&
-        form.images[0].includes("New%20Atelier%20Piece");
-      const finalForm = isDefaultImg
-        ? {
-            ...payload,
-            images: [
-              img(form.name || "Atelier Piece", form.category, form.colors[0]?.name || "noir", 0),
-              img(form.name || "Atelier Piece", form.category, form.colors[0]?.name || "noir", 1),
-            ],
-          }
-        : payload;
-      addProduct(finalForm);
-      toast.success(isAr ? `تمت إضافة المنتج الجديد "${form.name}" بنجاح!` : `Added new product "${form.name}" successfully!`);
+      if (isEdit && product) {
+        await updateProduct(product.id, payload);
+        toast.success(isAr ? `تم تحديث "${form.name}"` : `Updated "${form.name}"`);
+      } else {
+        const isDefaultImg =
+          form.images.length === 2 &&
+          form.images[0].includes("New%20Atelier%20Piece");
+        const finalForm = isDefaultImg
+          ? {
+              ...payload,
+              images: [
+                img(form.name || "Atelier Piece", form.category, form.colors[0]?.name || "noir", 0),
+                img(form.name || "Atelier Piece", form.category, form.colors[0]?.name || "noir", 1),
+              ],
+            }
+          : payload;
+        await addProduct(finalForm);
+        toast.success(isAr ? `تمت إضافة المنتج الجديد "${form.name}" بنجاح!` : `Added new product "${form.name}" successfully!`);
+      }
+      onOpenChange(false);
+    } catch (err) {
+      console.error("Save product dialog error:", err);
+      toast.error(isAr ? "فشل حفظ المنتج" : "Failed to save product");
+    } finally {
+      setIsSaving(false);
     }
-    onOpenChange(false);
   };
 
   // Colors
@@ -686,20 +736,41 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
                 </div>
 
                 <Field label={`${t("imagesLabel")} *`} error={errors.images}>
-                  <div className="flex gap-2">
-                    <Input
-                      value={newImage}
-                      onChange={(e) => setNewImage(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addImage();
-                        }
-                      }}
-                      placeholder="https://images.unsplash.com/…"
-                    />
-                    <Button type="button" variant="outline" size="sm" onClick={addImage}>
-                      <Plus className="h-3 w-3 mr-1" /> {t("addNew")}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex-1 flex gap-2">
+                      <Input
+                        value={newImage}
+                        onChange={(e) => setNewImage(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addImage();
+                          }
+                        }}
+                        placeholder="https://images.unsplash.com/…"
+                      />
+                      <Button type="button" variant="outline" size="sm" onClick={addImage}>
+                        <Plus className="h-3 w-3 mr-1" /> {t("addNew")}
+                      </Button>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={uploadingImages}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="shrink-0"
+                    >
+                      <Upload className="h-3.5 w-3.5 mr-1" />
+                      {uploadingImages ? (isAr ? "جاري الرفع..." : "Uploading...") : (isAr ? "رفع صور من الجهاز" : "Upload Files")}
                     </Button>
                   </div>
                   {form.images.length > 0 && (
@@ -915,8 +986,17 @@ export function ProductFormDialog({ open, onOpenChange, product }: Props) {
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 {t("cancelBtn")}
               </Button>
-              <Button type="button" onClick={handleSubmit} className="bg-amber-500 hover:bg-amber-600 text-black font-semibold">
-                {isEdit ? t("saveProductBtn") : t("createProductBtn")}
+              <Button
+                type="button"
+                disabled={isSaving || uploadingImages}
+                onClick={handleSubmit}
+                className="bg-amber-500 hover:bg-amber-600 text-black font-semibold disabled:opacity-50"
+              >
+                {isSaving
+                  ? (isAr ? "جاري الحفظ..." : "Saving...")
+                  : uploadingImages
+                  ? (isAr ? "جاري الرفع..." : "Uploading...")
+                  : (isEdit ? t("saveProductBtn") : t("createProductBtn"))}
               </Button>
             </div>
           </div>

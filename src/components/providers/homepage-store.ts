@@ -348,23 +348,18 @@ export const useHomepageStore = create<HomepageStore>()(
       _lastFetch: 0,
 
       fetchFromServer: async () => {
-        if (!isSupabaseConfigured()) return;
         try {
           set({ loading: true });
-          const supabase = createSupabaseBrowserClient();
-          const { data, error } = await supabase
-            .from("homepage_settings")
-            .select("config")
-            .eq("id", "main")
-            .single();
-
-          if (error || !data?.config) {
-            set({ loading: false });
-            return;
+          const res = await fetch("/api/homepage");
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.config) {
+              const merged = deepMerge(DEFAULT_HOMEPAGE_CONFIG, data.config as Partial<HomepageConfig>);
+              set({ config: merged as HomepageConfig, loading: false, _lastFetch: Date.now() });
+              return;
+            }
           }
-          // Deep-merge server config with defaults (so new sections added later still appear)
-          const merged = deepMerge(DEFAULT_HOMEPAGE_CONFIG, data.config as Partial<HomepageConfig>);
-          set({ config: merged as HomepageConfig, loading: false, _lastFetch: Date.now() });
+          set({ loading: false });
         } catch (e) {
           console.error("fetchFromServer (homepage) failed:", e);
           set({ loading: false });

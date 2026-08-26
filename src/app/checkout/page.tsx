@@ -132,9 +132,7 @@ export default function CheckoutPage() {
   const processingFee =
     (method.processingFee ?? 0) +
     Math.round(((method.feePercent ?? 0) / 100) * discountedSub);
-  // Egypt VAT 14% on discounted subtotal
-  const vat = Math.round(discountedSub * 0.14);
-  const total = discountedSub + shippingCost + vat + processingFee;
+  const total = discountedSub + shippingCost + processingFee;
 
   const handleApplyPromo = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -804,10 +802,6 @@ export default function CheckoutPage() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Shipping ({zone.name.split(" (")[0]})</span>
                 <span>{shippingCost === 0 ? "FREE" : formatPrice(shippingCost)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">VAT (14%)</span>
-                <span>{formatPrice(vat)}</span>
               </div>
               {processingFee > 0 && (
                 <div className="flex justify-between">

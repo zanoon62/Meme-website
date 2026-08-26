@@ -190,8 +190,8 @@ export async function createOrder(
 
   const discountedSub = Math.max(0, subtotal - discountTotal);
 
-  // Egypt 14% VAT
-  const vatTotal = Math.round(discountedSub * 0.14);
+  // VAT removed per store policy
+  const vatTotal = 0;
 
   // Shipping zone calculation
   const zone = SHIPPING_ZONES.find((z) => z.id === input.shipping_zone_id) ?? SHIPPING_ZONES[0];
@@ -202,7 +202,7 @@ export async function createOrder(
   const paymentFee = (method.processingFee ?? 0) + Math.round(((method.feePercent ?? 0) / 100) * discountedSub);
 
   // Grand Total
-  const total = discountedSub + shippingTotal + vatTotal + paymentFee;
+  const total = discountedSub + shippingTotal + paymentFee;
 
   const orderNumber = await generateOrderNumber(supabase);
 
@@ -219,7 +219,7 @@ export async function createOrder(
       subtotal,
       discount_total: discountTotal,
       shipping_total: shippingTotal,
-      tax_total: vatTotal,
+      tax_total: 0,
       total,
       currency: "EGP",
       coupon_code: couponCode,
@@ -309,9 +309,9 @@ export async function createOrder(
       subtotal,
       discount_total: discountTotal,
       shipping_total: shippingTotal,
-      vat_total: vatTotal,
+      vat_total: 0,
       payment_fee: paymentFee,
-      tax_total: vatTotal,
+      tax_total: 0,
       currency: "EGP",
       shipping_zone_name: zone.name,
       payment_method_name: method.name,

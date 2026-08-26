@@ -81,34 +81,17 @@ export const useProductStore = create<ProductStore>()(
       setProducts: (p) => set({ products: p }),
 
       refreshFromServer: async () => {
-        if (!isSupabaseConfigured()) return;
         try {
           set({ loading: true });
-          const supabase = createSupabaseBrowserClient();
-          const [{ data: rows, error }, { data: images }] = await Promise.all([
-            supabase
-              .from("products")
-              .select("*")
-              .order("created_at", { ascending: false }),
-            supabase
-              .from("product_images")
-              .select("product_id, url, sort_order")
-              .order("sort_order", { ascending: true }),
-          ]);
-          if (error || !rows) return;
-
-          const imageMap = new Map<string, string[]>();
-          for (const img of images ?? []) {
-            const arr = imageMap.get(img.product_id) ?? [];
-            arr.push(img.url);
-            imageMap.set(img.product_id, arr);
+          const res = await fetch("/api/products");
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data?.products) && data.products.length > 0) {
+              set({ products: data.products, loading: false, _lastFetch: Date.now() });
+              return;
+            }
           }
-
-          const products: Product[] = rows.map((p) => ({
-            ...dbProductToStore(p),
-            images: imageMap.get(p.id) ?? [PLACEHOLDER_IMG],
-          }));
-          set({ products, loading: false, _lastFetch: Date.now() });
+          set({ loading: false });
         } catch (e) {
           console.error("refreshFromServer failed:", e);
           set({ loading: false });

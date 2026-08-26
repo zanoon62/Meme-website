@@ -95,6 +95,10 @@ export function ProductFormView({ product, onBack }: Props) {
   const [sizeGuideModalOpen, setSizeGuideModalOpen] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const [uploadingImages, setUploadingImages] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [urlInput, setUrlInput] = React.useState("");
+
   // Hydrate form when product changes
   React.useEffect(() => {
     if (product) {
@@ -127,25 +131,69 @@ export function ProductFormView({ product, onBack }: Props) {
     }));
   };
 
-  // Image Upload File Handler
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Direct Image Upload Handler to Supabase Storage
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        if (result) {
-          setForm((f) => ({
-            ...f,
-            images: [...f.images, result],
-          }));
+    setUploadingImages(true);
+    const uploadedUrls: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch("/api/admin/product-image", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.url) {
+            uploadedUrls.push(data.url);
+          }
+        } else {
+          // Fallback to data URL only if API fails
+          const dataUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+          });
+          uploadedUrls.push(dataUrl);
         }
-      };
-      reader.readAsDataURL(file);
-    });
+      } catch (err) {
+        console.error("Upload error for file:", file.name, err);
+      }
+    }
+
+    if (uploadedUrls.length > 0) {
+      setForm((f) => ({
+        ...f,
+        images: [...f.images, ...uploadedUrls],
+      }));
+      toast.success(isAr ? `تم رفع ${uploadedUrls.length} صورة بنجاح ✓` : `Uploaded ${uploadedUrls.length} image(s) successfully ✓`);
+    }
+
+    setUploadingImages(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const addImageUrl = () => {
+    const trimmed = urlInput.trim();
+    if (!trimmed) return;
+    if (!trimmed.startsWith("http") && !trimmed.startsWith("/")) {
+      toast.error(isAr ? "يرجى إدخال رابط صحيح" : "Please enter a valid URL");
+      return;
+    }
+    setForm((f) => ({
+      ...f,
+      images: [...f.images, trimmed],
+    }));
+    setUrlInput("");
+    toast.success(isAr ? "تمت إضافة الرابط" : "Image URL added");
   };
 
   const removeImage = (idx: number) => {
@@ -166,22 +214,30 @@ export function ProductFormView({ product, onBack }: Props) {
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) {
       toast.error(isAr ? "يرجى تصحيح الأخطاء قبل الحفظ" : "Please fix errors before saving");
       return;
     }
-    const finalSlug = form.slug || form.name.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
-    const payload = { ...form, slug: finalSlug };
+    setIsSaving(true);
+    try {
+      const finalSlug = form.slug || form.name.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
+      const payload = { ...form, slug: finalSlug };
 
-    if (isEdit && product) {
-      updateProduct(product.id, payload);
-      toast.success(isAr ? `تم تحديث "${form.name}" بنجاح!` : `Updated "${form.name}" successfully!`);
-    } else {
-      addProduct(payload);
-      toast.success(isAr ? `تمت إضافة المنتج الجديد "${form.name}" بنجاح!` : `Added new product "${form.name}" successfully!`);
+      if (isEdit && product) {
+        await updateProduct(product.id, payload);
+        toast.success(isAr ? `تم تحديث "${form.name}" بنجاح!` : `Updated "${form.name}" successfully!`);
+      } else {
+        await addProduct(payload);
+        toast.success(isAr ? `تمت إضافة المنتج الجديد "${form.name}" بنجاح!` : `Added new product "${form.name}" successfully!`);
+      }
+      onBack();
+    } catch (err) {
+      console.error("Save product error:", err);
+      toast.error(isAr ? "حدث خطأ أثناء حفظ المنتج" : "An error occurred while saving the product");
+    } finally {
+      setIsSaving(false);
     }
-    onBack();
   };
 
   // Colors
@@ -321,9 +377,19 @@ export function ProductFormView({ product, onBack }: Props) {
           <Button type="button" variant="outline" size="sm" onClick={onBack} className="h-9">
             {t("cancelBtn")}
           </Button>
-          <Button type="button" size="sm" onClick={handleSubmit} className="h-9 bg-amber-500 hover:bg-amber-600 text-black font-semibold px-6 shadow">
+          <Button
+            type="button"
+            size="sm"
+            disabled={isSaving || uploadingImages}
+            onClick={handleSubmit}
+            className="h-9 bg-amber-500 hover:bg-amber-600 text-black font-semibold px-6 shadow transition-all disabled:opacity-50"
+          >
             <Save className="h-4 w-4 mr-1.5" />
-            {isEdit ? t("saveProductBtn") : t("createProductBtn")}
+            {isSaving
+              ? (isAr ? "جاري الحفظ..." : "Saving...")
+              : uploadingImages
+              ? (isAr ? "جاري الرفع..." : "Uploading...")
+              : (isEdit ? t("saveProductBtn") : t("createProductBtn"))}
           </Button>
         </div>
       </div>
@@ -648,7 +714,7 @@ export function ProductFormView({ product, onBack }: Props) {
               <div className="flex items-center gap-2 border-b border-border/60 pb-2">
                 <div className="h-6 w-1 rounded bg-amber-500" />
                 <h2 className="text-sm uppercase tracking-[0.2em] font-bold text-foreground">
-                  {isAr ? "6. رفع صور المنتج من الجهاز" : "6. Product Image File Uploader"}
+                  {isAr ? "6. صور المنتج (رفع أو رابط)" : "6. Product Images (Upload or URL)"}
                 </h2>
               </div>
 
@@ -664,25 +730,63 @@ export function ProductFormView({ product, onBack }: Props) {
 
                 {/* Drag and drop upload zone */}
                 <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-border hover:border-amber-500/80 rounded-xl p-8 text-center cursor-pointer bg-accent/20 hover:bg-accent/40 transition-all space-y-2 group"
+                  onClick={() => !uploadingImages && fileInputRef.current?.click()}
+                  className={cn(
+                    "border-2 border-dashed border-border rounded-xl p-6 sm:p-8 text-center transition-all space-y-2 group",
+                    uploadingImages
+                      ? "bg-amber-500/5 border-amber-500/50 cursor-wait"
+                      : "hover:border-amber-500/80 cursor-pointer bg-accent/20 hover:bg-accent/40"
+                  )}
                 >
-                  <div className="w-12 h-12 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
-                    <Upload className="h-6 w-6" />
+                  <div className={cn(
+                    "w-12 h-12 rounded-full flex items-center justify-center mx-auto transition-transform",
+                    uploadingImages ? "bg-amber-500/20 text-amber-500 animate-pulse" : "bg-amber-500/10 text-amber-500 group-hover:scale-110"
+                  )}>
+                    <Upload className={cn("h-6 w-6", uploadingImages && "animate-bounce")} />
                   </div>
                   <p className="font-bold text-sm text-foreground">
-                    {isAr ? "انقر لرفع صور المنتج من جهازك" : "Click or drop product image files here"}
+                    {uploadingImages
+                      ? (isAr ? "جاري رفع وضغط الصور إلى Supabase..." : "Uploading & optimizing images to Supabase...")
+                      : (isAr ? "انقر أو اسحب لرفع صور المنتج من جهازك" : "Click or drop product image files here")}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {isAr ? "يدعم صور (PNG, JPG, WEBP). يمكنك تحديد صور متعددة." : "Supports PNG, JPG, WEBP."}
+                    {isAr
+                      ? "يتم ضغط الصور تلقائياً لصيغة WebP وتخزينها بأعلى سرعة وأقل حجم."
+                      : "Images are automatically optimized to WebP and stored on Supabase Storage CDN."}
                   </p>
+                </div>
+
+                {/* Direct Image URL input */}
+                <div className="flex gap-2 mt-3">
+                  <Input
+                    placeholder={isAr ? "أو أدخل رابط صورة خارجي (https://...)" : "Or paste image URL (https://...)"}
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addImageUrl();
+                      }
+                    }}
+                    className="h-9 text-xs"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addImageUrl}
+                    className="h-9 text-xs shrink-0"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    {isAr ? "إضافة رابط" : "Add URL"}
+                  </Button>
                 </div>
 
                 {/* Image Gallery Cards */}
                 {form.images.length > 0 && (
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mt-4">
                     {form.images.map((imgUrl, idx) => (
-                      <div key={idx} className="relative group aspect-[3/4] rounded-xl border border-border/80 overflow-hidden shadow-sm">
+                      <div key={idx} className="relative group aspect-[3/4] rounded-xl border border-border/80 overflow-hidden shadow-sm bg-accent/20">
                         <Image src={imgUrl} alt={`Img ${idx + 1}`} fill sizes="160px" className="object-cover" unoptimized />
                         {idx === 0 && (
                           <span className="absolute top-2 left-2 bg-amber-500 text-black font-bold text-[9px] uppercase px-2 py-0.5 rounded shadow">
@@ -692,7 +796,8 @@ export function ProductFormView({ product, onBack }: Props) {
                         <button
                           type="button"
                           onClick={() => removeImage(idx)}
-                          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-background/90 text-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-background/90 text-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:bg-destructive hover:text-white"
+                          title="Remove image"
                         >
                           <X className="h-4 w-4" />
                         </button>

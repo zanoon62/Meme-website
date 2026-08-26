@@ -4,7 +4,7 @@
  *
  * Required Env Vars:
  *   - RESEND_API_KEY: API key from https://resend.com
- *   - EMAIL_FROM: Verified sender address (e.g. "MEME Atelier <orders@yourdomain.com>")
+ *   - EMAIL_FROM: Verified sender address (e.g. "MEME Atelier <orders@memefashion.com>")
  */
 
 import { logger } from "@/lib/logger";
@@ -23,6 +23,7 @@ export interface OrderConfirmationEmailParams {
     price: number;
     size?: string;
     color?: string;
+    image?: string;
   }>;
   subtotal?: number;
   discountTotal?: number;
@@ -80,37 +81,61 @@ export async function sendOrderConfirmationEmail(
     params.shippingAddress.governorate || params.shippingAddress.state || "";
   const phone = params.shippingAddress.phone || "";
 
-  // Build itemized table rows
+  // Build itemized table rows with thumbnails
   const itemsHtml = params.lines
     .map((item) => {
       const title = item.title || item.name || "Item";
+      const itemTotal = (item.price * item.quantity).toLocaleString("en-US");
+      const variantDetails = [
+        item.size && `Size: ${item.size}`,
+        item.color && `Color: ${item.color}`,
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
       return `
       <tr>
-        <td style="padding: 12px 0; border-bottom: 1px solid #eeeeee;">
-          <strong style="color: #111111; font-size: 14px;">${title}</strong>
-          ${
-            item.size || item.color
-              ? `<div style="font-size: 12px; color: #777777; margin-top: 2px;">${[
-                  item.size && `Size: ${item.size}`,
-                  item.color && `Color: ${item.color}`,
-                ]
-                  .filter(Boolean)
-                  .join(" | ")}</div>`
-              : ""
-          }
+        <td style="padding: 14px 0; border-bottom: 1px solid #f0f0f0; vertical-align: middle;">
+          <table role="presentation" cellPadding="0" cellSpacing="0" border="0" style="width: 100%;">
+            <tr>
+              ${
+                item.image
+                  ? `
+              <td style="width: 52px; vertical-align: top; padding-right: 12px;">
+                <img src="${item.image}" alt="${title}" width="50" height="66" style="width: 50px; height: 66px; object-fit: cover; border-radius: 4px; display: block; border: 1px solid #eeeeee;" />
+              </td>`
+                  : ""
+              }
+              <td style="vertical-align: top;">
+                <div style="font-size: 14px; font-weight: 600; color: #111111; line-height: 1.3;">
+                  ${title}
+                </div>
+                ${
+                  variantDetails
+                    ? `<div style="font-size: 12px; color: #777777; margin-top: 4px;">${variantDetails}</div>`
+                    : ""
+                }
+                <div style="font-size: 12px; color: #999999; margin-top: 2px;">
+                  EGP ${item.price.toLocaleString("en-US")} × ${item.quantity}
+                </div>
+              </td>
+            </tr>
+          </table>
         </td>
-        <td style="padding: 12px 0; border-bottom: 1px solid #eeeeee; text-align: center; color: #555555; font-size: 14px;">
+        <td style="padding: 14px 0; border-bottom: 1px solid #f0f0f0; text-align: center; color: #333333; font-size: 14px; font-weight: 500; vertical-align: middle; width: 40px;">
           ${item.quantity}
         </td>
-        <td style="padding: 12px 0; border-bottom: 1px solid #eeeeee; text-align: right; color: #111111; font-size: 14px; font-weight: 600;">
-          EGP ${(item.price * item.quantity).toLocaleString("en-US")}
+        <td style="padding: 14px 0; border-bottom: 1px solid #f0f0f0; text-align: right; color: #111111; font-size: 14px; font-weight: 700; vertical-align: middle; width: 100px;">
+          EGP ${itemTotal}
         </td>
       </tr>
     `;
     })
     .join("");
 
-  const calculatedSubtotal = params.subtotal ?? params.lines.reduce((s, l) => s + l.price * l.quantity, 0);
+  const calculatedSubtotal =
+    params.subtotal ??
+    params.lines.reduce((s, l) => s + l.price * l.quantity, 0);
 
   const html = `
     <!DOCTYPE html>
@@ -118,46 +143,46 @@ export async function sendOrderConfirmationEmail(
     <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-      <title>Order Confirmation — ${params.orderNumber}</title>
+      <title>Order Confirmation — #${params.orderNumber}</title>
     </head>
-    <body style="margin: 0; padding: 0; background-color: #f7f7f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #333333;">
-      <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="background-color: #f7f7f7; padding: 40px 16px;">
+    <body style="margin: 0; padding: 0; background-color: #f8f8f8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #222222;">
+      <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="background-color: #f8f8f8; padding: 32px 12px;">
         <tr>
           <td align="center">
-            <table role="presentation" width="100%" maxWidth="600" cellPadding="0" cellSpacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+            <table role="presentation" width="100%" maxWidth="600" cellPadding="0" cellSpacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #eaeaea;">
               
-              <!-- Header -->
+              <!-- Brand Header -->
               <tr>
-                <td style="background-color: #111111; padding: 32px 40px; text-align: center;">
-                  <div style="display: inline-block; width: 36px; height: 36px; line-height: 36px; background-color: #ffffff; color: #111111; border-radius: 50%; font-family: Georgia, serif; font-size: 16px; font-weight: bold; margin-bottom: 12px;">
+                <td style="background-color: #111111; padding: 28px 36px; text-align: center;">
+                  <div style="display: inline-block; width: 34px; height: 34px; line-height: 34px; background-color: #d97706; color: #ffffff; border-radius: 50%; font-family: Georgia, serif; font-size: 16px; font-weight: bold; margin-bottom: 8px;">
                     M
                   </div>
-                  <h1 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: 300; letter-spacing: 4px; text-transform: uppercase;">
-                    MEME Atelier
+                  <h1 style="margin: 0; color: #ffffff; font-size: 18px; font-weight: 400; letter-spacing: 5px; text-transform: uppercase;">
+                    MEME ATELIER
                   </h1>
                 </td>
               </tr>
 
-              <!-- Body Content -->
+              <!-- Main Content Container -->
               <tr>
-                <td style="padding: 40px;">
-                  <p style="margin: 0 0 16px; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; color: #888888;">
-                    Order Confirmed
+                <td style="padding: 36px 32px 28px 32px;">
+                  <p style="margin: 0 0 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #d97706; font-weight: 700;">
+                    ✓ Order Confirmed
                   </p>
-                  <h2 style="margin: 0 0 16px; font-size: 24px; font-weight: 600; color: #111111;">
+                  <h2 style="margin: 0 0 12px; font-size: 22px; font-weight: 700; color: #111111;">
                     Thank you for your order, ${customerName.split(" ")[0]}!
                   </h2>
-                  <p style="margin: 0 0 24px; font-size: 15px; line-height: 1.6; color: #555555;">
-                    We are preparing your package with care. Below is a summary of your order <strong>#${params.orderNumber}</strong>.
+                  <p style="margin: 0 0 24px; font-size: 14px; line-height: 1.6; color: #555555;">
+                    Your order <strong style="color: #111111;">#${params.orderNumber}</strong> has been received and is being prepared with utmost care.
                   </p>
 
                   <!-- Order Items Table -->
-                  <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="margin-bottom: 24px;">
+                  <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="margin-bottom: 24px; border-collapse: collapse;">
                     <thead>
                       <tr>
-                        <th style="padding: 8px 0; border-bottom: 2px solid #111111; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888888;">Item</th>
-                        <th style="padding: 8px 0; border-bottom: 2px solid #111111; text-align: center; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888888;">Qty</th>
-                        <th style="padding: 8px 0; border-bottom: 2px solid #111111; text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888888;">Price</th>
+                        <th style="padding: 10px 0; border-bottom: 2px solid #111111; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #888888;">Product</th>
+                        <th style="padding: 10px 0; border-bottom: 2px solid #111111; text-align: center; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #888888;">Qty</th>
+                        <th style="padding: 10px 0; border-bottom: 2px solid #111111; text-align: right; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #888888;">Total</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -165,11 +190,11 @@ export async function sendOrderConfirmationEmail(
                     </tbody>
                   </table>
 
-                  <!-- Total Breakdown Section -->
-                  <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="margin-bottom: 32px; border-top: 1px solid #eeeeee; padding-top: 16px;">
+                  <!-- Totals Breakdown Section (No VAT) -->
+                  <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="margin-bottom: 28px; border-top: 1px solid #eeeeee; padding-top: 16px;">
                     <tr>
                       <td style="padding: 6px 0; font-size: 14px; color: #666666;">Subtotal</td>
-                      <td style="padding: 6px 0; font-size: 14px; text-align: right; color: #111111; font-weight: 500;">
+                      <td style="padding: 6px 0; font-size: 14px; text-align: right; color: #111111; font-weight: 600;">
                         EGP ${calculatedSubtotal.toLocaleString("en-US")}
                       </td>
                     </tr>
@@ -178,8 +203,10 @@ export async function sendOrderConfirmationEmail(
                       (params.discountTotal ?? 0) > 0
                         ? `
                     <tr>
-                      <td style="padding: 6px 0; font-size: 14px; color: #059669;">Discount ${params.couponCode ? `(${params.couponCode})` : ""}</td>
-                      <td style="padding: 6px 0; font-size: 14px; text-align: right; color: #059669; font-weight: 600;">
+                      <td style="padding: 6px 0; font-size: 14px; color: #059669;">
+                        Discount ${params.couponCode ? `(${params.couponCode})` : ""}
+                      </td>
+                      <td style="padding: 6px 0; font-size: 14px; text-align: right; color: #059669; font-weight: 700;">
                         -EGP ${params.discountTotal!.toLocaleString("en-US")}
                       </td>
                     </tr>`
@@ -187,30 +214,22 @@ export async function sendOrderConfirmationEmail(
                     }
 
                     <tr>
-                      <td style="padding: 6px 0; font-size: 14px; color: #666666;">Shipping ${params.shippingZoneName ? `(${params.shippingZoneName.split(" (")[0]})` : ""}</td>
-                      <td style="padding: 6px 0; font-size: 14px; text-align: right; color: #111111; font-weight: 500;">
-                        ${params.shippingTotal === 0 ? '<span style="color: #059669; font-weight: 600;">FREE</span>' : `EGP ${(params.shippingTotal ?? 75).toLocaleString("en-US")}`}
+                      <td style="padding: 6px 0; font-size: 14px; color: #666666;">
+                        Shipping ${params.shippingZoneName ? `(${params.shippingZoneName.split(" (")[0]})` : ""}
+                      </td>
+                      <td style="padding: 6px 0; font-size: 14px; text-align: right; color: #111111; font-weight: 600;">
+                        ${params.shippingTotal === 0 ? '<span style="color: #059669; font-weight: 700;">FREE</span>' : `EGP ${(params.shippingTotal ?? 75).toLocaleString("en-US")}`}
                       </td>
                     </tr>
-
-                    ${
-                      (params.vatTotal ?? 0) > 0
-                        ? `
-                    <tr>
-                      <td style="padding: 6px 0; font-size: 14px; color: #666666;">VAT (14% Egypt Tax)</td>
-                      <td style="padding: 6px 0; font-size: 14px; text-align: right; color: #111111; font-weight: 500;">
-                        EGP ${params.vatTotal!.toLocaleString("en-US")}
-                      </td>
-                    </tr>`
-                        : ""
-                    }
 
                     ${
                       (params.paymentFee ?? 0) > 0
                         ? `
                     <tr>
-                      <td style="padding: 6px 0; font-size: 14px; color: #666666;">Payment Fee ${params.paymentMethodName ? `(${params.paymentMethodName})` : ""}</td>
-                      <td style="padding: 6px 0; font-size: 14px; text-align: right; color: #111111; font-weight: 500;">
+                      <td style="padding: 6px 0; font-size: 14px; color: #666666;">
+                        Payment Fee ${params.paymentMethodName ? `(${params.paymentMethodName})` : ""}
+                      </td>
+                      <td style="padding: 6px 0; font-size: 14px; text-align: right; color: #111111; font-weight: 600;">
                         EGP ${params.paymentFee!.toLocaleString("en-US")}
                       </td>
                     </tr>`
@@ -218,8 +237,10 @@ export async function sendOrderConfirmationEmail(
                     }
 
                     <tr>
-                      <td style="padding: 14px 0 6px 0; font-size: 16px; font-weight: 700; color: #111111; border-top: 2px solid #111111;">Total Amount</td>
-                      <td style="padding: 14px 0 6px 0; font-size: 20px; font-weight: 800; text-align: right; color: #d97706; border-top: 2px solid #111111;">
+                      <td style="padding: 14px 0 6px 0; font-size: 15px; font-weight: 700; color: #111111; border-top: 2px solid #111111;">
+                        Total Amount
+                      </td>
+                      <td style="padding: 14px 0 6px 0; font-size: 19px; font-weight: 800; text-align: right; color: #d97706; border-top: 2px solid #111111;">
                         EGP ${params.total.toLocaleString("en-US")}
                       </td>
                     </tr>
@@ -228,38 +249,38 @@ export async function sendOrderConfirmationEmail(
                         ? `
                     <tr>
                       <td colspan="2" style="font-size: 12px; color: #777777; text-align: right; padding-top: 4px;">
-                        Payment Method: <strong>${params.paymentMethodName}</strong>
+                        Payment Method: <strong style="color: #333333;">${params.paymentMethodName}</strong>
                       </td>
                     </tr>`
                         : ""
                     }
                   </table>
 
-                  <!-- Shipping Address -->
-                  <div style="background-color: #f9f9f9; border-radius: 6px; padding: 20px; margin-bottom: 32px;">
-                    <h3 style="margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; color: #777777;">
+                  <!-- Shipping & Delivery Information Box -->
+                  <div style="background-color: #fafafa; border: 1px solid #eaeaea; border-radius: 8px; padding: 18px; margin-bottom: 28px;">
+                    <h3 style="margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #888888; font-weight: 700;">
                       Delivery Address
                     </h3>
-                    <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #222222;">
+                    <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #222222;">
                       <strong>${customerName}</strong><br/>
                       ${addressLine1}<br/>
                       ${addressLine2 ? `${addressLine2}<br/>` : ""}
                       ${params.shippingAddress.city}${stateOrGov ? `, ${stateOrGov}` : ""}<br/>
-                      ${phone ? `Phone: ${phone}` : ""}
+                      ${phone ? `📞 ${phone}` : ""}
                     </p>
                     ${
                       params.customerNote
                         ? `
-                    <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #dddddd; font-size: 13px; color: #555555;">
-                      <strong>Note:</strong> ${params.customerNote}
+                    <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #dddddd; font-size: 12px; color: #555555;">
+                      <strong>Customer Note:</strong> ${params.customerNote}
                     </div>`
                         : ""
                     }
                   </div>
 
                   <!-- CTA Button -->
-                  <div style="text-align: center; margin-bottom: 24px;">
-                    <a href="${siteUrl}/account" style="display: inline-block; background-color: #111111; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 4px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+                  <div style="text-align: center; margin-bottom: 12px;">
+                    <a href="${siteUrl}/account" style="display: inline-block; background-color: #111111; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 6px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
                       View Order Status
                     </a>
                   </div>
@@ -268,12 +289,12 @@ export async function sendOrderConfirmationEmail(
 
               <!-- Footer -->
               <tr>
-                <td style="background-color: #f5f5f5; padding: 24px 40px; text-align: center; border-top: 1px solid #eeeeee;">
-                  <p style="margin: 0 0 8px; font-size: 12px; color: #888888;">
-                    MEME Atelier — Luxury Women's Fashion
+                <td style="background-color: #f5f5f5; padding: 22px 32px; text-align: center; border-top: 1px solid #eeeeee;">
+                  <p style="margin: 0 0 6px; font-size: 12px; font-weight: 600; color: #555555;">
+                    MEME Atelier — Luxury Fashion
                   </p>
-                  <p style="margin: 0; font-size: 11px; color: #aaaaaa;">
-                    If you have questions about your order, reply to this email or contact customer care.
+                  <p style="margin: 0; font-size: 11px; color: #999999; line-height: 1.4;">
+                    If you have questions regarding your order, reply directly to this email or contact support.
                   </p>
                 </td>
               </tr>

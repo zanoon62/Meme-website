@@ -512,10 +512,12 @@ function OrderDetailDialog({
             <span className="text-muted-foreground">Shipping</span>
             <span>{formatPrice(Number(order.shipping_total))}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Tax</span>
-            <span>{formatPrice(Number(order.tax_total))}</span>
-          </div>
+          {Number(order.tax_total) > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Tax</span>
+              <span>{formatPrice(Number(order.tax_total))}</span>
+            </div>
+          )}
           <div className="flex justify-between pt-1 border-t border-border/60 font-medium text-sm">
             <span>Total</span>
             <span>{formatPrice(Number(order.total), order.currency)}</span>
