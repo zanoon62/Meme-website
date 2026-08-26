@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { createSupabaseServiceClient } from "@/lib/supabase/server";
+import { createSupabaseStaticClient } from "@/lib/supabase/server";
 import { products as seedProducts } from "@/data/products";
 
 export const runtime = "nodejs";
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const supabase = createSupabaseServiceClient();
+    const supabase = createSupabaseStaticClient();
     let query = supabase
       .from("products")
       .select("*, product_images(url, sort_order)")
