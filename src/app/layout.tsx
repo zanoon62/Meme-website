@@ -6,6 +6,8 @@ import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { StoreProvider } from "@/components/providers/store-provider";
 import { SiteShell } from "@/components/layout/site-shell";
+import { StoreInitializer } from "@/components/providers/store-initializer";
+import { getCachedProductsServer } from "@/lib/api/products-server";
 
 const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-inter",
@@ -93,9 +95,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const products = await getCachedProductsServer();
+
   return (
     <html
       lang="en"
@@ -110,6 +114,7 @@ export default function RootLayout({
           disableTransitionOnChange={false}
         >
           <StoreProvider>
+            <StoreInitializer products={products} />
             <SiteShell>{children}</SiteShell>
             <Toaster />
             <SonnerToaster position="bottom-right" richColors />
