@@ -51,15 +51,12 @@ export function Header() {
     };
     check();
 
-    // Also check Supabase customer session for Returns link
+    // Also check customer session for Returns link
     const checkCustomer = async () => {
       try {
-        const { getSupabaseBrowser } = await import("@/lib/supabase/browser");
-        const { isSupabaseConfigured } = await import("@/lib/supabase/config");
-        if (!isSupabaseConfigured()) return;
-        const supabase = getSupabaseBrowser();
-        const { data: { user } } = await supabase.auth.getUser();
-        setIsCustomerLoggedIn(!!user);
+        const res = await fetch("/api/auth/session");
+        const data = await res.json();
+        setIsCustomerLoggedIn(Boolean(data.user));
       } catch {
         setIsCustomerLoggedIn(false);
       }

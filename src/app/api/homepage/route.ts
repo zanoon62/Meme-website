@@ -2,29 +2,30 @@
  * GET /api/homepage — public edge-cached homepage configuration
  *
  * Edge cached with stale-while-revalidate to ensure fast, instant
- * delivery from CDN edge nodes with minimal Supabase DB egress.
+ * delivery from CDN edge nodes with minimal database egress.
  */
 
 import { NextResponse } from "next/server";
-import { createSupabaseServiceClient } from "@/lib/supabase/server";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { eq } from "drizzle-orm";
+import { isDatabaseConfigured } from "@/lib/db/config";
+import { db } from "@/lib/db/client";
+import { homepageSettings } from "@/lib/db/schema";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  if (!isSupabaseConfigured()) {
+  if (!isDatabaseConfigured()) {
     return NextResponse.json({ config: null }, { status: 200 });
   }
 
   try {
-    const supabase = createSupabaseServiceClient();
-    const { data, error } = await supabase
-      .from("homepage_settings")
-      .select("config")
-      .eq("id", "main")
-      .single();
+    const [row] = await db
+      .select({ config: homepageSettings.config })
+      .from(homepageSettings)
+      .where(eq(homepageSettings.id, "main"))
+      .limit(1);
 
-    if (error || !data?.config) {
+    if (!row?.config) {
       return NextResponse.json(
         { config: null },
         {
@@ -37,12 +38,10 @@ export async function GET() {
     }
 
     return NextResponse.json(
-      { config: data.config },
+      { config: row.config },
       {
         headers: {
           "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
-          "CDN-Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
-          "Vercel-CDN-Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
         },
       }
     );

@@ -15,7 +15,7 @@ import { limiters } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
-  const rl = limiters.checkout(req);
+  const rl = await limiters.checkout(req);
   if (!rl.success) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { isSupabaseConfigured, isSupabaseServiceConfigured } from "@/lib/supabase/config";
+import { requireAdmin } from "@/lib/auth/admin-guard";
+import { isStorageConfigured, getMinioClient } from "@/lib/storage/client";
 
 export const runtime = "nodejs";
 
@@ -9,41 +10,27 @@ export const runtime = "nodejs";
  * Does NOT expose any secrets — only boolean flags and error messages.
  */
 export async function GET() {
-  const supabaseConfigured = isSupabaseConfigured();
-  const serviceConfigured = isSupabaseServiceConfigured();
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard.error;
+
+  const storageConfigured = isStorageConfigured();
 
   const result: Record<string, unknown> = {
-    supabaseConfigured,
-    serviceRoleConfigured: serviceConfigured,
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL
-      ? process.env.NEXT_PUBLIC_SUPABASE_URL.substring(0, 40) + "..."
-      : "NOT SET",
-    serviceKeySet: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    storageConfigured,
+    minioEndpointSet: Boolean(process.env.MINIO_ENDPOINT),
+    minioPublicUrlSet: Boolean(process.env.MINIO_PUBLIC_URL),
     nodeEnv: process.env.NODE_ENV,
   };
 
-  // If Supabase is configured, try a real bucket check
-  if (serviceConfigured) {
+  if (storageConfigured) {
     try {
-      const { createSupabaseServiceClient } = await import("@/lib/supabase/server");
-      const supabase = createSupabaseServiceClient();
-
-      // Try to list files in homepage-images bucket (will fail if bucket doesn't exist)
-      const { data, error } = await supabase.storage
-        .from("homepage-images")
-        .list("homepage", { limit: 1 });
-
-      result.bucketCheck = error
-        ? { ok: false, error: error.message }
-        : { ok: true, fileCount: data?.length ?? 0 };
+      const client = getMinioClient();
+      const exists = await client.bucketExists("homepage");
+      result.bucketCheck = { ok: true, homepageBucketExists: exists };
     } catch (e: unknown) {
-      result.bucketCheck = {
-        ok: false,
-        error: e instanceof Error ? e.message : String(e),
-      };
+      result.bucketCheck = { ok: false, error: e instanceof Error ? e.message : String(e) };
     }
 
-    // Try sharp import
     try {
       await import("sharp");
       result.sharpAvailable = true;

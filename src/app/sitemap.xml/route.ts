@@ -7,8 +7,10 @@
  */
 
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db/client";
+import { products } from "@/lib/db/schema";
+import { isDatabaseConfigured } from "@/lib/db/config";
 import { products as seedProducts, collections, categories } from "@/data/products";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://meme.example.com";
@@ -44,14 +46,18 @@ export async function GET() {
   let productSlugs: { slug: string; updated_at?: string }[] = seedProducts.map((p) => ({
     slug: p.slug,
   }));
-  if (isSupabaseConfigured()) {
+  if (isDatabaseConfigured()) {
     try {
-      const supabase = await createSupabaseServerClient();
-      const { data } = await supabase
-        .from("products")
-        .select("slug, updated_at")
-        .eq("status", "active");
-      if (data && data.length > 0) productSlugs = data;
+      const rows = await db
+        .select({ slug: products.slug, updatedAt: products.updatedAt })
+        .from(products)
+        .where(eq(products.status, "active"));
+      if (rows && rows.length > 0) {
+        productSlugs = rows.map((r) => ({
+          slug: r.slug,
+          updated_at: r.updatedAt ? r.updatedAt.toISOString() : undefined,
+        }));
+      }
     } catch {
       // fall back to seed
     }

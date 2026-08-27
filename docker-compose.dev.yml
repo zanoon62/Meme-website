@@ -1,0 +1,60 @@
+# Local development only: Postgres + Redis + MinIO, no app/nginx.
+# Run: docker compose -f docker-compose.dev.yml up -d
+# Then in .env:
+#   DATABASE_URL=postgres://meme:meme_dev@localhost:5432/meme_dev
+#   REDIS_URL=redis://localhost:6379
+#   MINIO_ENDPOINT=localhost / MINIO_PORT=9000 / MINIO_USE_SSL=false
+#   MINIO_ACCESS_KEY=meme_dev / MINIO_SECRET_KEY=meme_dev_secret
+#   MINIO_PUBLIC_URL=http://localhost:9000
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: meme
+      POSTGRES_PASSWORD: meme_dev
+      POSTGRES_DB: meme_dev
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - meme_pg_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meme -d meme_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - meme_redis_dev_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: meme_dev
+      MINIO_ROOT_PASSWORD: meme_dev_secret
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001" # MinIO console
+    volumes:
+      - meme_minio_dev_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  meme_pg_dev_data:
+  meme_redis_dev_data:
+  meme_minio_dev_data:

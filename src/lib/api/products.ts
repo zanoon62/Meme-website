@@ -1,26 +1,44 @@
 /**
- * Product data adapter — single source of truth for reading & writing
- * the product catalog.
+ * Product data adapter shared between the client store and admin routes.
  *
- * - If Supabase env vars are configured, all reads/writes go to Supabase.
- * - If not, reads fall back to /data/products.ts (seed) and writes are
- *   persisted to localStorage via the existing Zustand store.
- *
- * Components should never call Supabase directly — always go through
- * these functions so the fallback behavior is transparent.
+ * `dbProductToStore`/`storeProductToDb` convert between the storefront
+ * `Product` shape and the snake_case row shape returned by our API routes
+ * (see src/lib/db/to-snake-case.ts — API routes convert Drizzle's camelCase
+ * rows back to snake_case so this mapper, and the rest of the frontend,
+ * didn't need to change during the Supabase -> Postgres migration).
  */
 
 import type { Product, ProductColor, ProductSize } from "@/components/providers/ui-provider";
-import { products as seedProducts } from "@/data/products";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import type { Database } from "@/lib/supabase/database.types";
-import { getProductFallbackImages } from "@/lib/product-fallback-images";
 
-type SupabaseProduct = Database["public"]["Tables"]["products"]["Row"];
+/** A product row as returned by the API (snake_case, matching DB column names). */
+export interface ApiProductRow {
+  id: string;
+  slug: string;
+  name: string;
+  subtitle?: string | null;
+  description?: string | null;
+  price: number | string;
+  compare_at_price?: number | string | null;
+  currency?: string | null;
+  category_name?: string | null;
+  collection_name?: string | null;
+  colors?: unknown;
+  sizes?: unknown;
+  badges?: string[] | null;
+  rating?: number | string | null;
+  review_count?: number | null;
+  inventory?: number | null;
+  material?: string | null;
+  care?: string | null;
+  is_new?: boolean | null;
+  is_best_seller?: boolean | null;
+  is_trending?: boolean | null;
+  is_limited?: boolean | null;
+  tags?: string[] | null;
+}
 
-/** Map a Supabase product row to the storefront Product type */
-export function dbProductToStore(p: SupabaseProduct): Product {
+/** Map an API product row to the storefront Product type */
+export function dbProductToStore(p: ApiProductRow): Product {
   return {
     id: p.id,
     slug: p.slug,
@@ -29,27 +47,27 @@ export function dbProductToStore(p: SupabaseProduct): Product {
     description: p.description ?? "",
     price: Number(p.price),
     compareAtPrice: p.compare_at_price ? Number(p.compare_at_price) : undefined,
-    currency: p.currency,
+    currency: p.currency ?? "EGP",
     category: p.category_name ?? "",
     collection: p.collection_name ?? "",
     colors: (p.colors as ProductColor[]) ?? [],
     sizes: (p.sizes as ProductSize[]) ?? [],
-    images: [], // filled by product_images join — see fetchAllProducts
+    images: [], // filled by product_images join — see the API route response
     badges: p.badges ?? [],
-    rating: Number(p.rating),
-    reviewCount: p.review_count,
-    inventory: p.inventory,
+    rating: Number(p.rating ?? 5),
+    reviewCount: p.review_count ?? 0,
+    inventory: p.inventory ?? 0,
     material: p.material ?? "",
     care: p.care ?? "",
-    isNew: p.is_new,
-    isBestSeller: p.is_best_seller,
-    isTrending: p.is_trending,
-    isLimited: p.is_limited,
+    isNew: p.is_new ?? false,
+    isBestSeller: p.is_best_seller ?? false,
+    isTrending: p.is_trending ?? false,
+    isLimited: p.is_limited ?? false,
     tags: p.tags ?? [],
   };
 }
 
-/** Map a storefront Product to a Supabase insert payload */
+/** Map a storefront Product to an API insert/update payload (snake_case) */
 export function storeProductToDb(p: Partial<Product>) {
   return {
     slug: p.slug,
@@ -77,88 +95,3 @@ export function storeProductToDb(p: Partial<Product>) {
     review_count: p.reviewCount ?? 0,
   };
 }
-
-/**
- * Fetch all active products (with images).
- * Falls back to seed data when Supabase isn't configured.
- */
-export async function fetchAllProducts(): Promise<Product[]> {
-  if (!isSupabaseConfigured()) {
-    return seedProducts;
-  }
-  try {
-    const supabase = createSupabaseBrowserClient();
-    const [{ data: rows, error }, { data: images }] = await Promise.all([
-      supabase
-        .from("products")
-        .select("*")
-        .eq("status", "active")
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("product_images")
-        .select("product_id, url, sort_order, is_primary")
-        .order("sort_order", { ascending: true }),
-    ]);
-
-    if (error || !rows) return seedProducts;
-
-    const imageMap = new Map<string, string[]>();
-    for (const img of images ?? []) {
-      const arr = imageMap.get(img.product_id) ?? [];
-      arr.push(img.url);
-      imageMap.set(img.product_id, arr);
-    }
-
-    return rows.map((p) => {
-      const pImages = imageMap.get(p.id);
-      return {
-        ...dbProductToStore(p),
-        images: pImages && pImages.length > 0 ? pImages : getProductFallbackImages(p.slug, p.name),
-      };
-    });
-  } catch {
-    return seedProducts;
-  }
-}
-
-/**
- * Fetch a single product by slug.
- */
-export async function fetchProductBySlug(slug: string): Promise<Product | null> {
-  if (!isSupabaseConfigured()) {
-    return seedProducts.find((p) => p.slug === slug) ?? null;
-  }
-  try {
-    const supabase = createSupabaseBrowserClient();
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .eq("slug", slug)
-      .eq("status", "active")
-      .single();
-    if (error || !data) return null;
-
-    const { data: images } = await supabase
-      .from("product_images")
-      .select("url")
-      .eq("product_id", data.id)
-      .order("sort_order", { ascending: true });
-
-    const pImages = images?.map((i) => i.url);
-    return {
-      ...dbProductToStore(data),
-      images: pImages && pImages.length > 0 ? pImages : getProductFallbackImages(data.slug, data.name),
-    };
-  } catch {
-    return seedProducts.find((p) => p.slug === slug) ?? null;
-  }
-}
-
-/**
- * Server-side fetch using the service client (bypasses RLS).
- * Used by admin pages to read all products including drafts.
- *
- * NOTE: This function lives in a separate server-only module to avoid
- * pulling `next/headers` into client bundles. See:
- *   src/lib/api/products-server.ts
- */

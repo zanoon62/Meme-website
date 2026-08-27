@@ -14,8 +14,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { isBackendConfigured } from "@/lib/config/backend";
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -368,7 +367,7 @@ export const useHomepageStore = create<HomepageStore>()(
 
       saveConfig: async (config) => {
         set({ config, saving: true });
-        if (isSupabaseConfigured()) {
+        if (isBackendConfigured()) {
           try {
             const res = await fetch("/api/admin/homepage", {
               method: "POST",

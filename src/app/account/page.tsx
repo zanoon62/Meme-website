@@ -152,46 +152,13 @@ function LoginScreen() {
 
   const handleGoogleLogin = async () => {
     setLoading(true);
-    try {
-      const { getSupabaseBrowser } = await import("@/lib/supabase/browser");
-      const { isSupabaseConfigured } = await import("@/lib/supabase/config");
-
-      if (!isSupabaseConfigured()) {
-        toast.error("Authentication not configured yet.");
-        return;
-      }
-
-      const supabase = getSupabaseBrowser();
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-
-      if (error) toast.error(error.message);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to initiate Google Sign In");
-    } finally {
-      setLoading(false);
-    }
+    window.location.href = "/api/auth/google?next=/account";
   };
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { getSupabaseBrowser } = await import("@/lib/supabase/browser");
-      const { isSupabaseConfigured } = await import("@/lib/supabase/config");
-
-      if (!isSupabaseConfigured()) {
-        toast.error("Authentication not configured yet.");
-        return;
-      }
-
-      const supabase = getSupabaseBrowser();
-
       if (mode === "register") {
         const res = await fetch("/api/auth/signup", {
           method: "POST",
@@ -200,15 +167,16 @@ function LoginScreen() {
         });
         const data = await res.json();
         if (!res.ok) { toast.error(data.error ?? "Signup failed"); return; }
-        if (data.requires_email_confirmation) {
-          toast.success("Check your email to confirm your account!");
-          return;
-        }
         toast.success("Account created! Welcome.");
         window.location.reload();
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) { toast.error(error.message); return; }
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) { toast.error(data.error ?? "Login failed"); return; }
         await fetch("/api/admin/auth/elevate", { method: "POST" });
         toast.success("Welcome back!");
         window.location.reload();
@@ -458,11 +426,6 @@ function Dashboard({ session }: { session: SessionData }) {
   const handleSignOut = async () => {
     setSigningOut(true);
     try {
-      // Sign out from browser Supabase session first
-      const { getSupabaseBrowser } = await import("@/lib/supabase/browser");
-      const supabase = getSupabaseBrowser();
-      await supabase.auth.signOut();
-      // Also invalidate server-side session cookie
       await fetch("/api/auth/signout", { method: "POST" });
       toast.success("Signed out");
       window.location.href = "/account";

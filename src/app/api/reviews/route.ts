@@ -8,13 +8,17 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase/server";
-import { isSupabaseConfigured, isSupabaseServiceConfigured } from "@/lib/supabase/config";
+import { and, desc, eq } from "drizzle-orm";
+import { db } from "@/lib/db/client";
+import { customers, reviews } from "@/lib/db/schema";
+import { isDatabaseConfigured } from "@/lib/db/config";
+import { toSnakeCase, toSnakeCaseArray } from "@/lib/db/to-snake-case";
+import { getCurrentSession } from "@/lib/auth/session";
 import { limiters } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
-  const rl = limiters.public(req);
+  const rl = await limiters.public(req);
   if (!rl.success) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
@@ -23,30 +27,39 @@ export async function GET(req: NextRequest) {
   const productId = searchParams.get("productId");
 
   // Demo mode OR missing productId — return empty review set
-  if (!productId || !isSupabaseConfigured()) {
-    return NextResponse.json({ reviews: [], avgRating: null, count: 0, demo: !isSupabaseConfigured() });
+  if (!productId || !isDatabaseConfigured()) {
+    return NextResponse.json({ reviews: [], avgRating: null, count: 0, demo: !isDatabaseConfigured() });
   }
 
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("reviews")
-    .select("id, author, rating, title, body, is_verified, created_at, response, response_at")
-    .eq("product_id", productId)
-    .eq("is_published", true)
-    .order("created_at", { ascending: false })
-    .limit(100);
+  try {
+    const rows = await db
+      .select({
+        id: reviews.id,
+        author: reviews.author,
+        rating: reviews.rating,
+        title: reviews.title,
+        body: reviews.body,
+        isVerified: reviews.isVerified,
+        createdAt: reviews.createdAt,
+        response: reviews.response,
+        responseAt: reviews.responseAt,
+      })
+      .from(reviews)
+      .where(and(eq(reviews.productId, productId), eq(reviews.isPublished, true)))
+      .orderBy(desc(reviews.createdAt))
+      .limit(100);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const count = rows.length;
+    const avgRating =
+      count > 0 ? Math.round((rows.reduce((s, r) => s + r.rating, 0) / count) * 10) / 10 : null;
+
+    return NextResponse.json({ reviews: toSnakeCaseArray(rows), avgRating, count });
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Unknown error" },
+      { status: 500 },
+    );
   }
-
-  const reviews = data ?? [];
-  const count = reviews.length;
-  const avgRating = count > 0
-    ? Math.round((reviews.reduce((s, r) => s + r.rating, 0) / count) * 10) / 10
-    : null;
-
-  return NextResponse.json({ reviews, avgRating, count });
 }
 
 const CreateReviewSchema = z.object({
@@ -57,18 +70,17 @@ const CreateReviewSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const rl = limiters.public(req);
+  const rl = await limiters.public(req);
   if (!rl.success) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
-  if (!isSupabaseConfigured()) {
+  if (!isDatabaseConfigured()) {
     return NextResponse.json({ ok: true, demo: true });
   }
 
   // Auth check — only logged-in customers can review
-  const serverClient = await createSupabaseServerClient();
-  const { data: { user } } = await serverClient.auth.getUser();
+  const { user } = await getCurrentSession();
   if (!user) {
     return NextResponse.json(
       { error: "Please sign in to leave a review." },
@@ -93,36 +105,35 @@ export async function POST(req: NextRequest) {
   // Find the customer row
   let customerId: string | null = null;
   let authorName = user.email ?? "Anonymous";
-  if (isSupabaseServiceConfigured()) {
-    const serviceClient = createSupabaseServiceClient();
-    const { data: cust } = await serviceClient
-      .from("customers")
-      .select("id, first_name, last_name")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-    if (cust) {
-      customerId = cust.id;
-      const name = [cust.first_name, cust.last_name].filter(Boolean).join(" ");
-      if (name) authorName = name;
-    }
+  const [cust] = await db
+    .select({ id: customers.id, firstName: customers.firstName, lastName: customers.lastName })
+    .from(customers)
+    .where(eq(customers.userId, user.id))
+    .limit(1);
+  if (cust) {
+    customerId = cust.id;
+    const name = [cust.firstName, cust.lastName].filter(Boolean).join(" ");
+    if (name) authorName = name;
   }
 
-  // Insert via server client (RLS allows customer-owned inserts)
-  const { data, error } = await serverClient.from("reviews").insert({
-    product_id: parsed.data.product_id,
-    customer_id: customerId,
-    author: authorName,
-    rating: parsed.data.rating,
-    title: parsed.data.title,
-    body: parsed.data.body,
-    is_published: false, // require admin approval
-    is_verified: false,
-  }).select().single();
+  try {
+    const [row] = await db
+      .insert(reviews)
+      .values({
+        productId: parsed.data.product_id,
+        customerId,
+        author: authorName,
+        rating: parsed.data.rating,
+        title: parsed.data.title,
+        body: parsed.data.body,
+        isPublished: false, // require admin approval
+        isVerified: false,
+      })
+      .returning();
 
-  if (error) {
-    logger.warn("review insert failed", { error: error.message, user: user.id });
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ ok: true, review: toSnakeCase(row) }, { status: 201 });
+  } catch (e) {
+    logger.warn("review insert failed", { error: e instanceof Error ? e.message : String(e), user: user.id });
+    return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 400 });
   }
-
-  return NextResponse.json({ ok: true, review: data }, { status: 201 });
 }

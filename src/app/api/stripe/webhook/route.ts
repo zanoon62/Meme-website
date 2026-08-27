@@ -7,7 +7,9 @@
  *   - charge.refunded: marks order as refunded
  *
  * NOTE: Stripe requires the raw body — Next.js Route Handlers give us the
- * body via await req.text(). Do NOT parse as JSON first.
+ * body via await req.text(). Do NOT parse as JSON first. The Nginx reverse
+ * proxy in front of this route must not buffer/transform the request body
+ * (see docs/VPS_DEPLOYMENT.md once written).
  *
  * Configure in Stripe Dashboard → Webhooks → endpoint URL:
  *   https://yourdomain.com/api/stripe/webhook
@@ -18,9 +20,11 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 import { verifyStripeWebhook } from "@/lib/stripe/server";
-import { createSupabaseServiceClient } from "@/lib/supabase/server";
-import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
+import { isDatabaseConfigured } from "@/lib/db/config";
+import { db } from "@/lib/db/client";
+import { orders } from "@/lib/db/schema";
 import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
@@ -38,37 +42,31 @@ export async function POST(req: NextRequest) {
 
   logger.info("stripe webhook received", { type: event.type, id: event.id });
 
-  if (!isSupabaseServiceConfigured()) {
+  if (!isDatabaseConfigured()) {
     // Demo mode — accept but no-op
     return NextResponse.json({ received: true, demo: true });
   }
-
-  const supabase = createSupabaseServiceClient();
 
   try {
     switch (event.type) {
       case "payment_intent.succeeded": {
         const intent = event.data.object;
-        const { data: order } = await supabase
-          .from("orders")
-          .select("id, status, payment_status, total")
-          .eq("payment_intent_id", intent.id)
-          .maybeSingle();
+        const [order] = await db
+          .select({ id: orders.id, status: orders.status, paymentStatus: orders.paymentStatus })
+          .from(orders)
+          .where(eq(orders.paymentIntentId, intent.id))
+          .limit(1);
 
         if (!order) {
           logger.info("webhook: no order found for intent", { intentId: intent.id });
           break;
         }
 
-        if (order.payment_status !== "paid") {
-          await supabase
-            .from("orders")
-            .update({
-              status: "paid",
-              payment_status: "paid",
-              paid_at: new Date().toISOString(),
-            })
-            .eq("id", order.id);
+        if (order.paymentStatus !== "paid") {
+          await db
+            .update(orders)
+            .set({ status: "paid", paymentStatus: "paid", paidAt: new Date() })
+            .where(eq(orders.id, order.id));
           logger.info("order marked paid via webhook", { orderId: order.id });
         }
         break;
@@ -76,20 +74,17 @@ export async function POST(req: NextRequest) {
 
       case "payment_intent.payment_failed": {
         const intent = event.data.object;
-        const { data: order } = await supabase
-          .from("orders")
-          .select("id, status")
-          .eq("payment_intent_id", intent.id)
-          .maybeSingle();
+        const [order] = await db
+          .select({ id: orders.id, status: orders.status })
+          .from(orders)
+          .where(eq(orders.paymentIntentId, intent.id))
+          .limit(1);
+
         if (order && order.status === "pending") {
-          await supabase
-            .from("orders")
-            .update({
-              status: "cancelled",
-              payment_status: "failed",
-              cancelled_at: new Date().toISOString(),
-            })
-            .eq("id", order.id);
+          await db
+            .update(orders)
+            .set({ status: "cancelled", paymentStatus: "failed", cancelledAt: new Date() })
+            .where(eq(orders.id, order.id));
           logger.warn("order marked failed via webhook", { orderId: order.id });
         }
         break;
@@ -97,25 +92,23 @@ export async function POST(req: NextRequest) {
 
       case "charge.refunded": {
         const charge = event.data.object;
-        const intentId =
-          typeof charge.payment_intent === "string" ? charge.payment_intent : null;
+        const intentId = typeof charge.payment_intent === "string" ? charge.payment_intent : null;
         if (!intentId) break;
-        const { data: order } = await supabase
-          .from("orders")
-          .select("id, status, payment_status")
-          .eq("payment_intent_id", intentId)
-          .maybeSingle();
+
+        const [order] = await db
+          .select({ id: orders.id })
+          .from(orders)
+          .where(eq(orders.paymentIntentId, intentId))
+          .limit(1);
+
         if (order) {
-          await supabase
-            .from("orders")
-            .update({
+          await db
+            .update(orders)
+            .set({
               status: "refunded",
-              payment_status:
-                charge.amount_refunded >= charge.amount
-                  ? "refunded"
-                  : "partial_refund",
+              paymentStatus: charge.amount_refunded >= charge.amount ? "refunded" : "partial_refund",
             })
-            .eq("id", order.id);
+            .where(eq(orders.id, order.id));
           logger.info("order marked refunded via webhook", { orderId: order.id });
         }
         break;

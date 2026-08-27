@@ -3,26 +3,30 @@
  * POST /api/admin/products — create a new product
  *
  * Secured: caller must be authenticated staff/admin (see requireAdmin).
- * In demo mode (Supabase not configured), GET returns seed data so the
+ * In demo mode (DB not configured), GET returns seed data so the
  * admin panel is still explorable; writes are blocked.
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { asc, desc } from "drizzle-orm";
 import { requireAdmin, requireAdminRole } from "@/lib/auth/admin-guard";
 import { storeProductToDb } from "@/lib/api/products";
 import { limiters } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 import { products as seedProducts } from "@/data/products";
-import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
+import { isDatabaseConfigured } from "@/lib/db/config";
+import { db } from "@/lib/db/client";
+import { products, productImages } from "@/lib/db/schema";
+import { toSnakeCase } from "@/lib/db/to-snake-case";
 
 export async function GET(req: NextRequest) {
-  const rl = limiters.admin(req);
+  const rl = await limiters.admin(req);
   if (!rl.success) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": "60" } });
   }
 
   // Demo mode: return seed products so admin panel is explorable without DB
-  if (!isSupabaseServiceConfigured()) {
+  if (!isDatabaseConfigured()) {
     return NextResponse.json({
       products: seedProducts.map((p) => ({
         id: p.id,
@@ -49,33 +53,25 @@ export async function GET(req: NextRequest) {
   if (!guard.ok) return guard.error;
 
   try {
-    const supabase = guard.client;
-    const [{ data: products, error }, { data: images }] = await Promise.all([
-      supabase
-        .from("products")
-        .select("*")
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("product_images")
-        .select("product_id, url, sort_order, is_primary")
-        .order("sort_order", { ascending: true }),
+    const [rows, images] = await Promise.all([
+      db.select().from(products).orderBy(desc(products.createdAt)),
+      db
+        .select({ productId: productImages.productId, url: productImages.url })
+        .from(productImages)
+        .orderBy(asc(productImages.sortOrder)),
     ]);
 
-    if (error) {
-      logger.error("admin products GET failed", { error: error.message });
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
     const imageMap = new Map<string, string[]>();
-    for (const img of images ?? []) {
-      const arr = imageMap.get(img.product_id) ?? [];
+    for (const img of images) {
+      if (!img.productId) continue;
+      const arr = imageMap.get(img.productId) ?? [];
       arr.push(img.url);
-      imageMap.set(img.product_id, arr);
+      imageMap.set(img.productId, arr);
     }
 
     return NextResponse.json({
-      products: (products ?? []).map((p) => ({
-        ...p,
+      products: rows.map((p) => ({
+        ...toSnakeCase(p),
         images: imageMap.get(p.id) ?? [],
       })),
     });
@@ -91,7 +87,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const rl = limiters.admin(req);
+  const rl = await limiters.admin(req);
   if (!rl.success) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
@@ -101,7 +97,6 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const supabase = guard.client;
 
     const payload = storeProductToDb(body);
 
@@ -122,15 +117,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data, error } = await supabase
-      .from("products")
-      .insert(payload as never)
-      .select()
-      .single();
-
-    if (error) {
-      logger.warn("admin product create failed", { error: error.message, slug: payload.slug });
-      return NextResponse.json({ error: error.message }, { status: 400 });
+    type ProductRow = typeof products.$inferSelect;
+    let row: ProductRow;
+    try {
+      [row] = await db
+        .insert(products)
+        .values({
+          slug: payload.slug,
+          name: payload.name,
+          subtitle: payload.subtitle,
+          description: payload.description,
+          price: String(payload.price),
+          compareAtPrice: payload.compare_at_price != null ? String(payload.compare_at_price) : null,
+          currency: payload.currency,
+          categoryName: payload.category_name,
+          collectionName: payload.collection_name,
+          colors: payload.colors,
+          sizes: payload.sizes,
+          material: payload.material,
+          care: payload.care,
+          inventory: payload.inventory,
+          isNew: payload.is_new,
+          isBestSeller: payload.is_best_seller,
+          isTrending: payload.is_trending,
+          isLimited: payload.is_limited,
+          badges: payload.badges,
+          tags: payload.tags,
+          status: payload.status,
+          rating: payload.rating != null ? String(payload.rating) : undefined,
+          reviewCount: payload.review_count,
+        })
+        .returning();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      logger.warn("admin product create failed", { error: message, slug: payload.slug });
+      return NextResponse.json({ error: message }, { status: 400 });
     }
 
     // Insert images if provided
@@ -138,24 +159,28 @@ export async function POST(req: NextRequest) {
     if (Array.isArray(body.images) && body.images.length > 0) {
       const validImages = body.images.filter((u: unknown) => typeof u === "string" && u.trim().length > 0);
       if (validImages.length > 0) {
-        const imgPayload = validImages.map((url: string, i: number) => ({
-          product_id: data.id,
-          url: url.trim(),
-          sort_order: i,
-          is_primary: i === 0,
-          alt: body.name || "",
-        }));
-        const { error: imgErr } = await supabase.from("product_images").insert(imgPayload);
-        if (imgErr) {
-          logger.warn("product image insert failed", { productId: data.id, error: imgErr.message });
-        } else {
+        try {
+          await db.insert(productImages).values(
+            validImages.map((url: string, i: number) => ({
+              productId: row.id,
+              url: url.trim(),
+              sortOrder: i,
+              isPrimary: i === 0,
+              alt: body.name || "",
+            })),
+          );
           insertedImages.push(...validImages);
+        } catch (e) {
+          logger.warn("product image insert failed", {
+            productId: row.id,
+            error: e instanceof Error ? e.message : String(e),
+          });
         }
       }
     }
 
-    logger.info("product created", { productId: data.id, slug: payload.slug, by: guard.userId });
-    
+    logger.info("product created", { productId: row.id, slug: payload.slug, by: guard.userId });
+
     // Purge cached products immediately
     try {
       const { revalidateTag, revalidatePath } = await import("next/cache");
@@ -164,7 +189,7 @@ export async function POST(req: NextRequest) {
       revalidatePath("/shop", "page");
     } catch {}
 
-    return NextResponse.json({ product: { ...data, images: insertedImages } }, { status: 201 });
+    return NextResponse.json({ product: { ...toSnakeCase(row), images: insertedImages } }, { status: 201 });
   } catch (e) {
     logger.error("admin product create exception", {
       error: e instanceof Error ? e.message : String(e),

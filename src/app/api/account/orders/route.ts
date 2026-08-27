@@ -1,128 +1,116 @@
 /**
  * GET /api/account/orders — returns the current logged-in customer's own orders.
  *
- * Requires a valid Supabase session cookie.
- * Returns [] if not authenticated or Supabase is not configured.
+ * Requires a valid session cookie.
+ * Returns [] if not authenticated or the database is not configured.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase/server";
-import { isSupabaseConfigured, isSupabaseServiceConfigured } from "@/lib/supabase/config";
+import { desc, eq, ilike, inArray, or } from "drizzle-orm";
+import { requireCustomerSession } from "@/lib/auth/customer-guard";
+import { isDatabaseConfigured } from "@/lib/db/config";
+import { db } from "@/lib/db/client";
+import { orderItems, orders } from "@/lib/db/schema";
+import { toSnakeCase } from "@/lib/db/to-snake-case";
 import { limiters } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
-  const rl = limiters.public(req);
+  const rl = await limiters.public(req);
   if (!rl.success) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
-  if (!isSupabaseConfigured()) {
+  if (!isDatabaseConfigured()) {
     return NextResponse.json({ orders: [], demo: true });
   }
 
   try {
-    const serverClient = await createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await serverClient.auth.getUser();
+    const guard = await requireCustomerSession();
+    if (!guard.ok) return guard.error;
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    if (!isSupabaseServiceConfigured()) {
-      return NextResponse.json({ orders: [] });
-    }
-
-    const serviceClient = createSupabaseServiceClient();
-    const userEmail = user.email;
-
-    // Look up the customer row by auth_user_id or email
-    let { data: customer } = await serviceClient
-      .from("customers")
-      .select("id, email")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-
-    if (!customer && userEmail) {
-      const { data: custByEmail } = await serviceClient
-        .from("customers")
-        .select("id, email")
-        .ilike("email", userEmail)
-        .maybeSingle();
-      customer = custByEmail;
-    }
-
-    // Build order fetch query: match customer_id OR email
-    let query = serviceClient.from("orders").select(
-      `
-      id,
-      order_number,
-      status,
-      payment_status,
-      fulfillment_status,
-      subtotal,
-      discount_total,
-      shipping_total,
-      tax_total,
-      total,
-      currency,
-      shipping_address,
-      shipping_method,
-      placed_at,
-      shipped_at,
-      delivered_at,
-      tracking_number,
-      tracking_url,
-      order_items (
-        id,
-        product_name,
-        product_slug,
-        product_image,
-        variant_color,
-        variant_size,
-        quantity,
-        unit_price,
-        total
-      )
-    `
-    );
-
-    if (customer && userEmail) {
-      query = query.or(`customer_id.eq.${customer.id},email.ilike.${userEmail}`);
-    } else if (customer) {
-      query = query.eq("customer_id", customer.id);
-    } else if (userEmail) {
-      query = query.ilike("email", userEmail);
-    } else {
-      return NextResponse.json({ orders: [] });
-    }
-
-    const { data: orders, error } = await query
-      .order("placed_at", { ascending: false })
+    // Match orders linked to this customer, or guest-checkout orders placed
+    // with the same email (these get backfilled with customer_id below).
+    const rows = await db
+      .select({
+        id: orders.id,
+        orderNumber: orders.orderNumber,
+        customerId: orders.customerId,
+        status: orders.status,
+        paymentStatus: orders.paymentStatus,
+        fulfillmentStatus: orders.fulfillmentStatus,
+        subtotal: orders.subtotal,
+        discountTotal: orders.discountTotal,
+        shippingTotal: orders.shippingTotal,
+        taxTotal: orders.taxTotal,
+        total: orders.total,
+        currency: orders.currency,
+        shippingAddress: orders.shippingAddress,
+        shippingMethod: orders.shippingMethod,
+        placedAt: orders.placedAt,
+        shippedAt: orders.shippedAt,
+        deliveredAt: orders.deliveredAt,
+        trackingNumber: orders.trackingNumber,
+        trackingUrl: orders.trackingUrl,
+      })
+      .from(orders)
+      .where(or(eq(orders.customerId, guard.customerId), ilike(orders.email, guard.email)))
+      .orderBy(desc(orders.placedAt))
       .limit(50);
 
-    if (error) {
-      logger.error("account orders fetch failed", { error: error.message });
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    const orderIds = rows.map((r) => r.id);
+    const itemsByOrder = new Map<string, Record<string, unknown>[]>();
 
-    // Backfill customer_id on unlinked orders matching this customer
-    if (customer && orders && orders.length > 0) {
-      const unlinkedIds = orders.filter((o: any) => !o.customer_id).map((o: any) => o.id);
-      if (unlinkedIds.length > 0) {
-        serviceClient
-          .from("orders")
-          .update({ customer_id: customer.id })
-          .in("id", unlinkedIds)
-          .then(({ error: updateErr }) => {
-            if (updateErr) logger.warn("Failed to backfill customer_id on orders", { error: updateErr.message });
-          });
+    if (orderIds.length > 0) {
+      const items = await db
+        .select({
+          id: orderItems.id,
+          orderId: orderItems.orderId,
+          productName: orderItems.productName,
+          productSlug: orderItems.productSlug,
+          productImage: orderItems.productImage,
+          variantColor: orderItems.variantColor,
+          variantSize: orderItems.variantSize,
+          quantity: orderItems.quantity,
+          unitPrice: orderItems.unitPrice,
+          total: orderItems.total,
+        })
+        .from(orderItems)
+        .where(inArray(orderItems.orderId, orderIds));
+
+      for (const item of items) {
+        const orderId = item.orderId;
+        if (!orderId) continue;
+        const { orderId: _drop, ...rest } = item;
+        const list = itemsByOrder.get(orderId) ?? [];
+        list.push(toSnakeCase(rest));
+        itemsByOrder.set(orderId, list);
       }
     }
 
-    return NextResponse.json({ orders: orders ?? [] });
+    // Backfill customer_id on unlinked orders matching this customer
+    // (fire-and-forget, same as the previous behavior).
+    const unlinkedIds = rows.filter((o) => !o.customerId).map((o) => o.id);
+    if (unlinkedIds.length > 0) {
+      db.update(orders)
+        .set({ customerId: guard.customerId })
+        .where(inArray(orders.id, unlinkedIds))
+        .catch((updateErr: unknown) => {
+          logger.warn("Failed to backfill customer_id on orders", {
+            error: updateErr instanceof Error ? updateErr.message : String(updateErr),
+          });
+        });
+    }
+
+    const result = rows.map((r) => {
+      const { customerId: _drop, ...rest } = r;
+      return {
+        ...toSnakeCase(rest),
+        order_items: itemsByOrder.get(r.id) ?? [],
+      };
+    });
+
+    return NextResponse.json({ orders: result });
   } catch (e) {
     logger.error("account orders exception", {
       error: e instanceof Error ? e.message : String(e),

@@ -4,30 +4,43 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { count, desc, eq, inArray } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/admin-guard";
-import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
+import { isDatabaseConfigured } from "@/lib/db/config";
+import { db } from "@/lib/db/client";
+import { orders, orderItems } from "@/lib/db/schema";
+import { toSnakeCaseArray } from "@/lib/db/to-snake-case";
 import { demoStore } from "@/lib/demo-store";
 import { limiters } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 
+type OrderStatus =
+  | "pending"
+  | "paid"
+  | "fulfilled"
+  | "shipped"
+  | "delivered"
+  | "cancelled"
+  | "refunded";
+
 export async function GET(req: NextRequest) {
-  const rl = limiters.admin(req);
+  const rl = await limiters.admin(req);
   if (!rl.success) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   // Demo mode — return sample orders with line items
-  if (!isSupabaseServiceConfigured()) {
+  if (!isDatabaseConfigured()) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
     const q = searchParams.get("q");
-    let orders = demoStore.listOrders();
+    let ordersList = demoStore.listOrders();
     if (status && status !== "all") {
-      orders = orders.filter((o) => o.status === status);
+      ordersList = ordersList.filter((o) => o.status === status);
     }
     if (q) {
       const lower = q.toLowerCase();
-      orders = orders.filter(
+      ordersList = ordersList.filter(
         (o) =>
           o.order_number.toLowerCase().includes(lower) ||
           o.email.toLowerCase().includes(lower) ||
@@ -35,9 +48,9 @@ export async function GET(req: NextRequest) {
       );
     }
     return NextResponse.json({
-      orders,
+      orders: ordersList,
       items: demoStore.listOrderItems(),
-      total: orders.length,
+      total: ordersList.length,
     });
   }
 
@@ -45,39 +58,35 @@ export async function GET(req: NextRequest) {
   if (!guard.ok) return guard.error;
 
   try {
-    const supabase = guard.client;
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
     const limit = Math.min(Number(searchParams.get("limit") ?? 50), 200);
     const offset = Math.max(Number(searchParams.get("offset") ?? 0), 0);
 
-    let query = supabase
-      .from("orders")
-      .select("*", { count: "exact" })
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
+    const whereClause =
+      status && status !== "all" ? eq(orders.status, status as OrderStatus) : undefined;
 
-    if (status && status !== "all") {
-      query = query.eq("status", status as "pending" | "paid" | "fulfilled" | "shipped" | "delivered" | "cancelled" | "refunded");
-    }
-
-    const { data: orders, error, count } = await query;
-    if (error) {
-      logger.error("admin orders GET failed", { error: error.message });
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    const [rows, countRows] = await Promise.all([
+      db
+        .select()
+        .from(orders)
+        .where(whereClause)
+        .orderBy(desc(orders.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db.select({ value: count() }).from(orders).where(whereClause),
+    ]);
 
     // Fetch related order items
-    const orderIds = (orders ?? []).map((o) => o.id);
-    const { data: items } = await supabase
-      .from("order_items")
-      .select("*")
-      .in("order_id", orderIds);
+    const orderIds = rows.map((o) => o.id);
+    const items = orderIds.length
+      ? await db.select().from(orderItems).where(inArray(orderItems.orderId, orderIds))
+      : [];
 
     return NextResponse.json({
-      orders: orders ?? [],
-      items: items ?? [],
-      total: count ?? 0,
+      orders: toSnakeCaseArray(rows),
+      items: toSnakeCaseArray(items),
+      total: countRows[0]?.value ?? 0,
     });
   } catch (e) {
     logger.error("admin orders GET exception", { error: e instanceof Error ? e.message : String(e) });

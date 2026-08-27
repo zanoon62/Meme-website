@@ -5,9 +5,13 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { asc, eq } from "drizzle-orm";
 import { requireAdmin, requireAdminRole } from "@/lib/auth/admin-guard";
 import { storeProductToDb } from "@/lib/api/products";
 import { logger } from "@/lib/logger";
+import { db } from "@/lib/db/client";
+import { products, productImages } from "@/lib/db/schema";
+import { toSnakeCase, toSnakeCaseArray } from "@/lib/db/to-snake-case";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -15,17 +19,36 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.error;
   const { id } = await params;
-  const supabase = guard.client;
-  const [{ data: product, error }, { data: images }] = await Promise.all([
-    supabase.from("products").select("*").eq("id", id).single(),
-    supabase
-      .from("product_images")
-      .select("url, alt, sort_order, is_primary")
-      .eq("product_id", id)
-      .order("sort_order", { ascending: true }),
-  ]);
-  if (error) return NextResponse.json({ error: error.message }, { status: 404 });
-  return NextResponse.json({ product: { ...product, images: images ?? [] } });
+
+  try {
+    const [productRows, images] = await Promise.all([
+      db.select().from(products).where(eq(products.id, id)).limit(1),
+      db
+        .select({
+          url: productImages.url,
+          alt: productImages.alt,
+          sortOrder: productImages.sortOrder,
+          isPrimary: productImages.isPrimary,
+        })
+        .from(productImages)
+        .where(eq(productImages.productId, id))
+        .orderBy(asc(productImages.sortOrder)),
+    ]);
+
+    const product = productRows[0];
+    if (!product) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      product: { ...toSnakeCase(product), images: toSnakeCaseArray(images) },
+    });
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Unknown error" },
+      { status: 404 },
+    );
+  }
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {
@@ -33,42 +56,73 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (!guard.ok) return guard.error;
   const { id } = await params;
   const body = await req.json();
-  const supabase = guard.client;
 
   const payload = storeProductToDb(body);
+
+  const updateValues: Record<string, unknown> = {
+    slug: payload.slug,
+    name: payload.name,
+    subtitle: payload.subtitle,
+    description: payload.description,
+    price: payload.price !== undefined ? String(payload.price) : undefined,
+    compareAtPrice:
+      payload.compare_at_price !== undefined
+        ? payload.compare_at_price === null
+          ? null
+          : String(payload.compare_at_price)
+        : undefined,
+    currency: payload.currency,
+    categoryName: payload.category_name,
+    collectionName: payload.collection_name,
+    colors: payload.colors,
+    sizes: payload.sizes,
+    material: payload.material,
+    care: payload.care,
+    inventory: payload.inventory,
+    isNew: payload.is_new,
+    isBestSeller: payload.is_best_seller,
+    isTrending: payload.is_trending,
+    isLimited: payload.is_limited,
+    badges: payload.badges,
+    tags: payload.tags,
+    status: payload.status,
+    rating: payload.rating !== undefined ? String(payload.rating) : undefined,
+    reviewCount: payload.review_count,
+  };
   // Strip undefined fields
-  Object.keys(payload).forEach((k) =>
-    (payload as Record<string, unknown>)[k] === undefined
-      ? delete (payload as Record<string, unknown>)[k]
-      : null,
-  );
+  Object.keys(updateValues).forEach((k) => (updateValues[k] === undefined ? delete updateValues[k] : null));
 
-  const { data, error } = await supabase
-    .from("products")
-    .update(payload)
-    .eq("id", id)
-    .select()
-    .single();
+  type ProductRow = typeof products.$inferSelect;
+  let row: ProductRow | undefined;
+  try {
+    [row] = await db.update(products).set(updateValues).where(eq(products.id, id)).returning();
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    logger.warn("product update failed", { id, error: message });
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 
-  if (error) {
-    logger.warn("product update failed", { id, error: error.message });
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  if (!row) {
+    logger.warn("product update failed", { id, error: "Product not found" });
+    return NextResponse.json({ error: "Product not found" }, { status: 400 });
   }
 
   // Replace images if provided
   if (body.images) {
-    await supabase.from("product_images").delete().eq("product_id", id);
-    if (body.images.length) {
-      await supabase.from("product_images").insert(
-        body.images.map((url: string, i: number) => ({
-          product_id: id,
-          url,
-          sort_order: i,
-          is_primary: i === 0,
-          alt: body.name,
-        })),
-      );
-    }
+    await db.transaction(async (tx) => {
+      await tx.delete(productImages).where(eq(productImages.productId, id));
+      if (body.images.length) {
+        await tx.insert(productImages).values(
+          body.images.map((url: string, i: number) => ({
+            productId: id,
+            url,
+            sortOrder: i,
+            isPrimary: i === 0,
+            alt: body.name,
+          })),
+        );
+      }
+    });
   }
 
   logger.info("product updated", { id, by: guard.userId });
@@ -79,23 +133,21 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     revalidatePath("/shop", "page");
   } catch {}
 
-  return NextResponse.json({ product: data });
+  return NextResponse.json({ product: toSnakeCase(row) });
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const guard = await requireAdminRole();
   if (!guard.ok) return guard.error;
   const { id } = await params;
-  const supabase = guard.client;
 
   // Soft-delete via status=archived (preserves order_items foreign keys)
-  const { error } = await supabase
-    .from("products")
-    .update({ status: "archived" })
-    .eq("id", id);
-  if (error) {
-    logger.warn("product archive failed", { id, error: error.message });
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  try {
+    await db.update(products).set({ status: "archived" }).where(eq(products.id, id));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    logger.warn("product archive failed", { id, error: message });
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 
   logger.info("product archived", { id, by: guard.userId });

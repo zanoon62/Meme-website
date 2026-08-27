@@ -3,12 +3,17 @@
  *
  * Body: { code: string, subtotal: number }
  * Returns: { ok: true, discount, type, value } | { ok: false, reason }
+ *
+ * Read-only: does NOT increment used_count — that happens at order
+ * completion time in the checkout flow.
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { isDatabaseConfigured } from "@/lib/db/config";
+import { db } from "@/lib/db/client";
+import { coupons } from "@/lib/db/schema";
 import { limiters } from "@/lib/rate-limit";
 
 const Schema = z.object({
@@ -17,7 +22,7 @@ const Schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const rl = limiters.public(req);
+  const rl = await limiters.public(req);
   if (!rl.success) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
 
   let body: unknown;
@@ -29,7 +34,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
 
-  if (!isSupabaseConfigured()) {
+  if (!isDatabaseConfigured()) {
     // Demo: accept ATELIER10 as 10% off
     if (parsed.data.code.toUpperCase() === "ATELIER10") {
       return NextResponse.json({
@@ -42,29 +47,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, reason: "invalid" });
   }
 
-  const supabase = await createSupabaseServerClient();
-  const { data: coupon, error } = await supabase
-    .from("coupons")
-    .select("*")
-    .eq("code", parsed.data.code.toUpperCase())
-    .eq("is_active", true)
-    .maybeSingle();
+  const [coupon] = await db
+    .select()
+    .from(coupons)
+    .where(and(eq(coupons.code, parsed.data.code.toUpperCase()), eq(coupons.isActive, true)))
+    .limit(1);
 
-  if (error || !coupon) {
+  if (!coupon) {
     return NextResponse.json({ ok: false, reason: "invalid" });
   }
 
   const now = new Date();
-  if (coupon.starts_at && new Date(coupon.starts_at) > now) {
+  if (coupon.startsAt && new Date(coupon.startsAt) > now) {
     return NextResponse.json({ ok: false, reason: "not_started" });
   }
-  if (coupon.ends_at && new Date(coupon.ends_at) < now) {
+  if (coupon.endsAt && new Date(coupon.endsAt) < now) {
     return NextResponse.json({ ok: false, reason: "expired" });
   }
-  if (coupon.max_uses && coupon.used_count >= coupon.max_uses) {
+  if (coupon.maxUses && (coupon.usedCount ?? 0) >= coupon.maxUses) {
     return NextResponse.json({ ok: false, reason: "max_uses_reached" });
   }
-  if (coupon.min_subtotal && parsed.data.subtotal < Number(coupon.min_subtotal)) {
+  if (coupon.minSubtotal && parsed.data.subtotal < Number(coupon.minSubtotal)) {
     return NextResponse.json({ ok: false, reason: "min_subtotal_not_met" });
   }
 

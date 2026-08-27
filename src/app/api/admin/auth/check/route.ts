@@ -1,80 +1,84 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseServiceClient } from "@/lib/supabase/server";
-import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
+import { eq } from "drizzle-orm";
+import { getCurrentSession, signOutCurrentSession } from "@/lib/auth/session";
+import { db } from "@/lib/db/client";
+import { adminAllowedEmails, staffProfiles } from "@/lib/db/schema";
+import { ADMIN_EMAIL_COOKIE_NAME, SUPER_ADMIN_EMAIL } from "@/lib/auth/simple-auth";
 import { cookies } from "next/headers";
-import { ADMIN_COOKIE_NAME, ADMIN_EMAIL_COOKIE_NAME } from "@/lib/auth/simple-auth";
 import { logger } from "@/lib/logger";
 
-const SESSION_MAX_AGE = 60 * 5; // 5 minutes
+const UI_HINT_COOKIE_MAX_AGE = 60 * 60 * 24; // 24h — matches session UX, just a display hint
 
 /**
  * GET /api/admin/auth/check
- * Called after Google OAuth callback for admin login.
- * Checks if the authenticated user's email is in the admin_allowed_emails table.
- * If allowed: sets admin session cookies and redirects to /admin.
- * If denied: signs out and redirects to /admin/login?error=access-denied.
+ * Called right after the Google OAuth callback for an admin login attempt.
+ * The real session cookie is already set by the callback — this route only
+ * decides whether that user is allowed to be staff.
  */
 export async function GET(request: Request) {
   const { origin } = new URL(request.url);
   const redirectSuccess = `${origin}/admin`;
   const redirectDenied = `${origin}/admin/login?error=access-denied`;
 
-  if (!isSupabaseServiceConfigured()) {
+  const { user } = await getCurrentSession();
+  if (!user) {
+    logger.warn("Admin auth check: no session");
     return NextResponse.redirect(redirectDenied);
   }
 
-  try {
-    const serverClient = await createSupabaseServerClient();
-    const { data: { user }, error } = await serverClient.auth.getUser();
+  const email = user.email.toLowerCase().trim();
 
-    if (error || !user || !user.email) {
-      logger.warn("Admin auth check: no session", { error: error?.message });
-      return NextResponse.redirect(redirectDenied);
-    }
+  const [allowed] = await db
+    .select({ id: adminAllowedEmails.id })
+    .from(adminAllowedEmails)
+    .where(eq(adminAllowedEmails.email, email))
+    .limit(1);
 
-    const email = user.email.toLowerCase().trim();
-
-    // Check whitelist via service client (bypasses RLS)
-    const serviceClient = createSupabaseServiceClient();
-    const { data: allowed, error: dbErr } = await (serviceClient as any)
-      .from("admin_allowed_emails")
-      .select("id")
-      .eq("email", email)
-      .maybeSingle();
-
-    if (dbErr || !allowed) {
-      logger.warn("Admin auth check: email not in whitelist", { email });
-      // Sign out this user so they don't remain logged in
-      await serverClient.auth.signOut();
-      return NextResponse.redirect(redirectDenied);
-    }
-
-    // Email is whitelisted — set admin session cookies
-    const cookieStore = await cookies();
-
-    // HttpOnly session cookie (tamper-proof)
-    cookieStore.set(ADMIN_COOKIE_NAME, "true", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: SESSION_MAX_AGE,
-    });
-
-    // Non-HttpOnly email cookie (readable by JS for UI hints)
-    cookieStore.set(ADMIN_EMAIL_COOKIE_NAME, email, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: SESSION_MAX_AGE,
-    });
-
-    logger.info("Admin session granted", { email });
-    return NextResponse.redirect(redirectSuccess);
-  } catch (e) {
-    logger.error("Admin auth check error", { error: String(e) });
+  if (!allowed) {
+    logger.warn("Admin auth check: email not in whitelist", { email });
+    await signOutCurrentSession();
     return NextResponse.redirect(redirectDenied);
   }
+
+  const [existingStaff] = await db
+    .select()
+    .from(staffProfiles)
+    .where(eq(staffProfiles.userId, user.id))
+    .limit(1);
+
+  if (existingStaff) {
+    // Being in the whitelist re-grants access after removal, but does NOT
+    // override an explicit `isActive: false` set by an admin — a
+    // deactivated staff member stays deactivated until reactivated
+    // deliberately, even if they're still whitelisted.
+    if (!existingStaff.isActive) {
+      logger.warn("Admin auth check: staff account is deactivated", { email });
+      await signOutCurrentSession();
+      return NextResponse.redirect(redirectDenied);
+    }
+    await db
+      .update(staffProfiles)
+      .set({ lastLoginAt: new Date() })
+      .where(eq(staffProfiles.id, existingStaff.id));
+  } else {
+    await db.insert(staffProfiles).values({
+      userId: user.id,
+      email,
+      role: email === SUPER_ADMIN_EMAIL.toLowerCase() ? "admin" : "staff",
+      isActive: true,
+      lastLoginAt: new Date(),
+    });
+  }
+
+  const cookieStore = await cookies();
+  cookieStore.set(ADMIN_EMAIL_COOKIE_NAME, email, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: UI_HINT_COOKIE_MAX_AGE,
+  });
+
+  logger.info("Admin session granted", { email });
+  return NextResponse.redirect(redirectSuccess);
 }

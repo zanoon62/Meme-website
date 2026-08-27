@@ -4,27 +4,64 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
+import { and, desc, eq, type SQL } from "drizzle-orm";
+import { isDatabaseConfigured } from "@/lib/db/config";
+import { db } from "@/lib/db/client";
+import { reviews, products } from "@/lib/db/schema";
+import { toSnakeCaseArray } from "@/lib/db/to-snake-case";
 import { demoStore } from "@/lib/demo-store";
+import { requireAdmin } from "@/lib/auth/admin-guard";
+import { logger } from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard.error;
+
   const { searchParams } = new URL(req.url);
   const productId = searchParams.get("product_id");
   const status = searchParams.get("status"); // published | unpublished | all
 
-  if (!isSupabaseServiceConfigured()) {
-    let reviews = demoStore.listReviews();
+  if (!isDatabaseConfigured()) {
+    let list = demoStore.listReviews();
     if (productId) {
-      reviews = reviews.filter((r) => r.product_id === productId);
+      list = list.filter((r) => r.product_id === productId);
     }
     if (status === "published") {
-      reviews = reviews.filter((r) => r.is_published);
+      list = list.filter((r) => r.is_published);
     } else if (status === "unpublished") {
-      reviews = reviews.filter((r) => !r.is_published);
+      list = list.filter((r) => !r.is_published);
     }
-    return NextResponse.json({ reviews, total: reviews.length });
+    return NextResponse.json({ reviews: list, total: list.length });
   }
 
-  // Supabase mode would go here in production
-  return NextResponse.json({ reviews: [], total: 0 });
+  try {
+    const conditions: SQL[] = [];
+    if (productId) conditions.push(eq(reviews.productId, productId));
+    if (status === "published") conditions.push(eq(reviews.isPublished, true));
+    else if (status === "unpublished") conditions.push(eq(reviews.isPublished, false));
+
+    const rows = await db
+      .select({
+        id: reviews.id,
+        productId: reviews.productId,
+        productName: products.name,
+        customerName: reviews.author,
+        rating: reviews.rating,
+        title: reviews.title,
+        body: reviews.body,
+        isPublished: reviews.isPublished,
+        isVerified: reviews.isVerified,
+        publicResponse: reviews.response,
+        createdAt: reviews.createdAt,
+      })
+      .from(reviews)
+      .leftJoin(products, eq(reviews.productId, products.id))
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(desc(reviews.createdAt));
+
+    return NextResponse.json({ reviews: toSnakeCaseArray(rows), total: rows.length });
+  } catch (e) {
+    logger.error("admin reviews GET failed", { error: e instanceof Error ? e.message : String(e) });
+    return NextResponse.json({ reviews: [], total: 0 });
+  }
 }

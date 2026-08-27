@@ -1,51 +1,47 @@
 /**
  * Server-side checkout helpers — coupon validation, inventory check,
- * order number generation, and order creation in Supabase.
+ * order number generation, and order creation against Postgres.
  *
- * All functions take a service-role client (bypass RLS) — only call
- * from trusted server contexts.
+ * createOrder() runs as a single real Postgres transaction (order insert,
+ * order_items insert, per-line inventory decrement, coupon usage increment,
+ * customer stats update) — replacing the old best-effort Supabase-JS
+ * version, which had no real multi-statement transaction and manually
+ * rolled back the order row on item-insert failure, plus a manual
+ * "if the RPC errors, fall back to a racy read-then-write" branch. A real
+ * transaction makes both of those unnecessary: any failure rolls back
+ * everything automatically.
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/lib/supabase/database.types";
+import { eq, inArray, sql } from "drizzle-orm";
+import { db } from "@/lib/db/client";
+import { coupons, customers, orderItems, orders, products } from "@/lib/db/schema";
 import type { CartLine, Address } from "./types";
-import { calculateShipping, calculateTax } from "./types";
+import { SHIPPING_ZONES, PAYMENT_METHODS, FREE_SHIPPING_THRESHOLD } from "@/lib/format";
 import { logger } from "@/lib/logger";
 
-type ServiceClient = SupabaseClient<Database>;
+type Coupon = typeof coupons.$inferSelect;
 
-export type CouponResult =
-  | { ok: true; coupon: Database["public"]["Tables"]["coupons"]["Row"]; discount: number }
-  | { ok: false; reason: string };
+export type CouponResult = { ok: true; coupon: Coupon; discount: number } | { ok: false; reason: string };
 
 /** Validate a coupon code against the database and cart subtotal. */
-export async function validateCoupon(
-  supabase: ServiceClient,
-  code: string | undefined,
-  subtotal: number,
-): Promise<CouponResult> {
+export async function validateCoupon(code: string | undefined, subtotal: number): Promise<CouponResult> {
   if (!code) return { ok: false, reason: "no_code" };
 
-  const { data: coupon, error } = await supabase
-    .from("coupons")
-    .select("*")
-    .eq("code", code.toUpperCase())
-    .eq("is_active", true)
-    .single();
+  const [coupon] = await db
+    .select()
+    .from(coupons)
+    .where(sql`${coupons.code} = ${code.toUpperCase()} and ${coupons.isActive} = true`)
+    .limit(1);
 
-  if (error || !coupon) return { ok: false, reason: "invalid" };
+  if (!coupon) return { ok: false, reason: "invalid" };
 
   const now = new Date();
-  if (coupon.starts_at && new Date(coupon.starts_at) > now) {
-    return { ok: false, reason: "not_started" };
-  }
-  if (coupon.ends_at && new Date(coupon.ends_at) < now) {
-    return { ok: false, reason: "expired" };
-  }
-  if (coupon.max_uses && coupon.used_count >= coupon.max_uses) {
+  if (coupon.startsAt && coupon.startsAt > now) return { ok: false, reason: "not_started" };
+  if (coupon.endsAt && coupon.endsAt < now) return { ok: false, reason: "expired" };
+  if (coupon.maxUses && (coupon.usedCount ?? 0) >= coupon.maxUses) {
     return { ok: false, reason: "max_uses_reached" };
   }
-  if (coupon.min_subtotal && subtotal < Number(coupon.min_subtotal)) {
+  if (coupon.minSubtotal && subtotal < Number(coupon.minSubtotal)) {
     return { ok: false, reason: "min_subtotal_not_met" };
   }
 
@@ -67,77 +63,34 @@ export type InventoryCheck = {
 };
 
 /** Verify all cart lines have sufficient inventory. */
-export async function checkInventory(
-  supabase: ServiceClient,
-  lines: CartLine[],
-): Promise<InventoryCheck> {
+export async function checkInventory(lines: CartLine[]): Promise<InventoryCheck> {
   const productIds = lines.map((l) => l.productId);
-  const { data: products, error } = await supabase
-    .from("products")
-    .select("id, name, inventory, status")
-    .in("id", productIds);
+  const rows = await db
+    .select({ id: products.id, name: products.name, inventory: products.inventory, status: products.status })
+    .from(products)
+    .where(inArray(products.id, productIds));
 
-  if (error || !products) {
-    return {
-      ok: false,
-      failures: lines.map((l) => ({
-        productId: l.productId,
-        name: l.name,
-        requested: l.quantity,
-        available: 0,
-      })),
-    };
-  }
-
-  const invMap = new Map(products.map((p) => [p.id, p]));
+  const invMap = new Map(rows.map((p) => [p.id, p]));
   const failures: InventoryCheck["failures"] = [];
 
   for (const line of lines) {
     const product = invMap.get(line.productId);
     if (!product || product.status !== "active") {
-      failures.push({
-        productId: line.productId,
-        name: line.name,
-        requested: line.quantity,
-        available: 0,
-      });
+      failures.push({ productId: line.productId, name: line.name, requested: line.quantity, available: 0 });
       continue;
     }
-    if (product.inventory < line.quantity) {
+    if ((product.inventory ?? 0) < line.quantity) {
       failures.push({
         productId: line.productId,
         name: line.name,
         requested: line.quantity,
-        available: product.inventory,
+        available: product.inventory ?? 0,
       });
     }
   }
 
   return { ok: failures.length === 0, failures };
 }
-
-/** Generate a unique order number: MEME-YYMMDD-NNNNNN. */
-async function generateOrderNumber(supabase: ServiceClient): Promise<string> {
-  // Try the DB function first
-  const { data, error } = await supabase.rpc("generate_order_number");
-  if (!error && data) return data as string;
-
-  // Fallback: timestamp + random
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(2);
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  const rand = Math.floor(Math.random() * 1000000)
-    .toString()
-    .padStart(6, "0");
-  return `MEME-${yy}${mm}${dd}-${rand}`;
-}
-
-import {
-  SHIPPING_ZONES,
-  PAYMENT_METHODS,
-  FREE_SHIPPING_THRESHOLD,
-} from "@/lib/format";
 
 export type CreateOrderInput = {
   email: string;
@@ -168,18 +121,12 @@ export type CreatedOrder = {
   coupon_code?: string;
 };
 
-/**
- * Create the order, order_items, decrement inventory, increment coupon usage.
- * All in a single logical transaction (best-effort — Supabase doesn't have
- * true multi-statement tx via the JS client, but order_items FK is cascade
- * so a partial failure will leave an orphaned order row that we can clean up).
- */
+/** Create the order, order_items, decrement inventory, increment coupon usage — as one transaction. */
 export async function createOrder(
-  supabase: ServiceClient,
   input: CreateOrderInput,
 ): Promise<{ ok: true; order: CreatedOrder } | { ok: false; error: string }> {
   const subtotal = input.lines.reduce((s, l) => s + l.price * l.quantity, 0);
-  const couponResult = await validateCoupon(supabase, input.coupon_code, subtotal);
+  const couponResult = await validateCoupon(input.coupon_code, subtotal);
 
   let discountTotal = 0;
   let couponCode: string | undefined = undefined;
@@ -189,153 +136,113 @@ export async function createOrder(
   }
 
   const discountedSub = Math.max(0, subtotal - discountTotal);
+  const vatTotal = 0; // VAT removed per store policy
 
-  // VAT removed per store policy
-  const vatTotal = 0;
-
-  // Shipping zone calculation
   const zone = SHIPPING_ZONES.find((z) => z.id === input.shipping_zone_id) ?? SHIPPING_ZONES[0];
-  const shippingTotal = (subtotal >= FREE_SHIPPING_THRESHOLD || (couponResult.ok && couponResult.coupon.type === "shipping")) ? 0 : zone.cost;
+  const shippingTotal =
+    subtotal >= FREE_SHIPPING_THRESHOLD || (couponResult.ok && couponResult.coupon.type === "shipping")
+      ? 0
+      : zone.cost;
 
-  // Payment method fee calculation
   const method = PAYMENT_METHODS.find((m) => m.id === input.payment_method_id) ?? PAYMENT_METHODS[0];
   const paymentFee = (method.processingFee ?? 0) + Math.round(((method.feePercent ?? 0) / 100) * discountedSub);
 
-  // Grand Total
   const total = discountedSub + shippingTotal + paymentFee;
 
-  const orderNumber = await generateOrderNumber(supabase);
+  try {
+    const { orderId, orderNumber } = await db.transaction(async (tx) => {
+      const [{ orderNumber }] = await tx.execute<{ orderNumber: string }>(
+        sql`select generate_order_number() as "orderNumber"`,
+      );
 
-  // 1. Insert order
-  const { data: order, error: orderErr } = await supabase
-    .from("orders")
-    .insert({
-      order_number: orderNumber,
-      customer_id: input.customer_id ?? null,
-      email: input.email,
-      status: "pending",
-      payment_status: "awaiting",
-      fulfillment_status: "unfulfilled",
-      subtotal,
-      discount_total: discountTotal,
-      shipping_total: shippingTotal,
-      tax_total: 0,
-      total,
-      currency: "EGP",
-      coupon_code: couponCode,
-      shipping_address: input.shipping_address,
-      shipping_method: input.shipping_method,
-      customer_note: input.customer_note,
-      placed_at: new Date().toISOString(),
-    })
-    .select()
-    .single();
-
-  if (orderErr || !order) {
-    logger.error("order insert failed", { error: orderErr?.message });
-    return { ok: false, error: orderErr?.message ?? "Order insert failed" };
-  }
-
-  // 2. Insert order items (snapshot prices)
-  const itemPayload = input.lines.map((l) => ({
-    order_id: order.id,
-    product_id: l.productId,
-    product_name: l.name,
-    product_slug: l.slug,
-    product_image: l.image,
-    variant_color: l.color,
-    variant_size: l.size,
-    unit_price: l.price,
-    quantity: l.quantity,
-    total: l.price * l.quantity,
-  }));
-  const { error: itemsErr } = await supabase.from("order_items").insert(itemPayload);
-  if (itemsErr) {
-    logger.error("order_items insert failed", { orderId: order.id, error: itemsErr.message });
-    // Rollback order
-    await supabase.from("orders").delete().eq("id", order.id);
-    return { ok: false, error: "Failed to save line items" };
-  }
-
-  // 3. Decrement inventory atomically via Postgres RPC to prevent race conditions
-  for (const line of input.lines) {
-    try {
-      const { error: rpcErr } = await (supabase as any).rpc("decrement_inventory", {
-        p_product_id: line.productId,
-        p_quantity: line.quantity,
-      });
-
-      if (rpcErr) {
-        // Fallback to manual update if RPC is not yet applied in DB
-        const { data: cur } = await supabase
-          .from("products")
-          .select("inventory")
-          .eq("id", line.productId)
-          .single();
-        if (cur) {
-          const newInv = Math.max(0, cur.inventory - line.quantity);
-          await supabase.from("products").update({ inventory: newInv }).eq("id", line.productId);
-        }
-      }
-    } catch {
-      // Best-effort fallback
-      const { data: cur } = await supabase
-        .from("products")
-        .select("inventory")
-        .eq("id", line.productId)
-        .single();
-      if (cur) {
-        const newInv = Math.max(0, cur.inventory - line.quantity);
-        await supabase.from("products").update({ inventory: newInv }).eq("id", line.productId);
-      }
-    }
-  }
-
-  // 4. Increment coupon usage
-  if (couponResult.ok) {
-    await supabase
-      .from("coupons")
-      .update({ used_count: (couponResult.coupon.used_count ?? 0) + 1 })
-      .eq("id", couponResult.coupon.id);
-  }
-
-  // 5. Update customer stats if logged in
-  if (input.customer_id) {
-    const { data: cust } = await supabase
-      .from("customers")
-      .select("total_orders, total_spent")
-      .eq("id", input.customer_id)
-      .single();
-    if (cust) {
-      await supabase
-        .from("customers")
-        .update({
-          total_orders: (cust.total_orders ?? 0) + 1,
-          total_spent: Number(cust.total_spent ?? 0) + total,
-          last_order_at: new Date().toISOString(),
+      const [order] = await tx
+        .insert(orders)
+        .values({
+          orderNumber,
+          customerId: input.customer_id ?? null,
+          email: input.email,
+          status: "pending",
+          paymentStatus: "awaiting",
+          fulfillmentStatus: "unfulfilled",
+          subtotal: subtotal.toFixed(2),
+          discountTotal: discountTotal.toFixed(2),
+          shippingTotal: shippingTotal.toFixed(2),
+          taxTotal: "0",
+          total: total.toFixed(2),
+          currency: "EGP",
+          couponCode: couponCode ?? null,
+          shippingAddress: input.shipping_address,
+          shippingMethod: input.shipping_method,
+          customerNote: input.customer_note ?? null,
+          paymentIntentId: input.payment_intent_id ?? null,
+          placedAt: new Date(),
         })
-        .eq("id", input.customer_id);
-    }
+        .returning();
+
+      await tx.insert(orderItems).values(
+        input.lines.map((l) => ({
+          orderId: order.id,
+          productId: l.productId,
+          productName: l.name,
+          productSlug: l.slug,
+          productImage: l.image,
+          variantColor: l.color,
+          variantSize: l.size,
+          unitPrice: l.price.toFixed(2),
+          quantity: l.quantity,
+          total: (l.price * l.quantity).toFixed(2),
+        })),
+      );
+
+      for (const line of input.lines) {
+        await tx.execute(
+          sql`select decrement_inventory(${line.productId}::uuid, ${line.quantity}::int)`,
+        );
+      }
+
+      if (couponResult.ok) {
+        await tx
+          .update(coupons)
+          .set({ usedCount: sql`${coupons.usedCount} + 1` })
+          .where(eq(coupons.id, couponResult.coupon.id));
+      }
+
+      if (input.customer_id) {
+        await tx
+          .update(customers)
+          .set({
+            totalOrders: sql`${customers.totalOrders} + 1`,
+            totalSpent: sql`${customers.totalSpent} + ${total}`,
+            lastOrderAt: new Date(),
+          })
+          .where(eq(customers.id, input.customer_id));
+      }
+
+      return { orderId: order.id, orderNumber: order.orderNumber };
+    });
+
+    logger.info("order created", { orderId, orderNumber, total });
+
+    return {
+      ok: true,
+      order: {
+        id: orderId,
+        order_number: orderNumber,
+        total,
+        subtotal,
+        discount_total: discountTotal,
+        shipping_total: shippingTotal,
+        vat_total: vatTotal,
+        payment_fee: paymentFee,
+        tax_total: 0,
+        currency: "EGP",
+        shipping_zone_name: zone.name,
+        payment_method_name: method.name,
+        coupon_code: couponCode,
+      },
+    };
+  } catch (e) {
+    logger.error("order creation transaction failed", { error: e instanceof Error ? e.message : String(e) });
+    return { ok: false, error: e instanceof Error ? e.message : "Order creation failed" };
   }
-
-  logger.info("order created", { orderId: order.id, orderNumber, total });
-
-  return {
-    ok: true,
-    order: {
-      id: order.id,
-      order_number: orderNumber,
-      total,
-      subtotal,
-      discount_total: discountTotal,
-      shipping_total: shippingTotal,
-      vat_total: 0,
-      payment_fee: paymentFee,
-      tax_total: 0,
-      currency: "EGP",
-      shipping_zone_name: zone.name,
-      payment_method_name: method.name,
-      coupon_code: couponCode,
-    },
-  };
 }

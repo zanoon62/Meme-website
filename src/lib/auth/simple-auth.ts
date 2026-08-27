@@ -1,30 +1,35 @@
 /**
- * Admin authentication for the MEME Atelier admin panel.
- * Auth is Gmail-based via Supabase Google OAuth + email whitelist.
+ * Constants + client-side helpers for the admin UI. Real auth is a Google
+ * OAuth + email-whitelist flow backed by real sessions (see
+ * src/lib/auth/{session,admin-guard,google-oauth}.ts) — nothing here
+ * performs authentication itself.
  */
 
-// Legacy — kept for backward compat during transition
+/** Dev-only break-glass credentials — see validateAdminCredentials(). */
 export const ADMIN_CREDENTIALS = {
   username: "admin",
   password: "admin123",
 };
 
-export const ADMIN_COOKIE_NAME = "meme_admin_session";
-/** Stores the verified admin email (NOT HttpOnly — readable by JS for UI hints). */
+/** Stores the verified admin email (NOT HttpOnly — readable by JS for UI hints only). */
 export const ADMIN_EMAIL_COOKIE_NAME = "meme_admin_email";
 
 /** Default super-admin that can manage the email whitelist. */
 export const SUPER_ADMIN_EMAIL = "zanoon.bis@gmail.com";
 
 /**
- * Validates admin credentials.
- * Accepts "admin" (or "admin@memeatelier.com") as valid username.
+ * Validates the hardcoded dev-login credentials. Deliberately hardwired to
+ * fail outside development: this used to work identically in production,
+ * which — combined with the admin-guard bug fixed alongside this rewrite —
+ * meant any holder of these well-known credentials was indistinguishable
+ * from a real Google-authenticated admin. Now it only ever unlocks a
+ * NODE_ENV-gated dev session (see /api/admin/login), and never in production
+ * regardless of what's passed in.
  */
 export function validateAdminCredentials(username: string, pass: string): boolean {
+  if (process.env.NODE_ENV === "production") return false;
   const user = username.trim().toLowerCase();
-  const validUser =
-    user === ADMIN_CREDENTIALS.username ||
-    user === "admin@memeatelier.com";
+  const validUser = user === ADMIN_CREDENTIALS.username || user === "admin@memeatelier.com";
   return validUser && pass === ADMIN_CREDENTIALS.password;
 }
 
@@ -33,21 +38,9 @@ export function isSuperAdmin(email: string): boolean {
   return email.toLowerCase().trim() === SUPER_ADMIN_EMAIL.toLowerCase();
 }
 
-/**
- * Client-side: Set admin session — handled server-side via POST /api/admin/login.
- * Kept as a no-op stub for any callers that may reference it.
- */
-export function setAdminSession(): void {
-  // No-op: cookie is now set by /api/admin/login (HttpOnly + Secure)
-}
-
-/**
- * Client-side: Clear admin session via server API (clears HttpOnly cookie).
- */
+/** Client-side: clear the admin UI-hint cookie + sign out via the API. */
 export async function clearAdminSession(): Promise<void> {
   if (typeof window !== "undefined") {
-    localStorage.removeItem(ADMIN_COOKIE_NAME);
-    // Clear the non-HttpOnly email cookie
     document.cookie = `${ADMIN_EMAIL_COOKIE_NAME}=; path=/; max-age=0`;
   }
   try {
@@ -60,7 +53,7 @@ export async function clearAdminSession(): Promise<void> {
 /**
  * Client-side check if admin session exists.
  * Reads the meme_admin_email cookie (NOT HttpOnly) as a UI hint.
- * Real auth is always verified server-side.
+ * Real auth is always verified server-side via requireAdmin().
  */
 export function isAdminLoggedInClient(): boolean {
   if (typeof window !== "undefined") {

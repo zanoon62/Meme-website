@@ -11,9 +11,11 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServiceClient } from "@/lib/supabase/server";
-import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { eq, ilike } from "drizzle-orm";
+import { isDatabaseConfigured } from "@/lib/db/config";
+import { db } from "@/lib/db/client";
+import { customers, orders } from "@/lib/db/schema";
+import { getCurrentSession } from "@/lib/auth/session";
 import { CheckoutPayloadSchema } from "@/lib/checkout/types";
 import { checkInventory, createOrder } from "@/lib/checkout/server";
 import { retrievePaymentIntent } from "@/lib/stripe/server";
@@ -23,7 +25,7 @@ import { limiters } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
-  const rl = limiters.checkout(req);
+  const rl = await limiters.checkout(req);
   if (!rl.success) {
     return NextResponse.json(
       { error: "Too many checkout attempts. Please wait a minute." },
@@ -31,7 +33,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Parse & validate body
   let body: unknown;
   try {
     body = await req.json();
@@ -48,8 +49,8 @@ export async function POST(req: NextRequest) {
   }
   const payload = parsed.data;
 
-  // Supabase not configured — return a fake success for demo purposes
-  if (!isSupabaseServiceConfigured()) {
+  // Database not configured — return a fake success for demo purposes
+  if (!isDatabaseConfigured()) {
     const orderNumber = `MEME-${Date.now().toString(36).toUpperCase()}`;
     const total = payload.lines.reduce((s, l) => s + l.price * l.quantity, 0) + 75;
 
@@ -62,9 +63,7 @@ export async function POST(req: NextRequest) {
         shippingAddress: payload.shipping_address,
         shippingMethod: payload.shipping_method,
       }).catch((err) => {
-        logger.error("Failed to send demo order confirmation email", {
-          error: err,
-        });
+        logger.error("Failed to send demo order confirmation email", { error: err });
       });
     }
 
@@ -84,68 +83,45 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const supabase = createSupabaseServiceClient();
-
   // 1. Inventory check
-  const inv = await checkInventory(supabase, payload.lines);
+  const inv = await checkInventory(payload.lines);
   if (!inv.ok) {
-    return NextResponse.json(
-      {
-        error: "Some items are out of stock",
-        failures: inv.failures,
-      },
-      { status: 409 },
-    );
+    return NextResponse.json({ error: "Some items are out of stock", failures: inv.failures }, { status: 409 });
   }
 
   // 2. Verify Stripe payment (if a payment_intent_id is provided)
   if (isStripeConfigured() && payload.payment_intent_id) {
     const intent = await retrievePaymentIntent(payload.payment_intent_id);
     if (!intent) {
-      return NextResponse.json(
-        { error: "Payment verification failed — intent not found." },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Payment verification failed — intent not found." }, { status: 400 });
     }
     if (intent.status !== "succeeded") {
-      return NextResponse.json(
-        { error: `Payment not completed (status: ${intent.status}).` },
-        { status: 402 },
-      );
+      return NextResponse.json({ error: `Payment not completed (status: ${intent.status}).` }, { status: 402 });
     }
-    // Verify amount matches cart total (basic anti-tampering)
     const expectedTotal = payload.lines.reduce((s, l) => s + l.price * l.quantity, 0);
     if (intent.amount !== Math.round(expectedTotal * 100)) {
       logger.warn("Payment amount mismatch", {
         intentAmount: intent.amount,
         expected: Math.round(expectedTotal * 100),
       });
-      return NextResponse.json(
-        { error: "Payment amount mismatch — please contact support." },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Payment amount mismatch — please contact support." }, { status: 400 });
     }
   }
 
-  // 3. Identify customer (if logged in or matching email)
+  // 3. Identify customer (if logged in or matching email) — guest checkout is fine.
   let customerId: string | undefined;
   try {
-    const serverClient = await createSupabaseServerClient();
-    const { data: { user } } = await serverClient.auth.getUser();
+    const { user } = await getCurrentSession();
     if (user) {
-      const { data: cust } = await supabase
-        .from("customers")
-        .select("id")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
+      const [cust] = await db.select({ id: customers.id }).from(customers).where(eq(customers.userId, user.id)).limit(1);
       if (cust) customerId = cust.id;
     }
     if (!customerId && payload.email) {
-      const { data: cust } = await supabase
-        .from("customers")
-        .select("id")
-        .ilike("email", payload.email)
-        .maybeSingle();
+      const [cust] = await db
+        .select({ id: customers.id })
+        .from(customers)
+        .where(ilike(customers.email, payload.email))
+        .limit(1);
       if (cust) customerId = cust.id;
     }
   } catch {
@@ -153,7 +129,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 4. Create the order
-  const result = await createOrder(supabase, {
+  const result = await createOrder({
     email: payload.email,
     lines: payload.lines,
     shipping_address: payload.shipping_address,
@@ -172,14 +148,10 @@ export async function POST(req: NextRequest) {
 
   // 5. If Stripe is configured & payment was verified, mark order as paid
   if (isStripeConfigured() && payload.payment_intent_id) {
-    await supabase
-      .from("orders")
-      .update({
-        status: "paid",
-        payment_status: "paid",
-        paid_at: new Date().toISOString(),
-      })
-      .eq("id", result.order.id);
+    await db
+      .update(orders)
+      .set({ status: "paid", paymentStatus: "paid", paidAt: new Date() })
+      .where(eq(orders.id, result.order.id));
   }
 
   // 6. Send order confirmation email via Resend (non-blocking)

@@ -30,8 +30,6 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useT, useLangDir } from "@/lib/i18n";
-import { getSupabaseBrowser } from "@/lib/supabase/browser";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 // ─────────────────────────────────────────────
 // Types
@@ -97,19 +95,16 @@ export function ReturnsClient() {
   // ── Auth check
   React.useEffect(() => {
     const checkAuth = async () => {
-      if (!isSupabaseConfigured()) {
-        setAuthChecked(true);
+      try {
+        const res = await fetch("/api/auth/session");
+        const data = await res.json();
+        if (data.user) {
+          setIsLoggedIn(true);
+          setUserEmail(data.user.email ?? "");
+          fetchMyReturns();
+        }
+      } catch {
         setIsLoggedIn(false);
-        return;
-      }
-      const supabase = getSupabaseBrowser();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        setIsLoggedIn(true);
-        setUserEmail(user.email ?? "");
-        fetchMyReturns();
       }
       setAuthChecked(true);
     };
@@ -149,23 +144,19 @@ export function ReturnsClient() {
     setImagePreview(null);
   };
 
-  // ── Upload image to Supabase Storage
+  // ── Upload image via the server-mediated returns upload route
   const uploadImageToStorage = async (file: File): Promise<string | null> => {
-    if (!isSupabaseConfigured()) return null;
     setUploadingImage(true);
     try {
-      const supabase = getSupabaseBrowser();
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `returns/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage
-        .from("returns")
-        .upload(path, file, { upsert: false, contentType: file.type });
-      if (error) {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/returns/image-upload", { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) {
         toast.error(isAr ? "فشل رفع الصورة" : "Failed to upload image");
         return null;
       }
-      const { data } = supabase.storage.from("returns").getPublicUrl(path);
-      return data.publicUrl;
+      return data.url as string;
     } finally {
       setUploadingImage(false);
     }

@@ -4,30 +4,35 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { asc } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/admin-guard";
-import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
+import { isDatabaseConfigured } from "@/lib/db/config";
+import { db } from "@/lib/db/client";
+import { collections } from "@/lib/db/schema";
+import { toSnakeCase, toSnakeCaseArray } from "@/lib/db/to-snake-case";
 import { demoStore } from "@/lib/demo-store";
 import { logger } from "@/lib/logger";
 
 export async function GET() {
-  if (!isSupabaseServiceConfigured()) {
+  if (!isDatabaseConfigured()) {
     return NextResponse.json({ collections: demoStore.listCollections() });
   }
 
   const guard = await requireAdmin();
   if (!guard.ok) return guard.error;
 
-  const supabase = guard.client;
-  const { data, error } = await supabase
-    .from("collections")
-    .select("*")
-    .order("sort_order", { ascending: true });
-
-  if (error || !data || data.length === 0) {
-    if (error) logger.error("collections GET failed, using fallback seed data", { error: error.message });
+  try {
+    const rows = await db.select().from(collections).orderBy(asc(collections.sortOrder));
+    if (!rows.length) {
+      return NextResponse.json({ collections: demoStore.listCollections() });
+    }
+    return NextResponse.json({ collections: toSnakeCaseArray(rows) });
+  } catch (e) {
+    logger.error("collections GET failed, using fallback seed data", {
+      error: e instanceof Error ? e.message : String(e),
+    });
     return NextResponse.json({ collections: demoStore.listCollections() });
   }
-  return NextResponse.json({ collections: data });
 }
 
 export async function POST(req: NextRequest) {
@@ -50,7 +55,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Demo mode — persist to in-memory store
-  if (!isSupabaseServiceConfigured()) {
+  if (!isDatabaseConfigured()) {
     const col = demoStore.createCollection({
       slug: body.slug,
       name: body.name,
@@ -65,28 +70,31 @@ export async function POST(req: NextRequest) {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.error;
 
-  const supabase = guard.client;
+  try {
+    const [row] = await db
+      .insert(collections)
+      .values({
+        slug: body.slug,
+        name: body.name,
+        tagline: body.tagline ?? null,
+        description: body.description ?? null,
+        imageUrl: body.image_url ?? null,
+        bannerUrl: body.banner_url ?? null,
+        isFeatured: body.is_featured ?? false,
+        isActive: body.is_active ?? true,
+      })
+      .returning();
 
-  const { data, error } = await supabase
-    .from("collections")
-    .insert({
-      slug: body.slug!,
-      name: body.name!,
-      tagline: body.tagline ?? null,
-      description: body.description ?? null,
-      image_url: body.image_url ?? null,
-      banner_url: body.banner_url ?? null,
-      is_featured: body.is_featured ?? false,
-      is_active: body.is_active ?? true,
-    } as never)
-    .select()
-    .single();
-
-  if (error) {
-    logger.warn("collection create in DB failed, saving to demoStore fallback", { error: error.message, slug: body.slug });
+    logger.info("collection created", { id: row.id, by: guard.userId });
+    return NextResponse.json({ collection: toSnakeCase(row) }, { status: 201 });
+  } catch (e) {
+    logger.warn("collection create in DB failed, saving to demoStore fallback", {
+      error: e instanceof Error ? e.message : String(e),
+      slug: body.slug,
+    });
     const col = demoStore.createCollection({
-      slug: body.slug!,
-      name: body.name!,
+      slug: body.slug,
+      name: body.name,
       tagline: body.tagline,
       description: body.description,
       cover_image: body.image_url,
@@ -94,7 +102,4 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ collection: col }, { status: 201 });
   }
-
-  logger.info("collection created", { id: data.id, by: guard.userId });
-  return NextResponse.json({ collection: data }, { status: 201 });
 }

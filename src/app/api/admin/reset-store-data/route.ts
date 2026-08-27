@@ -5,13 +5,15 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/admin-guard";
-import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
+import { isDatabaseConfigured } from "@/lib/db/config";
+import { db } from "@/lib/db/client";
+import { coupons, customers, orderItems, orders } from "@/lib/db/schema";
 import { demoStore } from "@/lib/demo-store";
 import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
-  // 1. Supabase is not configured — reset demo store memory
-  if (!isSupabaseServiceConfigured()) {
+  // 1. Database is not configured — reset demo store memory
+  if (!isDatabaseConfigured()) {
     demoStore.reset();
     return NextResponse.json({
       ok: true,
@@ -24,33 +26,37 @@ export async function POST(req: NextRequest) {
   if (!guard.ok) return guard.error;
 
   try {
-    const supabase = guard.client;
-
     // A. Delete all line items
-    const { error: itemsErr } = await supabase.from("order_items").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-    if (itemsErr) logger.warn("Reset: failed deleting order_items", { error: itemsErr.message });
+    try {
+      await db.delete(orderItems);
+    } catch (e) {
+      logger.warn("Reset: failed deleting order_items", { error: e instanceof Error ? e.message : String(e) });
+    }
 
     // B. Delete all orders
-    const { error: ordersErr } = await supabase.from("orders").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-    if (ordersErr) logger.warn("Reset: failed deleting orders", { error: ordersErr.message });
+    try {
+      await db.delete(orders);
+    } catch (e) {
+      logger.warn("Reset: failed deleting orders", { error: e instanceof Error ? e.message : String(e) });
+    }
 
     // C. Reset customer lifetime stats
-    const { error: custErr } = await supabase
-      .from("customers")
-      .update({
-        total_orders: 0,
-        total_spent: 0,
-        last_order_at: null,
-      })
-      .neq("id", "00000000-0000-0000-0000-000000000000");
-    if (custErr) logger.warn("Reset: failed resetting customer stats", { error: custErr.message });
+    try {
+      await db.update(customers).set({
+        totalOrders: 0,
+        totalSpent: "0",
+        lastOrderAt: null,
+      });
+    } catch (e) {
+      logger.warn("Reset: failed resetting customer stats", { error: e instanceof Error ? e.message : String(e) });
+    }
 
     // D. Reset coupon usage
-    const { error: couponErr } = await supabase
-      .from("coupons")
-      .update({ used_count: 0 })
-      .neq("id", "00000000-0000-0000-0000-000000000000");
-    if (couponErr) logger.warn("Reset: failed resetting coupon usage", { error: couponErr.message });
+    try {
+      await db.update(coupons).set({ usedCount: 0 });
+    } catch (e) {
+      logger.warn("Reset: failed resetting coupon usage", { error: e instanceof Error ? e.message : String(e) });
+    }
 
     // E. Reset demoStore in memory if present
     demoStore.reset();

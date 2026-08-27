@@ -1,0 +1,133 @@
+# Production stack for the VPS. This project must run fully isolated from
+# any other project sharing the box:
+#   - always deploy with `docker compose -p meme-store ...` (a distinct
+#     Compose project name) so `up`/`down` never touch unrelated containers
+#   - only `nginx` publishes host ports (80/443) — postgres/redis/minio are
+#     reachable solely on the internal `meme_net` network
+#   - postgres/redis/minio here are THIS project's own containers, never
+#     pointed at anything already running on the host
+#
+# Usage: docker compose -p meme-store up -d
+# Migrations: docker compose -p meme-store run --rm migrate
+# See docs/VPS_DEPLOYMENT.md for the full deploy/rollback flow.
+
+services:
+  app:
+    build:
+      context: .
+      target: runner
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-meme}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-meme}
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks: [meme_net]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  migrate:
+    build:
+      context: .
+      target: migrate
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-meme}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-meme}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [meme_net]
+    profiles: ["tools"] # never started by `up`; run explicitly via `run --rm migrate`
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-meme}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-meme}
+    volumes:
+      - meme_pg_data:/var/lib/postgresql/data
+    networks: [meme_net]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-meme} -d ${POSTGRES_DB:-meme}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - meme_redis_data:/data
+    networks: [meme_net]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
+    volumes:
+      - meme_minio_data:/data
+    networks: [meme_net]
+    restart: unless-stopped
+    # Console (9001) intentionally NOT published — reach it via an SSH
+    # tunnel (`ssh -L 9001:localhost:9001 ubuntu@<vps-ip>`) when needed.
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  nginx:
+    image: nginx:alpine
+    volumes:
+      - ./deploy/nginx/meme-store.conf:/etc/nginx/conf.d/meme-store.conf:ro
+      - meme_certbot_certs:/etc/letsencrypt:ro
+      - meme_certbot_www:/var/www/certbot:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on: [app, minio]
+    networks: [meme_net]
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - meme_certbot_certs:/etc/letsencrypt
+      - meme_certbot_www:/var/www/certbot
+    networks: [meme_net]
+    entrypoint: "true" # only ever run on-demand via `run --rm certbot ...`
+    profiles: ["tools"]
+
+networks:
+  meme_net:
+    driver: bridge
+
+volumes:
+  meme_pg_data:
+  meme_redis_data:
+  meme_minio_data:
+  meme_certbot_certs:
+  meme_certbot_www:

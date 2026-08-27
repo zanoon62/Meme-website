@@ -4,14 +4,18 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { count, desc, ilike, or } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/admin-guard";
-import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
+import { isDatabaseConfigured } from "@/lib/db/config";
+import { db } from "@/lib/db/client";
+import { customers } from "@/lib/db/schema";
+import { toSnakeCaseArray } from "@/lib/db/to-snake-case";
 import { demoStore } from "@/lib/demo-store";
 import { limiters } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
-  const rl = limiters.admin(req);
+  const rl = await limiters.admin(req);
   if (!rl.success) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
@@ -19,37 +23,37 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q") ?? "";
 
-  if (!isSupabaseServiceConfigured()) {
-    const customers = demoStore.searchCustomers(q);
-    return NextResponse.json({ customers, total: customers.length });
+  if (!isDatabaseConfigured()) {
+    const list = demoStore.searchCustomers(q);
+    return NextResponse.json({ customers: list, total: list.length });
   }
 
   const guard = await requireAdmin();
   if (!guard.ok) return guard.error;
 
   try {
-    const supabase = guard.client;
     const limit = Math.min(Number(searchParams.get("limit") ?? 50), 200);
 
-    let query = supabase
-      .from("customers")
-      .select("*", { count: "exact" })
-      .order("created_at", { ascending: false })
-      .limit(limit);
+    const whereClause = q
+      ? or(
+          ilike(customers.email, `%${q}%`),
+          ilike(customers.firstName, `%${q}%`),
+          ilike(customers.lastName, `%${q}%`),
+        )
+      : undefined;
 
-    if (q) {
-      // Safe parameterized OR filter (no SQL injection — Supabase builder)
-      query = query.or(
-        `email.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`,
-      );
-    }
+    const [rows, countRows] = await Promise.all([
+      db
+        .select()
+        .from(customers)
+        .where(whereClause)
+        .orderBy(desc(customers.createdAt))
+        .limit(limit),
+      db.select({ value: count() }).from(customers).where(whereClause),
+    ]);
 
-    const { data, error, count } = await query;
-    if (error) {
-      logger.error("admin customers GET failed", { error: error.message });
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-    return NextResponse.json({ customers: data ?? [], total: count ?? 0 });
+    const total = countRows[0]?.value ?? 0;
+    return NextResponse.json({ customers: toSnakeCaseArray(rows), total });
   } catch (e) {
     logger.error("admin customers GET exception", { error: e instanceof Error ? e.message : String(e) });
     return NextResponse.json(

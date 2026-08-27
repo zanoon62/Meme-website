@@ -5,8 +5,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { Product, ProductColor, ProductSize } from "@/components/providers/ui-provider";
 import { products as seedProducts } from "@/data/products";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { isBackendConfigured } from "@/lib/config/backend";
 import { dbProductToStore, storeProductToDb } from "@/lib/api/products";
 
 /**
@@ -72,7 +71,7 @@ export const useProductStore = create<ProductStore>()(
       // When Supabase is configured, start with an empty list — refreshFromServer()
       // will populate from the real database. When not configured (local dev),
       // use the seed catalog so the UI still renders for development/preview.
-      products: isSupabaseConfigured() ? [] : seedProducts,
+      products: isBackendConfigured() ? [] : seedProducts,
       hydrated: false,
       loading: false,
       _lastFetch: 0,
@@ -107,7 +106,7 @@ export const useProductStore = create<ProductStore>()(
       },
 
       addProduct: async (input) => {
-        if (isSupabaseConfigured()) {
+        if (isBackendConfigured()) {
           try {
             const res = await fetch("/api/admin/products", {
               method: "POST",
@@ -165,7 +164,7 @@ export const useProductStore = create<ProductStore>()(
       },
 
       updateProduct: async (id, patch) => {
-        if (isSupabaseConfigured()) {
+        if (isBackendConfigured()) {
           try {
             await fetch(`/api/admin/products/${id}`, {
               method: "PATCH",
@@ -199,7 +198,7 @@ export const useProductStore = create<ProductStore>()(
       },
 
       deleteProduct: async (id) => {
-        if (isSupabaseConfigured()) {
+        if (isBackendConfigured()) {
           try {
             await fetch(`/api/admin/products/${id}`, {
               method: "DELETE",
@@ -212,7 +211,7 @@ export const useProductStore = create<ProductStore>()(
       },
 
       resetToSeed: async () => {
-        if (isSupabaseConfigured()) {
+        if (isBackendConfigured()) {
           // For safety, do NOT delete from Supabase on reset.
           // Just refetch.
           await get().refreshFromServer();
@@ -231,12 +230,12 @@ export const useProductStore = create<ProductStore>()(
         state?.setHydrated(true);
         // When Supabase is active, discard any cached localStorage products
         // (which may be old seed/fake products) so only real DB data shows.
-        if (isSupabaseConfigured()) {
+        if (isBackendConfigured()) {
           state?.setProducts([]);
         }
       },
       // Only persist products in local (non-Supabase) mode
-      partialize: (s) => ({ products: isSupabaseConfigured() ? [] : s.products }),
+      partialize: (s) => ({ products: isBackendConfigured() ? [] : s.products }),
     }
   )
 );

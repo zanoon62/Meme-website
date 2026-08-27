@@ -1,0 +1,32 @@
+name: Deploy to VPS
+
+# Triggered on every push to main. SSHes into the VPS with a deploy-only
+# key and runs deploy/deploy.sh there — the VPS pulls from GitHub itself
+# rather than this workflow building/pushing an image, so no registry or
+# build credentials need to live in CI.
+#
+# Required repo secrets (Settings -> Secrets and variables -> Actions):
+#   VPS_HOST        e.g. 57.131.148.26
+#   VPS_USER        e.g. ubuntu
+#   VPS_SSH_KEY     private key for a deploy-only keypair (see docs/VPS_DEPLOYMENT.md
+#                   for generating one — do NOT reuse a personal/admin key here)
+#   VPS_APP_DIR     e.g. /home/ubuntu/apps/meme-store
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd ${{ secrets.VPS_APP_DIR }}
+            bash deploy/deploy.sh

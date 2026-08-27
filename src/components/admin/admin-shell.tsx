@@ -44,8 +44,6 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { getSupabaseBrowser } from "@/lib/supabase/browser";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { clearAdminSession, getAdminEmailClient } from "@/lib/auth/simple-auth";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { LanguageToggle } from "@/components/layout/language-toggle";
@@ -154,11 +152,7 @@ export function AdminShell({
   );
 
   const handleLogout = async () => {
-    clearAdminSession();
-    if (isSupabaseConfigured()) {
-      const supabase = getSupabaseBrowser();
-      await supabase.auth.signOut();
-    }
+    await clearAdminSession();
     toast.success("Signed out");
     router.push("/admin/login");
     router.refresh();

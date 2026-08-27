@@ -2,122 +2,74 @@
  * Admin API auth guard.
  *
  * Every /api/admin/* route MUST call `requireAdmin()` and bail if it returns
- * an error response. This verifies the caller has a valid Supabase session
- * AND that their auth user is linked to an active staff_profiles row with
- * role admin or staff.
+ * an error response. Resolves the real session cookie to a `users` row,
+ * then requires an active `staff_profiles` row with role admin or staff.
+ *
+ * There is exactly one path through this function — real session lookup —
+ * for both Google-OAuth-authenticated staff and the (NODE_ENV-gated) dev
+ * password login, which also creates a real session against a real staff
+ * profile. This replaces the old behavior where the hardcoded dev cookie
+ * and every real admin login both collapsed to the literal userId
+ * "admin-hardcoded", losing individual identity for real admins too.
  *
  * Usage:
  *   import { requireAdmin } from "@/lib/auth/admin-guard";
  *   const guard = await requireAdmin();
- *   if (guard.error) return guard.error;
- *   const supabase = guard.client; // service-role client, bypasses RLS
+ *   if (!guard.ok) return guard.error;
+ *   // guard.userId, guard.role are the real staff identity — use `db` from
+ *   // "@/lib/db/client" for queries (no more service-role vs RLS split).
  */
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase/server";
-import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
+import { eq } from "drizzle-orm";
+import { getCurrentSession } from "@/lib/auth/session";
+import { db } from "@/lib/db/client";
+import { staffProfiles } from "@/lib/db/schema";
 import { logger } from "@/lib/logger";
-import { ADMIN_COOKIE_NAME } from "@/lib/auth/simple-auth";
-
-type ServiceClient = ReturnType<typeof createSupabaseServiceClient>;
 
 type GuardResult =
-  | { ok: true; userId: string; role: "admin" | "staff"; client: ServiceClient }
+  | { ok: true; userId: string; email: string; role: "admin" | "staff" }
   | { ok: false; error: NextResponse };
 
 export async function requireAdmin(): Promise<GuardResult> {
-  const cookieStore = await cookies();
-  const hasSimpleAdmin = cookieStore.get(ADMIN_COOKIE_NAME)?.value === "true";
+  const { user } = await getCurrentSession();
 
-  if (hasSimpleAdmin) {
-    if (!isSupabaseServiceConfigured()) {
-      return {
-        ok: true,
-        userId: "admin-hardcoded",
-        role: "admin",
-        client: null as unknown as ServiceClient,
-      };
-    }
+  if (!user) {
     return {
-      ok: true,
-      userId: "admin-hardcoded",
-      role: "admin",
-      client: createSupabaseServiceClient(),
+      ok: false,
+      error: NextResponse.json({ error: "Unauthorized — no session." }, { status: 401 }),
     };
   }
 
-  // Demo mode (no Supabase configured) — block if not logged in
-  if (!isSupabaseServiceConfigured()) {
+  const [staff] = await db
+    .select()
+    .from(staffProfiles)
+    .where(eq(staffProfiles.userId, user.id))
+    .limit(1);
+
+  if (!staff) {
+    logger.warn("Admin API denied — not staff", { userId: user.id, email: user.email });
     return {
       ok: false,
-      error: NextResponse.json(
-        { error: "Unauthorized — sign in at /admin/login (admin/admin123)." },
-        { status: 401 },
-      ),
+      error: NextResponse.json({ error: "Forbidden — account is not staff." }, { status: 403 }),
     };
   }
 
-  // 1. Read session from cookies (server client)
-  const serverClient = await createSupabaseServerClient();
-  const {
-    data: { user },
-    error: userErr,
-  } = await serverClient.auth.getUser();
-
-  if (userErr || !user) {
+  if (!staff.isActive) {
     return {
       ok: false,
-      error: NextResponse.json(
-        { error: "Unauthorized — no session." },
-        { status: 401 },
-      ),
-    };
-  }
-
-  // 2. Look up staff_profiles for this auth user via service client (bypass RLS)
-  const serviceClient = createSupabaseServiceClient();
-  const { data: staff, error: staffErr } = await serviceClient
-    .from("staff_profiles")
-    .select("id, role, is_active")
-    .eq("auth_user_id", user.id)
-    .single();
-
-  if (staffErr || !staff) {
-    logger.warn("Admin API denied — not staff", {
-      userId: user.id,
-      email: user.email,
-    });
-    return {
-      ok: false,
-      error: NextResponse.json(
-        { error: "Forbidden — account is not staff." },
-        { status: 403 },
-      ),
-    };
-  }
-
-  if (!staff.is_active) {
-    return {
-      ok: false,
-      error: NextResponse.json(
-        { error: "Forbidden — staff account disabled." },
-        { status: 403 },
-      ),
+      error: NextResponse.json({ error: "Forbidden — staff account disabled." }, { status: 403 }),
     };
   }
 
   if (staff.role !== "admin" && staff.role !== "staff") {
     return {
       ok: false,
-      error: NextResponse.json(
-        { error: "Forbidden — insufficient role." },
-        { status: 403 },
-      ),
+      error: NextResponse.json({ error: "Forbidden — insufficient role." }, { status: 403 }),
     };
   }
 
-  return { ok: true, userId: user.id, role: staff.role as "admin" | "staff", client: serviceClient };
+  return { ok: true, userId: user.id, email: user.email, role: staff.role };
 }
 
 /**
@@ -130,10 +82,7 @@ export async function requireAdminRole(): Promise<GuardResult> {
   if (guard.role !== "admin") {
     return {
       ok: false,
-      error: NextResponse.json(
-        { error: "Forbidden — admin role required." },
-        { status: 403 },
-      ),
+      error: NextResponse.json({ error: "Forbidden — admin role required." }, { status: 403 }),
     };
   }
   return guard;

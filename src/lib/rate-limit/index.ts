@@ -1,76 +1,85 @@
 /**
- * In-memory token-bucket rate limiter for API routes.
+ * Redis-backed rate limiter for API routes — replaces the old in-memory
+ * token bucket, which was explicitly non-distributed (reset on every
+ * restart, didn't share state across instances). Self-hosted Docker
+ * Compose can run more than one app replica, and restarts shouldn't let
+ * an attacker reset their own counter, so this needed a real shared store.
  *
- * Not distributed (won't share state across Vercel instances) — for true
- * distributed rate limiting use Upstash Redis. But for typical admin APIs
- * this is enough: each Vercel function instance enforces its own limit,
- * which roughly multiplies capacity by the number of warm instances.
+ * Uses `rate-limiter-flexible`'s Redis backend (a maintained token-bucket
+ * implementation) rather than hand-rolled Lua, keeping the same
+ * refill-proportional-to-elapsed-time semantics as before.
  *
- * Usage:
- *   import { rateLimit } from "@/lib/rate-limit";
- *   const rl = rateLimit({ limit: 20, windowMs: 60_000 });
- *   const { success, remaining } = rl(req, "ip");
- *   if (!success) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+ * Usage (call sites now need `await`, since a Redis round-trip is
+ * inherently async):
+ *   import { limiters } from "@/lib/rate-limit";
+ *   const rl = await limiters.checkout(req);
+ *   if (!rl.success) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
  */
 
 import type { NextRequest } from "next/server";
+import Redis from "ioredis";
+import { RateLimiterRedis, RateLimiterMemory, type IRateLimiterOptions } from "rate-limiter-flexible";
 
-type Bucket = { tokens: number; lastRefill: number };
+declare global {
+  // eslint-disable-next-line no-var
+  var __memeRedisClient: Redis | undefined;
+}
+
+function getRedisClient(): Redis | null {
+  const url = process.env.REDIS_URL;
+  if (!url) return null;
+  if (!globalThis.__memeRedisClient) {
+    globalThis.__memeRedisClient = new Redis(url, { maxRetriesPerRequest: 1, lazyConnect: false });
+    globalThis.__memeRedisClient.on("error", (err) => {
+      console.error("Redis connection error (rate-limit):", err.message);
+    });
+  }
+  return globalThis.__memeRedisClient;
+}
 
 type Options = {
-  /** Max tokens in the bucket. */
+  /** Max requests in the window. */
   limit: number;
   /** Window length in milliseconds. */
   windowMs: number;
+  /** Namespaces the Redis keys so different limiters don't collide. */
+  keyPrefix: string;
 };
 
-export function rateLimit({ limit, windowMs }: Options) {
-  const buckets = new Map<string, Bucket>();
+function makeLimiter({ limit, windowMs, keyPrefix }: Options) {
+  const redis = getRedisClient();
+  const opts: IRateLimiterOptions = {
+    points: limit,
+    duration: Math.ceil(windowMs / 1000),
+    keyPrefix,
+  };
 
-  // Periodic cleanup of stale buckets (every 5 minutes)
-  const CLEANUP_INTERVAL = 5 * 60 * 1000;
-  let lastCleanup = Date.now();
-  function cleanup(now: number) {
-    if (now - lastCleanup < CLEANUP_INTERVAL) return;
-    lastCleanup = now;
-    const staleCutoff = now - windowMs * 2;
-    for (const [key, bucket] of buckets) {
-      if (bucket.lastRefill < staleCutoff) buckets.delete(key);
-    }
-  }
+  // Falls back to a per-process in-memory limiter if Redis isn't configured
+  // (e.g. local dev without docker-compose.dev.yml running) — same
+  // "works standalone, degrades gracefully" spirit as the DB/storage
+  // isConfigured() fallbacks elsewhere in the app.
+  const limiter = redis ? new RateLimiterRedis({ storeClient: redis, ...opts }) : new RateLimiterMemory(opts);
 
-  return function check(
+  return async function check(
     req: NextRequest,
     namespace: string = "ip",
-  ): { success: boolean; remaining: number; resetAt: number } {
-    const now = Date.now();
-    cleanup(now);
-
+  ): Promise<{ success: boolean; remaining: number; resetAt: number }> {
     const key = namespace === "ip" ? getClientIp(req) : namespace;
-    const bucket = buckets.get(key) ?? { tokens: limit, lastRefill: now };
-
-    // Refill proportional to elapsed time
-    const elapsed = now - bucket.lastRefill;
-    const refill = (elapsed / windowMs) * limit;
-    bucket.tokens = Math.min(limit, bucket.tokens + refill);
-    bucket.lastRefill = now;
-
-    if (bucket.tokens < 1) {
-      buckets.set(key, bucket);
+    try {
+      const result = await limiter.consume(key, 1);
       return {
-        success: false,
-        remaining: 0,
-        resetAt: now + Math.ceil((1 - bucket.tokens) * (windowMs / limit)),
+        success: true,
+        remaining: result.remainingPoints,
+        resetAt: Date.now() + result.msBeforeNext,
       };
+    } catch (rejection) {
+      // rate-limiter-flexible throws (not returns) a RateLimiterRes on rejection
+      const msBeforeNext =
+        rejection && typeof rejection === "object" && "msBeforeNext" in rejection
+          ? (rejection as { msBeforeNext: number }).msBeforeNext
+          : windowMs;
+      return { success: false, remaining: 0, resetAt: Date.now() + msBeforeNext };
     }
-
-    bucket.tokens -= 1;
-    buckets.set(key, bucket);
-    return {
-      success: true,
-      remaining: Math.floor(bucket.tokens),
-      resetAt: now + windowMs,
-    };
   };
 }
 
@@ -82,12 +91,8 @@ function getClientIp(req: NextRequest): string {
 
 /** Pre-configured limiters for common routes. */
 export const limiters = {
-  // Auth endpoints — protect against brute force
-  auth: rateLimit({ limit: 10, windowMs: 60_000 }),
-  // Admin APIs — generous but bounded
-  admin: rateLimit({ limit: 120, windowMs: 60_000 }),
-  // Public checkout — protect against abuse
-  checkout: rateLimit({ limit: 8, windowMs: 60_000 }),
-  // Default public APIs
-  public: rateLimit({ limit: 60, windowMs: 60_000 }),
+  auth: makeLimiter({ limit: 10, windowMs: 60_000, keyPrefix: "rl:auth" }),
+  admin: makeLimiter({ limit: 120, windowMs: 60_000, keyPrefix: "rl:admin" }),
+  checkout: makeLimiter({ limit: 8, windowMs: 60_000, keyPrefix: "rl:checkout" }),
+  public: makeLimiter({ limit: 60, windowMs: 60_000, keyPrefix: "rl:public" }),
 };

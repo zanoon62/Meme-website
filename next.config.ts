@@ -1,7 +1,25 @@
 import type { NextConfig } from "next";
 
+function minioRemotePatterns(): { protocol: "http" | "https"; hostname: string; port?: string }[] {
+  const raw = process.env.MINIO_PUBLIC_URL;
+  if (!raw) return [];
+  try {
+    const url = new URL(raw);
+    return [
+      {
+        protocol: url.protocol === "https:" ? "https" : "http",
+        hostname: url.hostname,
+        ...(url.port ? { port: url.port } : {}),
+      },
+    ];
+  } catch {
+    return []; // ignore malformed URL at build time
+  }
+}
+
 const nextConfig: NextConfig = {
-  // Vercel-native output (no `output: "standalone"` — that's Docker-only)
+  // Standalone output for the Docker build (self-hosted VPS deploy).
+  output: "standalone",
   reactStrictMode: true,
   poweredByHeader: false,
   // Type errors MUST fail the build in production
@@ -24,9 +42,8 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "plus.unsplash.com" },
-      // Allow admin-uploaded images hosted on Supabase Storage
-      { protocol: "https", hostname: "*.supabase.co" },
-      { protocol: "https", hostname: "*.supabase.in" },
+      // Admin-uploaded images hosted on self-hosted MinIO (MINIO_PUBLIC_URL)
+      ...minioRemotePatterns(),
     ],
   },
   // Security & caching headers applied to every route

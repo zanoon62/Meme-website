@@ -6,30 +6,30 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { asc, eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/auth/admin-guard";
-import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
+import { isDatabaseConfigured } from "@/lib/db/config";
+import { db } from "@/lib/db/client";
+import { categories } from "@/lib/db/schema";
+import { toSnakeCase, toSnakeCaseArray } from "@/lib/db/to-snake-case";
 import { demoStore } from "@/lib/demo-store";
 import { logger } from "@/lib/logger";
 
 export async function GET() {
-  if (!isSupabaseServiceConfigured()) {
+  if (!isDatabaseConfigured()) {
     return NextResponse.json({ categories: demoStore.listCategories() });
   }
 
   const guard = await requireAdmin();
   if (!guard.ok) return guard.error;
 
-  const supabase = guard.client;
-  const { data, error } = await supabase
-    .from("categories")
-    .select("*")
-    .order("sort_order", { ascending: true });
-
-  if (error) {
-    logger.error("categories GET failed", { error: error.message });
+  try {
+    const rows = await db.select().from(categories).orderBy(asc(categories.sortOrder));
+    return NextResponse.json({ categories: toSnakeCaseArray(rows) });
+  } catch (e) {
+    logger.error("categories GET failed", { error: e instanceof Error ? e.message : String(e) });
     return NextResponse.json({ categories: [] });
   }
-  return NextResponse.json({ categories: data ?? [] });
 }
 
 export async function POST(req: NextRequest) {
@@ -43,13 +43,10 @@ export async function POST(req: NextRequest) {
   };
 
   if (!body.slug || !body.name) {
-    return NextResponse.json(
-      { error: "Missing required fields: slug, name" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Missing required fields: slug, name" }, { status: 400 });
   }
 
-  if (!isSupabaseServiceConfigured()) {
+  if (!isDatabaseConfigured()) {
     const cat = demoStore.createCategory({
       slug: body.slug,
       name: body.name,
@@ -62,25 +59,23 @@ export async function POST(req: NextRequest) {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.error;
 
-  const supabase = guard.client;
+  try {
+    const [row] = await db
+      .insert(categories)
+      .values({
+        slug: body.slug,
+        name: body.name,
+        description: body.description ?? null,
+        imageUrl: body.image_url ?? null,
+        sortOrder: body.sort_order ?? 0,
+        isActive: body.is_active ?? true,
+      })
+      .returning();
 
-  const insertPayload = {
-    slug: body.slug,
-    name: body.name,
-    description: body.description ?? null,
-    image_url: body.image_url ?? null,
-    sort_order: body.sort_order ?? 0,
-    is_active: body.is_active ?? true,
-  };
-
-  const { data, error } = await supabase
-    .from("categories")
-    .insert(insertPayload as never)
-    .select()
-    .single();
-
-  if (error) {
-    logger.warn("category create failed", { error: error.message, slug: body.slug });
+    logger.info("category created", { id: row.id, by: guard.userId });
+    return NextResponse.json({ category: toSnakeCase(row) }, { status: 201 });
+  } catch (e) {
+    logger.warn("category create failed", { error: e instanceof Error ? e.message : String(e), slug: body.slug });
     const cat = demoStore.createCategory({
       slug: body.slug,
       name: body.name,
@@ -89,9 +84,6 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ category: cat }, { status: 201 });
   }
-
-  logger.info("category created", { id: data.id, by: guard.userId });
-  return NextResponse.json({ category: data }, { status: 201 });
 }
 
 export async function PATCH(req: NextRequest) {
@@ -108,7 +100,7 @@ export async function PATCH(req: NextRequest) {
     is_active?: boolean;
   };
 
-  if (!isSupabaseServiceConfigured()) {
+  if (!isDatabaseConfigured()) {
     // demo mode: just return success (no persistent store for updates)
     return NextResponse.json({ ok: true });
   }
@@ -116,27 +108,24 @@ export async function PATCH(req: NextRequest) {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.error;
 
-  const supabase = guard.client;
+  try {
+    const [row] = await db
+      .update(categories)
+      .set({
+        ...(body.name !== undefined && { name: body.name }),
+        ...(body.slug !== undefined && { slug: body.slug }),
+        ...(body.description !== undefined && { description: body.description }),
+        ...(body.is_active !== undefined && { isActive: body.is_active }),
+      })
+      .where(eq(categories.id, id))
+      .returning();
 
-  const { data, error } = await supabase
-    .from("categories")
-    .update({
-      ...(body.name !== undefined && { name: body.name }),
-      ...(body.slug !== undefined && { slug: body.slug }),
-      ...(body.description !== undefined && { description: body.description }),
-      ...(body.is_active !== undefined && { is_active: body.is_active }),
-    })
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) {
-    logger.error("category update failed", { error: error.message, id });
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    logger.info("category updated", { id, by: guard.userId });
+    return NextResponse.json({ category: toSnakeCase(row) });
+  } catch (e) {
+    logger.error("category update failed", { error: e instanceof Error ? e.message : String(e), id });
+    return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
-
-  logger.info("category updated", { id, by: guard.userId });
-  return NextResponse.json({ category: data });
 }
 
 export async function DELETE(req: NextRequest) {
@@ -146,7 +135,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });
   }
 
-  if (!isSupabaseServiceConfigured()) {
+  if (!isDatabaseConfigured()) {
     // demo mode: just acknowledge
     return NextResponse.json({ ok: true });
   }
@@ -154,15 +143,12 @@ export async function DELETE(req: NextRequest) {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.error;
 
-  const supabase = guard.client;
-
-  const { error } = await supabase.from("categories").delete().eq("id", id);
-
-  if (error) {
-    logger.error("category delete failed", { error: error.message, id });
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    await db.delete(categories).where(eq(categories.id, id));
+    logger.info("category deleted", { id, by: guard.userId });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    logger.error("category delete failed", { error: e instanceof Error ? e.message : String(e), id });
+    return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
-
-  logger.info("category deleted", { id, by: guard.userId });
-  return NextResponse.json({ ok: true });
 }

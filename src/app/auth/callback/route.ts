@@ -1,86 +1,50 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { createSupabaseServiceClient } from "@/lib/supabase/server";
-import { isSupabaseServiceConfigured } from "@/lib/supabase/config";
-import { cookies } from "next/headers";
+import { exchangeGoogleCode } from "@/lib/auth/google-oauth";
+import { readAndClearOAuthFlowCookies } from "@/lib/auth/oauth-flow";
+import { findOrCreateUserFromGoogle, ensureCustomerForUser, parseGoogleName } from "@/lib/auth/identity";
+import { createSession, setSessionCookie } from "@/lib/auth/session";
 import { logger } from "@/lib/logger";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/account";
+  const returnedState = searchParams.get("state");
 
-  if (code) {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, { ...options, maxAge: 60 * 15 })
-              );
-            } catch {
-              // Ignore if called from Server Component
-            }
-          },
-        },
-      }
-    );
+  const { state, codeVerifier, next } = await readAndClearOAuthFlowCookies();
 
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
-    if (!error && data.user) {
-      // Admin auth flow — skip customer upsert, go straight to whitelist check
-      if (next === "/api/admin/auth/check") {
-        return NextResponse.redirect(`${origin}/api/admin/auth/check`);
-      }
-
-      // Normal customer login — upsert customer row
-      if (isSupabaseServiceConfigured()) {
-        try {
-          const serviceClient = createSupabaseServiceClient();
-          const user = data.user;
-          const meta = user.user_metadata ?? {};
-
-          const fullName = (meta.full_name as string) ?? "";
-          const nameParts = fullName.split(" ");
-          const firstName =
-            (meta.first_name as string) ??
-            (nameParts.length > 0 ? nameParts[0] : null) ??
-            null;
-          const lastName =
-            (meta.last_name as string) ??
-            (nameParts.length > 1 ? nameParts.slice(1).join(" ") : null) ??
-            null;
-
-          await serviceClient.from("customers").upsert(
-            {
-              auth_user_id: user.id,
-              email: user.email ?? "",
-              first_name: firstName,
-              last_name: lastName,
-              accepts_marketing: Boolean(meta.accepts_marketing),
-            },
-            { onConflict: "auth_user_id" }
-          );
-
-          logger.info("customer upserted after OAuth", { userId: user.id });
-        } catch (e) {
-          logger.warn("customer upsert failed in callback", {
-            error: e instanceof Error ? e.message : String(e),
-          });
-        }
-      }
-
-      return NextResponse.redirect(`${origin}${next}`);
-    }
+  if (!code || !state || !codeVerifier || state !== returnedState) {
+    logger.warn("OAuth callback: invalid state or missing code");
+    return NextResponse.redirect(`${origin}/account?error=auth-failed`);
   }
 
-  return NextResponse.redirect(`${origin}/account?error=auth-failed`);
+  try {
+    const redirectUri = `${origin}/auth/callback`;
+    const googleUser = await exchangeGoogleCode({ code, redirectUri, codeVerifier });
+
+    if (!googleUser.email) {
+      throw new Error("Google account has no email");
+    }
+
+    const user = await findOrCreateUserFromGoogle(googleUser);
+
+    // Admin login flow — skip customer upsert, go straight to the whitelist check.
+    if (next === "/api/admin/auth/check") {
+      const { token, expiresAt } = await createSession(user.id);
+      await setSessionCookie(token, expiresAt);
+      return NextResponse.redirect(`${origin}/api/admin/auth/check`);
+    }
+
+    // Normal customer login — ensure a customers row exists.
+    const { firstName, lastName } = parseGoogleName(googleUser);
+    await ensureCustomerForUser(user.id, googleUser.email, { firstName, lastName });
+
+    const { token, expiresAt } = await createSession(user.id);
+    await setSessionCookie(token, expiresAt);
+
+    logger.info("customer signed in via Google", { userId: user.id });
+    return NextResponse.redirect(`${origin}${next}`);
+  } catch (e) {
+    logger.warn("OAuth callback failed", { error: e instanceof Error ? e.message : String(e) });
+    return NextResponse.redirect(`${origin}/account?error=auth-failed`);
+  }
 }
