@@ -13,24 +13,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: 20
+          cache: npm
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: npm ci
 
       - name: Lint
-        run: bun run lint
+        run: npm run lint
 
       - name: Type-check
-        run: bunx tsc --noEmit
+        run: npx tsc --noEmit
 
       - name: Build
-        run: bun run build
+        run: npm run build
         env:
-          # Skip Supabase at build time — app falls back to demo mode
-          NEXT_PUBLIC_SUPABASE_URL: ""
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ""
+          # Placeholder values so the build doesn't crash on module-eval-time
+          # config checks (Drizzle/Redis/MinIO connections are all lazy —
+          # nothing actually connects during `next build`, these just need
+          # to be syntactically present).
+          DATABASE_URL: "postgres://user:pass@localhost:5432/db"
           NEXT_PUBLIC_SITE_URL: "http://localhost:3000"
