@@ -21,6 +21,13 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # into the client bundle at build time, so this one needs the real value.
 ARG NEXT_PUBLIC_SITE_URL="https://meme-eg.store"
 ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
+# next.config.ts reads MINIO_PUBLIC_URL to build next/image's remotePatterns
+# allowlist — that happens at `next build` time and gets compiled into the
+# standalone output, so the runtime env var from docker-compose.yml is too
+# late: without this, every MinIO-hosted product image 404s through
+# next/image with "hostname not configured" and silently renders blank.
+ARG MINIO_PUBLIC_URL="https://meme-eg.store/media"
+ENV MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL}
 ENV DATABASE_URL="postgres://build:build@localhost:5432/build"
 RUN npm run build
 
