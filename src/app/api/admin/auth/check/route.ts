@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { getCurrentSession, signOutCurrentSession } from "@/lib/auth/session";
-import { db } from "@/lib/db/client";
-import { adminAllowedEmails, staffProfiles } from "@/lib/db/schema";
-import { ADMIN_EMAIL_COOKIE_NAME, SUPER_ADMIN_EMAIL } from "@/lib/auth/simple-auth";
+import { resolveStaffAccess } from "@/lib/auth/admin-provision";
+import { ADMIN_EMAIL_COOKIE_NAME } from "@/lib/auth/simple-auth";
 import { getSiteOrigin } from "@/lib/site-url";
 import { cookies } from "next/headers";
 import { logger } from "@/lib/logger";
@@ -28,47 +26,12 @@ export async function GET() {
   }
 
   const email = user.email.toLowerCase().trim();
+  const { granted } = await resolveStaffAccess(user);
 
-  const [allowed] = await db
-    .select({ id: adminAllowedEmails.id })
-    .from(adminAllowedEmails)
-    .where(eq(adminAllowedEmails.email, email))
-    .limit(1);
-
-  if (!allowed) {
-    logger.warn("Admin auth check: email not in whitelist", { email });
+  if (!granted) {
+    logger.warn("Admin auth check: access denied", { email });
     await signOutCurrentSession();
     return NextResponse.redirect(redirectDenied);
-  }
-
-  const [existingStaff] = await db
-    .select()
-    .from(staffProfiles)
-    .where(eq(staffProfiles.userId, user.id))
-    .limit(1);
-
-  if (existingStaff) {
-    // Being in the whitelist re-grants access after removal, but does NOT
-    // override an explicit `isActive: false` set by an admin — a
-    // deactivated staff member stays deactivated until reactivated
-    // deliberately, even if they're still whitelisted.
-    if (!existingStaff.isActive) {
-      logger.warn("Admin auth check: staff account is deactivated", { email });
-      await signOutCurrentSession();
-      return NextResponse.redirect(redirectDenied);
-    }
-    await db
-      .update(staffProfiles)
-      .set({ lastLoginAt: new Date() })
-      .where(eq(staffProfiles.id, existingStaff.id));
-  } else {
-    await db.insert(staffProfiles).values({
-      userId: user.id,
-      email,
-      role: email === SUPER_ADMIN_EMAIL.toLowerCase() ? "admin" : "staff",
-      isActive: true,
-      lastLoginAt: new Date(),
-    });
   }
 
   const cookieStore = await cookies();
