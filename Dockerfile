@@ -13,6 +13,15 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# `next build` executes route modules during page-data collection (not just
+# imports them), so src/lib/db/client.ts's eager DATABASE_URL check needs
+# *something* syntactically valid here even though nothing actually
+# connects at build time — the real value comes from docker-compose.yml at
+# container runtime. NEXT_PUBLIC_* vars are different: they get inlined
+# into the client bundle at build time, so this one needs the real value.
+ARG NEXT_PUBLIC_SITE_URL="https://meme-eg.store"
+ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
+ENV DATABASE_URL="postgres://build:build@localhost:5432/build"
 RUN npm run build
 
 # Separate stage for running Drizzle migrations — the `runner` stage below
