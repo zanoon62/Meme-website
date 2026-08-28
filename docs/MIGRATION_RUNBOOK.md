@@ -26,23 +26,36 @@ Row counts verified to match exactly; a converted image was fetched
 directly from MinIO and confirmed to load. Real secrets were generated and
 written to `/home/ubuntu/apps/meme-store/.env` on the VPS (chmod 600).
 
-**Known follow-up before going live**: the migrated `product_images.url`
-and `returns.image_url` values currently point at `http://127.0.0.1:19000/...`
-— the address of the temporary SSH tunnel used to run the import from a
-local machine. Once the real domain is set up and Nginx's `/media/` proxy
-is live (`deploy/nginx/meme-store.conf`), run this one-time rewrite:
+**Image URLs**: already rewritten (23 rows) from the temporary
+import-tunnel address to `https://meme-eg.store/media` — verified serving
+correctly through Nginx's `/media/` proxy.
 
-```sql
-UPDATE product_images SET url = replace(url, 'http://127.0.0.1:19000', 'https://meme-eg.store/media') WHERE url LIKE 'http://127.0.0.1:19000%';
-UPDATE returns SET image_url = replace(image_url, 'http://127.0.0.1:19000', 'https://meme-eg.store/media') WHERE image_url LIKE 'http://127.0.0.1:19000%';
-```
+## SITE IS LIVE (2026-08-28)
 
-(via `docker compose -p meme-store exec -T postgres psql -U meme meme -c "..."` on the VPS, or through any Postgres client tunneled the same way this migration was run.)
+`https://meme-eg.store` and `https://www.meme-eg.store` now serve the
+migrated store from the VPS. Verified live: HTTPS (Let's Encrypt cert,
+expires 2026-11-26, auto-renewing via certbot's own systemd timer),
+HTTP→HTTPS redirect, homepage, `/shop`, product pages, `/admin/login`,
+`/api/health`, `/api/products` (returning real migrated data), and images
+served through `/media/`.
 
-The `app`/`nginx` containers have NOT been deployed yet — only the data
-layer (postgres/redis/minio) is live so far. The steps below (dry run,
-delta sync, cutover) describe the process this run followed and what's
-still ahead for the full site to go live.
+GoDaddy DNS points both `@` and `www` at `57.131.148.26`; the Vercel A
+record and www CNAME were removed. GitHub Actions auto-deploy is wired up
+(the four `VPS_*` repo secrets are set), so pushes to `main` redeploy.
+
+**Still outstanding before the migration is fully "done":**
+1. **Stripe keys are not configured** — `STRIPE_SECRET_KEY`,
+   `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` are absent
+   from the VPS `.env`, so card checkout is inactive (Cash-on-Delivery is
+   unaffected). Add them, then register the webhook endpoint
+   `https://meme-eg.store/api/stripe/webhook` in the Stripe dashboard and
+   **disable the old Vercel-pointed webhook at the same moment** (see §4).
+2. **Google OAuth redirect URI** — the client ID/secret ARE configured on
+   the VPS, but `https://meme-eg.store/auth/callback` must be added as an
+   authorized redirect URI in Google Cloud Console (project
+   `z-tech-502704`) before Google sign-in works.
+3. Password-auth customers still need the reset flow described in §3.
+4. Disable/delete the old Vercel deployment once §1 is done.
 
 ## 1. Dry run (mandatory — do this before touching anything production-adjacent)
 
