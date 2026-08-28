@@ -109,7 +109,7 @@ pipeline unchanged, only the upload client changed. `ensureBucket()` is
 idempotent (creates the bucket + sets a public-read policy on first use).
 
 Public URLs are built from `MINIO_PUBLIC_URL`, which in production points
-at Nginx's `/media/` proxy (`deploy/nginx/meme-store.conf`), not directly
+at Nginx's `/media/` proxy (`deploy/nginx/meme-eg.store`), not directly
 at MinIO's port — keeps TLS/caching/logging centralized in one reverse
 proxy layer.
 
@@ -130,7 +130,7 @@ Page-level ISR (`export const revalidate` on product/collection pages)
 needs no changes — works natively under `next start`/standalone output.
 The three public JSON endpoints (`/api/products`, `/api/homepage`,
 `/api/categories`) emit standard `Cache-Control: s-maxage=...` headers;
-Nginx `proxy_cache` (configured in `deploy/nginx/meme-store.conf`) is what
+Nginx `proxy_cache` (configured in `deploy/nginx/meme-eg.store`) is what
 actually caches them now, replacing Vercel's edge cache
 (`Vercel-CDN-Cache-Control` headers were dropped — they do nothing off Vercel).
 
@@ -155,10 +155,10 @@ src/
     rate-limit/      ← Redis-backed limiter
     checkout/       ← order creation (transactional)
 deploy/
-  nginx/meme-store.conf  ← reverse proxy + TLS + micro-cache config
+  nginx/meme-eg.store  ← reverse proxy + TLS + micro-cache config
   deploy.sh              ← git-pull-based deploy script, run on the VPS
 .github/workflows/deploy.yml ← SSHes into the VPS and runs deploy.sh on push to main
-docker-compose.yml       ← production stack (app, postgres, redis, minio, nginx, certbot)
+docker-compose.yml       ← production stack (app, postgres, redis, minio — NOT nginx/certbot, those are the shared system Nginx, see docs/VPS_DEPLOYMENT.md)
 docker-compose.dev.yml   ← local dev only (postgres, redis, minio)
 Dockerfile               ← multi-stage build (deps → builder → migrate/runner)
 ```

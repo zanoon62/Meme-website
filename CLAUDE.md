@@ -75,7 +75,7 @@ src/
 data/products.ts    ← Seed product catalog (fallback)
 drizzle/migrations/ ← Generated + one hand-written SQL migration (Postgres functions/triggers)
 deploy/
-  nginx/meme-store.conf ← reverse proxy + TLS + micro-cache config
+  nginx/meme-eg.store ← reverse proxy + TLS + micro-cache config
   deploy.sh              ← git-pull deploy script, run on the VPS
 docker-compose.yml        ← production stack
 docker-compose.dev.yml    ← local dev (postgres/redis/minio only)
@@ -104,7 +104,7 @@ scripts/migrate-from-supabase/ ← one-time export/import scripts (see MIGRATION
 - Products fetched client-side via Zustand `useProductStore`, which calls
   `/api/products` on mount (`refreshFromServer()`, 60s staleness check).
 - Public `/api/products`, `/api/homepage`, `/api/categories` are cached by
-  Nginx `proxy_cache` (see `deploy/nginx/meme-store.conf`) — the old
+  Nginx `proxy_cache` (see `deploy/nginx/meme-eg.store`) — the old
   Vercel-specific `CDN-Cache-Control`/`Vercel-CDN-Cache-Control` headers
   were dropped, only standard `Cache-Control` remains.
 - Zustand persists to localStorage in demo mode only (`isBackendConfigured()`
@@ -162,7 +162,7 @@ packages.
 | Site-wide middleware | `src/middleware.ts` + `src/lib/auth/middleware.ts` |
 | Email sending | `src/lib/email/index.ts` |
 | VPS deploy/rollback/backups | `docs/VPS_DEPLOYMENT.md` |
-| Nginx / TLS / caching config | `deploy/nginx/meme-store.conf` |
+| Nginx / TLS / caching config | `deploy/nginx/meme-eg.store` |
 
 ## Claude Code Specific Instructions
 - **DO NOT** run `npm run build` blindly. Next.js 16 app router builds can be slow. Prefer using `npx tsc --noEmit` to typecheck.

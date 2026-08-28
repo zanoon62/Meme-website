@@ -2,10 +2,19 @@
 # any other project sharing the box:
 #   - always deploy with `docker compose -p meme-store ...` (a distinct
 #     Compose project name) so `up`/`down` never touch unrelated containers
-#   - only `nginx` publishes host ports (80/443) — postgres/redis/minio are
-#     reachable solely on the internal `meme_net` network
+#   - postgres/redis are reachable solely on the internal `meme_net` network
 #   - postgres/redis/minio here are THIS project's own containers, never
 #     pointed at anything already running on the host
+#
+# NOTE: this box already runs a shared, system-wide Nginx (in front of
+# another project, `amar-site`) that owns host ports 80/443 — a second
+# Nginx in Docker can't also bind them. So `app` and `minio` publish to
+# 127.0.0.1-only host ports instead, and the EXISTING system Nginx gets a
+# new, separate site file (`deploy/nginx/meme-eg.store` — a real Nginx
+# site config, not a Docker-mounted conf.d file) that reverse-proxies to
+# them. See docs/VPS_DEPLOYMENT.md for the full picture — there is no
+# Docker `nginx`/`certbot` service here; TLS is issued via the system
+# certbot already installed on the box.
 #
 # Usage: docker compose -p meme-store up -d
 # Migrations: docker compose -p meme-store run --rm migrate
@@ -23,6 +32,8 @@ services:
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       MINIO_USE_SSL: "false"
+    ports:
+      - "127.0.0.1:3001:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -89,6 +100,8 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
     volumes:
       - meme_minio_data:/data
+    ports:
+      - "127.0.0.1:9002:9000"
     networks: [meme_net]
     restart: unless-stopped
     # Console (9001) intentionally NOT published — reach it via an SSH
@@ -99,28 +112,6 @@ services:
       timeout: 5s
       retries: 10
 
-  nginx:
-    image: nginx:alpine
-    volumes:
-      - ./deploy/nginx/meme-store.conf:/etc/nginx/conf.d/meme-store.conf:ro
-      - meme_certbot_certs:/etc/letsencrypt:ro
-      - meme_certbot_www:/var/www/certbot:ro
-    ports:
-      - "80:80"
-      - "443:443"
-    depends_on: [app, minio]
-    networks: [meme_net]
-    restart: unless-stopped
-
-  certbot:
-    image: certbot/certbot
-    volumes:
-      - meme_certbot_certs:/etc/letsencrypt
-      - meme_certbot_www:/var/www/certbot
-    networks: [meme_net]
-    entrypoint: "true" # only ever run on-demand via `run --rm certbot ...`
-    profiles: ["tools"]
-
 networks:
   meme_net:
     driver: bridge
@@ -129,5 +120,3 @@ volumes:
   meme_pg_data:
   meme_redis_data:
   meme_minio_data:
-  meme_certbot_certs:
-  meme_certbot_www:

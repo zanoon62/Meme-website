@@ -1,13 +1,19 @@
-# Nginx reverse proxy for MEME Store — replace `meme-eg.store` below with
-# the real domain once it's pointed at this VPS (see docs/VPS_DEPLOYMENT.md).
+# System Nginx site config for meme-eg.store — this box's Nginx is SHARED
+# with other projects (currently also `amarel7ewety.com`), so this file
+# lives in /etc/nginx/sites-available/meme-eg.store, symlinked from
+# sites-enabled, alongside (never replacing) the other project's own file.
+# There is no Docker Nginx in this project — see docker-compose.yml.
 #
-# This file only touches THIS project's server blocks — it is mounted
-# read-only into the shared nginx:alpine container's conf.d/, alongside
-# (never overwriting) any other project's own conf.d file on the box.
+# Install: sudo cp deploy/nginx/meme-eg.store /etc/nginx/sites-available/meme-eg.store
+#          sudo ln -sf /etc/nginx/sites-available/meme-eg.store /etc/nginx/sites-enabled/meme-eg.store
+#          sudo nginx -t && sudo systemctl reload nginx
+# See docs/VPS_DEPLOYMENT.md for the full TLS bootstrap sequence (this file
+# assumes a cert already exists at the paths below — the bootstrap doc
+# covers issuing it the first time with a temporary HTTP-only version of
+# this file).
 
 proxy_cache_path /var/cache/nginx/meme levels=1:2 keys_zone=meme_cache:10m max_size=200m inactive=60m use_temp_path=off;
 
-# ── HTTP: ACME challenge passthrough, everything else redirects to HTTPS ──
 server {
     listen 80;
     server_name meme-eg.store www.meme-eg.store;
@@ -21,7 +27,6 @@ server {
     }
 }
 
-# ── HTTPS ───────────────────────────────────────────────────────────────
 server {
     listen 443 ssl;
     http2 on;
@@ -38,7 +43,7 @@ server {
     location /api/stripe/webhook {
         proxy_request_buffering off;
         proxy_buffering off;
-        proxy_pass http://app:3000;
+        proxy_pass http://127.0.0.1:3001;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
@@ -46,17 +51,14 @@ server {
     }
 
     # Micro-cache the three read-heavy public JSON endpoints — replaces
-    # Vercel's edge cache for these routes. Keyed on the full request
-    # (including query string), honors the app's own Cache-Control via
-    # proxy_cache_valid below; serves stale content while revalidating on
-    # a cache miss or backend error, matching stale-while-revalidate intent.
+    # Vercel's edge cache for these routes.
     location ~ ^/api/(products|homepage|categories) {
         proxy_cache meme_cache;
         proxy_cache_valid 200 300s;
         proxy_cache_use_stale updating error timeout http_500 http_502 http_503;
         proxy_cache_background_update on;
         add_header X-Cache-Status $upstream_cache_status;
-        proxy_pass http://app:3000;
+        proxy_pass http://127.0.0.1:3001;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
@@ -67,14 +69,14 @@ server {
     # frontend's <Image> remotePatterns and CORS stay simple.
     location /media/ {
         rewrite ^/media/(.*)$ /$1 break;
-        proxy_pass http://minio:9000;
+        proxy_pass http://127.0.0.1:9002;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     location / {
-        proxy_pass http://app:3000;
+        proxy_pass http://127.0.0.1:3001;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;

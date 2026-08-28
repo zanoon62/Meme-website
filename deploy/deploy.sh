@@ -18,7 +18,7 @@ echo "==> build app + migrate images"
 $COMPOSE build app migrate
 
 echo "==> ensure postgres/redis/minio are up"
-$COMPOSE up -d postgres redis minio nginx
+$COMPOSE up -d postgres redis minio
 
 echo "==> waiting for postgres to be healthy"
 until $COMPOSE ps postgres | grep -q "healthy"; do sleep 2; done

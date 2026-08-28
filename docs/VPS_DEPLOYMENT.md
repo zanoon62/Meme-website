@@ -10,22 +10,30 @@ so `up`/`down` never touch other projects on the box):
 
 | Service | Role |
 |---|---|
-| `app` | Next.js standalone build (`Dockerfile`, target `runner`) |
+| `app` | Next.js standalone build (`Dockerfile`, target `runner`) — published to `127.0.0.1:3001` only |
 | `migrate` | One-off Drizzle migration runner (`Dockerfile`, target `migrate`) — never a long-running service, always `run --rm` |
-| `postgres` | `postgres:16-alpine`, this project's own database only |
-| `redis` | `redis:7-alpine`, AOF persistence on |
-| `minio` | Object storage — buckets `products`, `homepage`, `returns` |
-| `nginx` | Reverse proxy + TLS — the only service publishing host ports |
-| `certbot` | On-demand cert issuance/renewal, `run --rm` only |
+| `postgres` | `postgres:16-alpine`, this project's own database only, internal network only |
+| `redis` | `redis:7-alpine`, AOF persistence on, internal network only |
+| `minio` | Object storage (`products`, `homepage`, `returns` buckets) — published to `127.0.0.1:9002` only |
 
-Only `nginx` binds to the host (80/443). Everything else is reachable
-solely on the internal `meme_net` Docker network. This matters because the
-VPS is **shared with other projects** — `postgres`/`redis`/`minio` here
-must never be exposed publicly or confused with anything else already
-running on the box (it currently also runs `amar-site` via PM2 + its own
-system-wide Postgres/Redis on ports 5432/6379 — those are NOT this
-project's; this stack's Postgres/Redis are separate containers on
-different effective ports since only `nginx` is host-exposed at all).
+**No Docker Nginx or Docker certbot in this project.** The VPS already runs
+a shared, system-wide Nginx in front of another project (`amar-site`),
+which owns host ports 80/443 — a second Nginx in Docker can't also bind
+them. Instead:
+- `app`/`minio` publish to **127.0.0.1-only** host ports (not `0.0.0.0`) —
+  reachable from the host's own Nginx, never directly from the internet.
+- The **system** Nginx gets a new, separate site file
+  (`deploy/nginx/meme-eg.store`, installed at
+  `/etc/nginx/sites-available/meme-eg.store`) that reverse-proxies to
+  those ports — installed *alongside*, never replacing, the
+  `amarel7ewety.com` site file already there.
+- TLS is issued via the **system** `certbot` (already installed on the
+  box, v4.0.0) — not a Docker certbot.
+
+`postgres`/`redis` stay on the internal `meme_net` Docker network only —
+this project's own containers, never confused with (or exposed like) the
+box's separate system-wide Postgres/Redis that `amar-site` uses on its own
+ports.
 
 ## First-time setup on the VPS
 
@@ -39,42 +47,62 @@ cp .env.example .env
 nano .env   # DATABASE_URL is ignored by docker-compose.yml in prod (it builds
             # its own from POSTGRES_*) — everything else must be real values.
 
-# 3. Bring up the data services first (no app/nginx yet — nginx needs a
-#    cert before it can start, see below)
+# 3. Bring up app + data services (app starts fine before Nginx/TLS exist —
+#    it's just not reachable from the internet yet)
 docker compose -p meme-store up -d postgres redis minio
 
 # 4. Run the initial migration
 docker compose -p meme-store run --rm migrate
+
+# 5. Build and start the app (published to 127.0.0.1:3001 only)
+docker compose -p meme-store up -d app
 ```
 
-### Bootstrapping the TLS certificate (chicken-and-egg)
+### Wiring up the shared system Nginx + TLS bootstrap (chicken-and-egg)
 
-Nginx as configured needs a cert to start its `:443` block, but Certbot's
-webroot method needs Nginx serving `:80` first. Bootstrap once:
+The system Nginx needs a cert to serve `:443`, but Certbot's webroot method
+needs Nginx serving `:80` for this domain first. Bootstrap once:
 
 ```bash
-# Temporarily comment out the `ssl_certificate*` lines and the whole HTTPS
-# server block in deploy/nginx/meme-store.conf, then:
-docker compose -p meme-store up -d app nginx
+# 1. Install an HTTP-only version of the site first (no ssl_certificate
+#    lines yet — copy deploy/nginx/meme-eg.store but strip the second
+#    `server { listen 443 ssl; ... }` block down to just the ACME
+#    challenge + a 301 redirect, matching what the real file already has
+#    for the :80 block — that part alone is enough to bootstrap):
+sudo cp deploy/nginx/meme-eg.store /etc/nginx/sites-available/meme-eg.store
+# (edit out the :443 server block for this first pass, or just proceed —
+#  nginx -t will only complain if the referenced cert files don't exist)
+sudo ln -sf /etc/nginx/sites-available/meme-eg.store /etc/nginx/sites-enabled/meme-eg.store
+sudo nginx -t && sudo systemctl reload nginx
 
-# Issue the cert (replace domain + email):
-docker compose -p meme-store run --rm certbot certonly --webroot \
-  -w /var/www/certbot -d meme-eg.store -d www.meme-eg.store \
+# 2. Issue the cert via webroot (matches the /.well-known/acme-challenge/
+#    location already in the site file):
+sudo certbot certonly --webroot -w /var/www/certbot \
+  -d meme-eg.store -d www.meme-eg.store \
   --email you@example.com --agree-tos --no-eff-email
 
-# Restore the HTTPS server block in meme-store.conf, then:
-docker compose -p meme-store restart nginx
+# 3. Re-install the FULL deploy/nginx/meme-eg.store (with the :443 block)
+#    now that the cert exists, then reload:
+sudo cp deploy/nginx/meme-eg.store /etc/nginx/sites-available/meme-eg.store
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
-After this, `deploy/deploy.sh` and normal deploys never need to touch
-certs again — renewal is handled by the cron entry below.
+After this, `deploy/deploy.sh` never needs to touch Nginx or certs again —
+the app container always publishes to the same `127.0.0.1:3001`, so a
+redeploy just replaces the container behind the same Nginx proxy target.
+Renewal is handled by the cron entry below.
 
-### Cert renewal (cron on the host, not in a container)
+### Cert renewal (system cron, not a container)
 
 ```bash
-# crontab -e
-0 3 * * * cd ~/apps/meme-store && docker compose -p meme-store run --rm certbot renew --quiet && docker compose -p meme-store exec nginx nginx -s reload
+# crontab -e (root, or ubuntu with sudo)
+0 3 * * * certbot renew --quiet && systemctl reload nginx
 ```
+
+This renews every cert on the box (including `amarel7ewety.com`'s, if it's
+also on certbot) — that's fine, certbot only touches domains that are
+actually due for renewal, and reloading Nginx is harmless/instant for all
+sites.
 
 ## DNS cutover (GoDaddy)
 
@@ -139,7 +167,7 @@ are forward-only by default.
 
 ```bash
 docker compose -p meme-store logs -f app
-docker compose -p meme-store logs -f nginx
+sudo tail -f /var/log/nginx/access.log /var/log/nginx/error.log
 docker compose -p meme-store logs --tail=200 postgres
 ```
 
