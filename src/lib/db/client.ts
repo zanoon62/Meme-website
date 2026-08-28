@@ -6,13 +6,12 @@ import * as schema from "./schema";
  * Single pooled Postgres connection + Drizzle instance, replacing
  * createSupabaseServerClient/ServiceClient/StaticClient — there's no more
  * RLS-vs-service-role distinction at the client level, authorization is
- * enforced by the query helpers in src/lib/db/queries/* instead.
+ * enforced per-route via src/lib/auth/admin-guard.ts and customer-guard.ts.
  *
  * Cached on globalThis so Next.js dev-mode hot reload doesn't open a new
  * connection pool on every module reload.
  */
 declare global {
-  // eslint-disable-next-line no-var
   var __memeDbClient: postgres.Sql | undefined;
 }
 

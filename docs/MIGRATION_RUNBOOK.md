@@ -13,6 +13,37 @@ the row — the import script converts these to real MinIO objects), 3
 orders, 5 customers, 1 staff_profiles row, 4 whitelisted admin emails, 1
 returns row, 0 coupons.
 
+## Status
+
+**Data migration already executed and verified** (2026-08-27): all 19
+products, 27 product_images (23 converted from base64 to real MinIO
+objects — verified `0` remaining base64 rows), 5 customers, 3 orders/order_items,
+1 staff_profile, 4 admin_allowed_emails, 1 homepage_settings, 1 returns
+row, and 5 users were exported from the live Supabase project and imported
+into a **persistent** (not throwaway) Postgres+Redis+MinIO stack now
+running on the VPS under the isolated `meme-store` Docker Compose project.
+Row counts verified to match exactly; a converted image was fetched
+directly from MinIO and confirmed to load. Real secrets were generated and
+written to `/home/ubuntu/apps/meme-store/.env` on the VPS (chmod 600).
+
+**Known follow-up before going live**: the migrated `product_images.url`
+and `returns.image_url` values currently point at `http://127.0.0.1:19000/...`
+— the address of the temporary SSH tunnel used to run the import from a
+local machine. Once the real domain is set up and Nginx's `/media/` proxy
+is live (`deploy/nginx/meme-store.conf`), run this one-time rewrite:
+
+```sql
+UPDATE product_images SET url = replace(url, 'http://127.0.0.1:19000', 'https://meme-eg.store/media') WHERE url LIKE 'http://127.0.0.1:19000%';
+UPDATE returns SET image_url = replace(image_url, 'http://127.0.0.1:19000', 'https://meme-eg.store/media') WHERE image_url LIKE 'http://127.0.0.1:19000%';
+```
+
+(via `docker compose -p meme-store exec -T postgres psql -U meme meme -c "..."` on the VPS, or through any Postgres client tunneled the same way this migration was run.)
+
+The `app`/`nginx` containers have NOT been deployed yet — only the data
+layer (postgres/redis/minio) is live so far. The steps below (dry run,
+delta sync, cutover) describe the process this run followed and what's
+still ahead for the full site to go live.
+
 ## 1. Dry run (mandatory — do this before touching anything production-adjacent)
 
 ```bash
@@ -75,7 +106,7 @@ password-reset-email flow built yet, either:
    (double-marks an order paid, double-decrements inventory, etc.)
 6. Update the Google OAuth client's authorized redirect URI (Google Cloud
    Console → APIs & Services → Credentials) to
-   `https://yourdomain.com/auth/callback`
+   `https://meme-eg.store/auth/callback`
 7. Do one real end-to-end test purchase on the live VPS before considering
    Vercel fully retired
 8. Keep the Supabase project alive, read-only (don't write to it anymore,

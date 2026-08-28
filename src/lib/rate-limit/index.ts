@@ -21,7 +21,6 @@ import Redis from "ioredis";
 import { RateLimiterRedis, RateLimiterMemory, type IRateLimiterOptions } from "rate-limiter-flexible";
 
 declare global {
-  // eslint-disable-next-line no-var
   var __memeRedisClient: Redis | undefined;
 }
 

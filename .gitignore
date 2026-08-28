@@ -42,6 +42,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# one-time Supabase export dumps — contain real customer PII, never commit
+scripts/migrate-from-supabase/dump/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

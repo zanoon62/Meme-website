@@ -12,7 +12,6 @@ export function isStorageConfigured(): boolean {
 }
 
 declare global {
-  // eslint-disable-next-line no-var
   var __memeMinioClient: MinioClient | undefined;
 }
 

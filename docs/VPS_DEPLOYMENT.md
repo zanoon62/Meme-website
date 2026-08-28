@@ -59,7 +59,7 @@ docker compose -p meme-store up -d app nginx
 
 # Issue the cert (replace domain + email):
 docker compose -p meme-store run --rm certbot certonly --webroot \
-  -w /var/www/certbot -d yourdomain.com -d www.yourdomain.com \
+  -w /var/www/certbot -d meme-eg.store -d www.meme-eg.store \
   --email you@example.com --agree-tos --no-eff-email
 
 # Restore the HTTPS server block in meme-store.conf, then:
@@ -83,10 +83,10 @@ working (test by hitting the bare VPS IP with a `Host` header, or a
 staging subdomain first):
 
 1. In GoDaddy DNS, change the A record to the VPS IP (`57.131.148.26`).
-2. Wait for propagation, then verify `https://yourdomain.com` serves the
+2. Wait for propagation, then verify `https://meme-eg.store` serves the
    VPS, not Vercel.
 3. Update the Stripe webhook endpoint URL and the Google OAuth authorized
-   redirect URI (`https://yourdomain.com/auth/callback`) to the real
+   redirect URI (`https://meme-eg.store/auth/callback`) to the real
    domain — see `docs/MIGRATION_RUNBOOK.md` for the full cutover checklist,
    including disabling the old Vercel deployment's Stripe webhook so two
    databases never receive the same event.
