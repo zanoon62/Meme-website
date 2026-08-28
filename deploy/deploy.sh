@@ -9,7 +9,7 @@
 set -euo pipefail
 
 COMPOSE="docker compose -p meme-store"
-HEALTH_URL="http://localhost:3000/api/health" # checked from inside the app container's network via docker exec below
+HEALTH_URL="http://127.0.0.1:3001/api/health" # published to the host, checked directly (no wget inside the alpine image)
 
 echo "==> git pull"
 git pull --ff-only
@@ -31,7 +31,7 @@ $COMPOSE up -d app
 
 echo "==> waiting for app health check"
 for i in $(seq 1 30); do
-  if $COMPOSE exec -T app wget -qO- "$HEALTH_URL" >/dev/null 2>&1; then
+  if curl -sf "$HEALTH_URL" >/dev/null 2>&1; then
     echo "==> app is healthy"
     exit 0
   fi
