@@ -9,6 +9,7 @@ import {
 } from "@/lib/auth/simple-auth";
 import { createSession, setSessionCookie, signOutCurrentSession } from "@/lib/auth/session";
 import { isGoogleOAuthConfigured } from "@/lib/auth/google-oauth";
+import { getSiteOrigin } from "@/lib/site-url";
 
 const DEV_ADMIN_EMAIL = "dev-admin@localhost";
 const UI_HINT_COOKIE_MAX_AGE = 60 * 60 * 24;
@@ -96,8 +97,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const origin = req.nextUrl.origin;
-  return NextResponse.json({ ok: true, url: `${origin}/api/auth/google?next=/api/admin/auth/check` });
+  return NextResponse.json({ ok: true, url: `${getSiteOrigin()}/api/auth/google?next=/api/admin/auth/check` });
 }
 
 /**

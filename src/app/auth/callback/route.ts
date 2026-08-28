@@ -3,10 +3,12 @@ import { exchangeGoogleCode } from "@/lib/auth/google-oauth";
 import { readAndClearOAuthFlowCookies } from "@/lib/auth/oauth-flow";
 import { findOrCreateUserFromGoogle, ensureCustomerForUser, parseGoogleName } from "@/lib/auth/identity";
 import { createSession, setSessionCookie } from "@/lib/auth/session";
+import { getSiteOrigin } from "@/lib/site-url";
 import { logger } from "@/lib/logger";
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
+  const origin = getSiteOrigin();
   const code = searchParams.get("code");
   const returnedState = searchParams.get("state");
 

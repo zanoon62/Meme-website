@@ -15,6 +15,7 @@ import {
   isGoogleOAuthConfigured,
 } from "@/lib/auth/google-oauth";
 import { setOAuthFlowCookies } from "@/lib/auth/oauth-flow";
+import { getSiteOrigin } from "@/lib/site-url";
 
 export async function GET(req: NextRequest) {
   if (!isGoogleOAuthConfigured()) {
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
   const next = req.nextUrl.searchParams.get("next") ?? "/account";
   const state = generateState();
   const codeVerifier = generateCodeVerifier();
-  const redirectUri = `${req.nextUrl.origin}/auth/callback`;
+  const redirectUri = `${getSiteOrigin()}/auth/callback`;
 
   await setOAuthFlowCookies(state, codeVerifier, next);
 
