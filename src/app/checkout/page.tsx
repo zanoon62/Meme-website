@@ -477,13 +477,13 @@ export default function CheckoutPage() {
                 </div>
                 <div>
                   <h2 className="font-display text-2xl mb-4">Shipping address</h2>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <Input placeholder="First name (الاسم الأول) *" value={form.firstName} onChange={(e) => updateForm("firstName", e.target.value)} className="h-12" />
                     <Input placeholder="Last name (اسم العائلة) *" value={form.lastName} onChange={(e) => updateForm("lastName", e.target.value)} className="h-12" />
                   </div>
-                  
+
                   {/* Street & Building info */}
-                  <div className="grid grid-cols-3 gap-3 mt-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
                     <Input placeholder="Building No. (رقم المبنى)" value={form.buildingNo} onChange={(e) => updateForm("buildingNo", e.target.value)} className="h-12" />
                     <Input placeholder="Floor (الطابق)" value={form.floor} onChange={(e) => updateForm("floor", e.target.value)} className="h-12" />
                     <Input placeholder="Apt No. (رقم الشقة)" value={form.apartment} onChange={(e) => updateForm("apartment", e.target.value)} className="h-12" />
@@ -493,7 +493,7 @@ export default function CheckoutPage() {
                   
                   <Input placeholder="Nearest Landmark (أقرب علامة مميزة) e.g. Near Mall / Bank / Mosque" value={form.landmark} onChange={(e) => updateForm("landmark", e.target.value)} className="h-12 mt-3" />
 
-                  <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                     <Input placeholder="City / District (المدينة / الحي) *" value={form.city} onChange={(e) => updateForm("city", e.target.value)} className="h-12" />
                     <Select value={form.governorate} onValueChange={(v) => updateForm("governorate", v)}>
                       <SelectTrigger className="h-12">
