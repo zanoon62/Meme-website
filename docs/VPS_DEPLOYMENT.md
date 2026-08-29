@@ -15,6 +15,7 @@ so `up`/`down` never touch other projects on the box):
 | `postgres` | `postgres:16-alpine`, this project's own database only, internal network only |
 | `redis` | `redis:7-alpine`, AOF persistence on, internal network only |
 | `minio` | Object storage (`products`, `homepage`, `returns` buckets) — published to `127.0.0.1:9002` only |
+| `realtime` | Socket.io + Redis pub/sub bridge (`realtime/Dockerfile`) — published to `127.0.0.1:4002` only, proxied at `/socket.io/`. Deployed best-effort (see below) — never blocks or rolls back the main app deploy |
 
 **No Docker Nginx or Docker certbot in this project.** The VPS already runs
 a shared, system-wide Nginx in front of another project (`amar-site`),
@@ -148,6 +149,12 @@ are needed.
 
 SSH in and run `bash deploy/deploy.sh` directly from the app directory —
 identical to what CI does, useful for a first deploy or a manual rollback.
+
+`deploy.sh` treats `realtime` as best-effort: it builds and starts it
+*after* the main `app` container has already passed its health check, and
+a failure to build/start `realtime` only logs a warning (`$COMPOSE logs
+--tail=100 realtime`) — it never fails the deploy or blocks/rolls back the
+already-healthy `app` container.
 
 ## Rollback
 

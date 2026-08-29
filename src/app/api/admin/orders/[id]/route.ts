@@ -12,6 +12,7 @@ import { db } from "@/lib/db/client";
 import { orders, orderItems } from "@/lib/db/schema";
 import { toSnakeCase, toSnakeCaseArray } from "@/lib/db/to-snake-case";
 import { demoStore } from "@/lib/demo-store";
+import { publishRealtimeEvent } from "@/lib/realtime/publish";
 import { logger } from "@/lib/logger";
 
 type Params = { params: Promise<{ id: string }> };
@@ -64,6 +65,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
 
     logger.info("order updated", { id, status: body.status, by: guard.userId });
+    if (body.status !== undefined) {
+      publishRealtimeEvent("order.status_changed", {
+        orderId: row.id,
+        orderNumber: row.orderNumber,
+        customerId: row.customerId,
+        newStatus: row.status,
+      }).catch(() => {});
+    }
     return NextResponse.json({ order: toSnakeCase(row) });
   } catch (e) {
     logger.warn("order update failed", { id, error: e instanceof Error ? e.message : String(e) });

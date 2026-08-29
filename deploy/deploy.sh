@@ -14,8 +14,8 @@ HEALTH_URL="http://127.0.0.1:3001/api/health" # published to the host, checked d
 echo "==> git pull"
 git pull --ff-only
 
-echo "==> build app + migrate images"
-$COMPOSE build app migrate
+echo "==> build app + migrate + realtime images"
+$COMPOSE build app migrate realtime
 
 echo "==> ensure postgres/redis/minio are up"
 $COMPOSE up -d postgres redis minio
@@ -29,15 +29,25 @@ $COMPOSE run --rm migrate
 echo "==> deploying new app container"
 $COMPOSE up -d app
 
-echo "==> waiting for app health check"
+APP_HEALTHY=0
 for i in $(seq 1 30); do
   if curl -sf "$HEALTH_URL" >/dev/null 2>&1; then
     echo "==> app is healthy"
-    exit 0
+    APP_HEALTHY=1
+    break
   fi
   sleep 2
 done
 
-echo "!! app did not become healthy in time — check logs:"
-echo "   $COMPOSE logs --tail=100 app"
-exit 1
+if [ "$APP_HEALTHY" -ne 1 ]; then
+  echo "!! app did not become healthy in time — check logs:"
+  echo "   $COMPOSE logs --tail=100 app"
+  exit 1
+fi
+
+# realtime is best-effort — a broken/slow realtime service must never fail
+# the whole deploy or roll back an already-healthy app. No exit-1 here.
+echo "==> deploying realtime service (best-effort, non-blocking)"
+$COMPOSE up -d realtime || echo "!! realtime failed to start — check: $COMPOSE logs --tail=100 realtime"
+
+exit 0

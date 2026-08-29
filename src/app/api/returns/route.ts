@@ -14,6 +14,7 @@ import { orders, returns } from "@/lib/db/schema";
 import { requireCustomerSession } from "@/lib/auth/customer-guard";
 import { toSnakeCase, toSnakeCaseArray } from "@/lib/db/to-snake-case";
 import { limiters } from "@/lib/rate-limit";
+import { publishRealtimeEvent } from "@/lib/realtime/publish";
 import { logger } from "@/lib/logger";
 
 const RETURN_WINDOW_DAYS = 14;
@@ -103,6 +104,12 @@ export async function POST(req: NextRequest) {
       .returning();
 
     logger.info("return submitted", { returnId: returnRecord.id, orderNumber: parsed.data.order_number });
+    publishRealtimeEvent("return.created", {
+      returnId: returnRecord.id,
+      orderNumber: parsed.data.order_number,
+      customerId: guard.customerId,
+      reason: parsed.data.reason,
+    }).catch(() => {});
     return NextResponse.json({ ok: true, return: toSnakeCase(returnRecord) }, { status: 201 });
   } catch (e) {
     logger.error("return insert failed", { error: e instanceof Error ? e.message : String(e) });

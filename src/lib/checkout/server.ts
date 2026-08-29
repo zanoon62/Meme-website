@@ -17,6 +17,7 @@ import { db } from "@/lib/db/client";
 import { coupons, customers, orderItems, orders, products } from "@/lib/db/schema";
 import type { CartLine, Address } from "./types";
 import { SHIPPING_ZONES, PAYMENT_METHODS, FREE_SHIPPING_THRESHOLD } from "@/lib/format";
+import { publishRealtimeEvent } from "@/lib/realtime/publish";
 import { logger } from "@/lib/logger";
 
 type Coupon = typeof coupons.$inferSelect;
@@ -150,7 +151,7 @@ export async function createOrder(
   const total = discountedSub + shippingTotal + paymentFee;
 
   try {
-    const { orderId, orderNumber } = await db.transaction(async (tx) => {
+    const { orderId, orderNumber, lowStockAlerts } = await db.transaction(async (tx) => {
       const [{ orderNumber }] = await tx.execute<{ orderNumber: string }>(
         sql`select generate_order_number() as "orderNumber"`,
       );
@@ -194,10 +195,26 @@ export async function createOrder(
         })),
       );
 
+      const lowStockAlerts: { productId: string; name: string; inventory: number; threshold: number }[] = [];
       for (const line of input.lines) {
         await tx.execute(
           sql`select decrement_inventory(${line.productId}::uuid, ${line.quantity}::int)`,
         );
+
+        // decrement_inventory() returns void, so re-read the fresh value
+        // (still inside this transaction) to detect a low-stock crossing.
+        const [fresh] = await tx
+          .select({ inventory: products.inventory, lowStockThreshold: products.lowStockThreshold, name: products.name })
+          .from(products)
+          .where(eq(products.id, line.productId));
+        if (fresh && fresh.inventory != null && fresh.lowStockThreshold != null && fresh.inventory <= fresh.lowStockThreshold) {
+          lowStockAlerts.push({
+            productId: line.productId,
+            name: fresh.name,
+            inventory: fresh.inventory,
+            threshold: fresh.lowStockThreshold,
+          });
+        }
       }
 
       if (couponResult.ok) {
@@ -218,10 +235,29 @@ export async function createOrder(
           .where(eq(customers.id, input.customer_id));
       }
 
-      return { orderId: order.id, orderNumber: order.orderNumber };
+      return { orderId: order.id, orderNumber: order.orderNumber, lowStockAlerts };
     });
 
     logger.info("order created", { orderId, orderNumber, total });
+
+    // Fire-and-forget — only after the transaction has truly committed, and
+    // never allowed to affect the checkout response either way.
+    publishRealtimeEvent("order.created", {
+      orderId,
+      orderNumber,
+      total,
+      customerId: input.customer_id ?? null,
+      email: input.email,
+      placedAt: new Date().toISOString(),
+    }).catch(() => {});
+    for (const alert of lowStockAlerts) {
+      publishRealtimeEvent("product.low_stock", {
+        productId: alert.productId,
+        name: alert.name,
+        inventory: alert.inventory,
+        threshold: alert.threshold,
+      }).catch(() => {});
+    }
 
     return {
       ok: true,

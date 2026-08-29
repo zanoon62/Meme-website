@@ -66,6 +66,7 @@ src/
     storage/client.ts   ← MinIO client (products/homepage/returns buckets)
     rate-limit/         ← Redis-backed limiter (rate-limiter-flexible)
     checkout/server.ts  ← transactional order creation
+    realtime/publish.ts ← fire-and-forget Redis publish side (see realtime/ below)
     api/products.ts     ← DB↔Store mappers (dbProductToStore, storeProductToDb)
     email/index.ts      ← Resend email integration
     i18n.ts             ← EN/AR translations
@@ -74,6 +75,8 @@ src/
   middleware.ts     ← Node-runtime middleware (delegates to lib/auth/middleware.ts)
 data/products.ts    ← Seed product catalog (fallback)
 drizzle/migrations/ ← Generated + one hand-written SQL migration (Postgres functions/triggers)
+realtime/           ← Standalone Socket.io + Redis subscriber service, own Dockerfile,
+                       deployed best-effort (never blocks/rolls back the main app deploy)
 deploy/
   nginx/meme-eg.store ← reverse proxy + TLS + micro-cache config
   deploy.sh              ← git-pull deploy script, run on the VPS

@@ -18,6 +18,8 @@ procedure.
   read-heavy public JSON endpoints (`/api/products`, `/api/homepage`,
   `/api/categories`)
 - **Payments**: Stripe + Cash on Delivery
+- **Realtime**: standalone Socket.io service (`realtime/`) fed by Redis
+  pub/sub — see "Realtime" below
 - **Hosting**: self-hosted VPS via Docker Compose (see `docs/VPS_DEPLOYMENT.md`)
 
 ## Database (`src/lib/db/`)
@@ -64,9 +66,17 @@ during this migration) — Google OAuth is hand-rolled in
 `google-oauth.ts` (PKCE + state, using only `fetch` against Google's stable
 OAuth endpoints).
 
-- `session.ts` — opaque session tokens; only a SHA-256 hash is stored in
+- `session-core.ts` — the framework-agnostic session logic (token
+  create/validate/invalidate, no `next/headers`). Split out of `session.ts`
+  so the standalone `realtime/` service (a plain Node process, not a
+  Next.js request context) can validate sessions without pulling in
+  `next/headers`. Opaque session tokens; only a SHA-256 hash is stored in
   the `sessions` table (the Lucia-recommended pattern), the raw token lives
   solely in an httpOnly cookie (`meme_session`).
+- `session.ts` — re-exports `session-core.ts` plus the `next/headers`-bound
+  helpers (`setSessionCookie`, `getCurrentSession`, `signOutCurrentSession`).
+  Everything under `src/app/` should keep importing from here, not
+  `session-core.ts` directly.
 - `password.ts` — Argon2 hashing via `@node-rs/argon2`.
 - `google-oauth.ts` + `oauth-flow.ts` — PKCE flow; `oauth-flow.ts` carries
   `state`/`codeVerifier`/`next` across the redirect via short-lived cookies.
@@ -142,7 +152,43 @@ order_items insert, per-line inventory decrement via the
 stats update) — replacing the old Supabase-JS version, which had no real
 multi-statement transaction and manually rolled back the order row on
 item-insert failure, plus a manual "if the RPC errors, fall back to a racy
-read-then-write" branch. A real transaction makes both unnecessary.
+read-then-write" branch. A real transaction makes both unnecessary. On success it fires
+fire-and-forget realtime events (`order.created`, and `product.low_stock`
+per line that crosses its threshold inside the same transaction) — see
+"Realtime" below. These are published only after the transaction commits,
+and a publish failure never affects the checkout response.
+
+## Realtime (`realtime/`, `src/lib/realtime/publish.ts`)
+
+A standalone Socket.io service, deliberately **not** part of the Next.js
+app process — a crash or slow client in the realtime path must never take
+down checkout/admin/storefront. Two halves:
+
+- **Publish side** (`src/lib/realtime/publish.ts`, runs inside the Next.js
+  app): `publishRealtimeEvent(event, payload)` does a fire-and-forget
+  `redis.publish("meme:<event>", JSON.stringify(payload))`. Never throws —
+  callers always `.catch(() => {})` it. Current emitters: order creation
+  and low-stock crossing (`src/lib/checkout/server.ts`), order status
+  change (`src/app/api/admin/orders/[id]/route.ts`), return submission
+  (`src/app/api/returns/route.ts`).
+- **Delivery side** (`realtime/`, a separate Node process/container):
+  `server.ts` starts a Socket.io server on `REALTIME_PORT` (default 4001)
+  at path `/socket.io/`. `redis-sub.ts` subscribes to the `meme:*` channels
+  and re-emits each to the `admin` room, plus to `customer:<id>` for
+  `order.status_changed`. `auth.ts` authenticates each socket handshake by
+  reading the same `meme_session` cookie the rest of the app uses,
+  validating it via `session-core.ts` (not `session.ts` — no
+  `next/headers` in a plain Node process), then joining the socket to the
+  `admin` room (if the user has an active `staff_profiles` row) and/or
+  `customer:<customerId>` room. Auth failure is never a hard error — the
+  socket just joins no rooms and receives nothing.
+- Runs as its own Docker Compose service (`realtime/Dockerfile`, reuses the
+  root `package.json`/`node_modules` rather than a second dependency tree),
+  published to `127.0.0.1:4002` and proxied by the system Nginx at
+  `/socket.io/` with the WebSocket `Upgrade` headers and a long
+  `proxy_read_timeout`. Deploys as best-effort — see
+  `docs/VPS_DEPLOYMENT.md` — a broken realtime service never fails or rolls
+  back the main app deploy.
 
 ## Directory map (updated)
 
@@ -150,10 +196,12 @@ read-then-write" branch. A real transaction makes both unnecessary.
 src/
   lib/
     db/            ← Drizzle client, schema, query helpers, snake_case converter
-    auth/           ← session, password, Google OAuth, admin/customer guards
+    auth/           ← session (+ session-core), password, Google OAuth, admin/customer guards
     storage/        ← MinIO client
     rate-limit/      ← Redis-backed limiter
     checkout/       ← order creation (transactional)
+    realtime/       ← publish.ts — fire-and-forget Redis publish side
+realtime/            ← standalone Socket.io + Redis subscriber service (own Dockerfile)
 deploy/
   nginx/meme-eg.store  ← reverse proxy + TLS + micro-cache config
   deploy.sh              ← git-pull-based deploy script, run on the VPS
