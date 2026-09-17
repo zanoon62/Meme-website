@@ -1,5 +1,6 @@
 /**
- * PATCH /api/admin/reviews/[id] — update review (publish/unpublish/respond)
+ * PATCH  /api/admin/reviews/[id] — update review (publish/unpublish/respond)
+ * DELETE /api/admin/reviews/[id] — permanently remove a review (spam/abuse)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -48,6 +49,32 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ review: toSnakeCase(row), success: true });
   } catch (e) {
     logger.error("admin review PATCH failed", { error: e instanceof Error ? e.message : String(e), id });
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Unknown error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(_req: NextRequest, { params }: Params) {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard.error;
+
+  const { id } = await params;
+
+  if (!isDatabaseConfigured()) {
+    return NextResponse.json({ success: true, demo: true });
+  }
+
+  try {
+    const [row] = await db.delete(reviews).where(eq(reviews.id, id)).returning({ id: reviews.id });
+    if (!row) {
+      return NextResponse.json({ error: "Review not found" }, { status: 404 });
+    }
+    logger.info("admin review deleted", { id, by: guard.userId });
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    logger.error("admin review DELETE failed", { error: e instanceof Error ? e.message : String(e), id });
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Unknown error" },
       { status: 500 },

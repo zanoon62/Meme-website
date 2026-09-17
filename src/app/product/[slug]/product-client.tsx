@@ -31,7 +31,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ProductCard } from "@/components/shop/product-card";
-import { getReviewsForProduct } from "@/data/products";
+import { ProductReviews } from "@/components/shop/product-reviews";
 import { useProductStore } from "@/components/providers/product-store";
 import { useCart, useUI, useWishlist, useWishlistHas } from "@/components/providers/ui-provider";
 import type { ProductSize } from "@/components/providers/ui-provider";
@@ -86,7 +86,6 @@ export default function ProductPageClient({ slug }: { slug: string }) {
   const related = allProducts
     .filter((p) => p.id !== product.id && (p.category === product.category || p.collection === product.collection))
     .slice(0, 4);
-  const productReviews = getReviewsForProduct(product.id);
   const discount = calculateDiscount(product.price, product.compareAtPrice);
 
   const onAddToCart = () => {
@@ -409,7 +408,7 @@ export default function ProductPageClient({ slug }: { slug: string }) {
                   value="reviews"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent text-xs uppercase tracking-wider py-3"
                 >
-                  Reviews ({productReviews.length})
+                  Reviews
                 </TabsTrigger>
               </TabsList>
 
@@ -443,38 +442,7 @@ export default function ProductPageClient({ slug }: { slug: string }) {
               </TabsContent>
 
               <TabsContent value="reviews" className="pt-6">
-                <div className="space-y-6">
-                  {productReviews.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No reviews yet. Be the first to review this product.</p>
-                  ) : (
-                    productReviews.map((r) => (
-                      <div key={r.id} className="border-b border-border/60 pb-6">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <p className="font-medium text-sm">{r.author}</p>
-                            <p className="text-xs text-muted-foreground">{r.date}</p>
-                          </div>
-                          <div className="flex">
-                            {[1, 2, 3, 4, 5].map((i) => (
-                              <Star
-                                key={i}
-                                className={cn(
-                                  "h-3 w-3",
-                                  i <= r.rating ? "fill-foreground text-foreground" : "text-muted-foreground"
-                                )}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                        <p className="font-medium text-sm mb-1">{r.title}</p>
-                        <p className="text-sm text-muted-foreground leading-relaxed">{r.body}</p>
-                        {r.verified && (
-                          <Badge variant="outline" className="mt-2 text-[10px]">Verified buyer</Badge>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
+                <ProductReviews productId={product.id} />
               </TabsContent>
             </Tabs>
           </div>

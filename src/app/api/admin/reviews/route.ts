@@ -49,6 +49,7 @@ export async function GET(req: NextRequest) {
         rating: reviews.rating,
         title: reviews.title,
         body: reviews.body,
+        imageUrl: reviews.imageUrl,
         isPublished: reviews.isPublished,
         isVerified: reviews.isVerified,
         publicResponse: reviews.response,

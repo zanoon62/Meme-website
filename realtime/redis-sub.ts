@@ -11,6 +11,7 @@ const CHANNELS = [
   "meme:order.status_changed",
   "meme:return.created",
   "meme:product.low_stock",
+  "meme:review.created",
 ] as const;
 
 export function startRedisSubscriber(io: Server) {

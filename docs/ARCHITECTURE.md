@@ -126,16 +126,18 @@ still whitelisted).
 
 ## Storage (`src/lib/storage/client.ts`)
 
-MinIO (S3-compatible), four buckets: `products`, `homepage`, `returns`,
-`payment-proofs`. Upload routes (`api/admin/product-image`,
+MinIO (S3-compatible), five buckets: `products`, `homepage`, `returns`,
+`payment-proofs`, `reviews`. Upload routes (`api/admin/product-image`,
 `api/admin/homepage-image`, `api/returns/image-upload`,
-`api/checkout/payment-proof-upload`) keep the original `sharp`-resize-to-WebP
-pipeline unchanged, only the upload client changed. `ensureBucket()` is
-idempotent (creates the bucket + sets a public-read policy on first use).
+`api/checkout/payment-proof-upload`, `api/reviews/image-upload`) keep the
+original `sharp`-resize-to-WebP pipeline unchanged, only the upload client
+changed. `ensureBucket()` is idempotent (creates the bucket + sets a
+public-read policy on first use).
 
-`payment-proofs` is the one bucket with no auth guard on its upload route —
-guest checkout has no session to check, so abuse is bounded by the
-`checkout` rate limiter plus file type/size validation instead.
+`payment-proofs` and `reviews` are the two buckets with no auth guard on
+their upload routes — guest checkout has no session, and reviews can be
+submitted anonymously, so abuse on both is bounded by rate limiting plus
+file type/size validation instead of a session requirement.
 
 Public URLs are built from `MINIO_PUBLIC_URL`, which in production points
 at Nginx's `/media/` proxy (`deploy/nginx/meme-eg.store`), not directly
@@ -220,7 +222,8 @@ down checkout/admin/storefront. Two halves:
   callers always `.catch(() => {})` it. Current emitters: order creation
   and low-stock crossing (`src/lib/checkout/server.ts`), order status
   change (`src/app/api/admin/orders/[id]/route.ts`), return submission
-  (`src/app/api/returns/route.ts`).
+  (`src/app/api/returns/route.ts`), review submission
+  (`src/app/api/reviews/route.ts`).
 - **Admin client** (`src/lib/realtime/use-admin-socket.ts`): a module-level
   singleton `socket.io-client` connection (same-origin, `withCredentials`,
   authenticated automatically via the `meme_session` cookie already on the

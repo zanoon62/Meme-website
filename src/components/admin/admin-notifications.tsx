@@ -222,6 +222,29 @@ export function AdminNotifications({
     },
   );
 
+  // Live push — a customer just submitted a new review.
+  useAdminRealtimeEvent<{ reviewId: string; productId: string; author: string; rating: number }>(
+    "review.created",
+    (payload) => {
+      const time = nowLabel();
+      setNotifications((list) => [
+        {
+          id: `review-${payload.reviewId}`,
+          type: "review",
+          titleAr: `مراجعة جديدة من ${payload.author}`,
+          titleEn: `New review from ${payload.author}`,
+          descAr: `تقييم ${payload.rating}/5 — بانتظار الموافقة`,
+          descEn: `${payload.rating}/5 rating — pending approval`,
+          timeAr: time.ar,
+          timeEn: time.en,
+          read: false,
+          targetSection: "reviews",
+        },
+        ...list.filter((n) => n.id !== `review-${payload.reviewId}`),
+      ]);
+    },
+  );
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const markAllRead = () => {

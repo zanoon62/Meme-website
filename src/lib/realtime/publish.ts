@@ -21,7 +21,8 @@ export type RealtimeEvent =
   | "order.created"
   | "order.status_changed"
   | "return.created"
-  | "product.low_stock";
+  | "product.low_stock"
+  | "review.created";
 
 /**
  * Fire-and-forget push to the realtime service via Redis pub/sub. Never

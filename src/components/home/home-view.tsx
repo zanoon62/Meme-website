@@ -19,7 +19,6 @@ import { ShowcaseSection } from "@/components/home/showcase-section";
 import { EditorialSplit } from "@/components/home/editorial-split";
 import { ManifestoNewsletter } from "@/components/home/manifesto-newsletter";
 import { LimitedDropSpotlight } from "@/components/home/limited-drop-spotlight";
-import { reviews } from "@/data/products";
 import { useLiveProducts, useLiveCategories } from "@/components/providers/product-store";
 import { useHomepageConfig } from "@/components/providers/homepage-store";
 import { useLang } from "@/components/layout/language-toggle";
@@ -194,12 +193,40 @@ function ValuePropsStrip() {
 }
 
 // =================== Reviews ===================
+type FeaturedReview = {
+  id: string;
+  author: string;
+  rating: number;
+  title: string | null;
+  body: string | null;
+  is_verified: boolean;
+  created_at: string;
+};
+
 function ReviewsSection() {
   const config = useHomepageConfig();
   const [lang] = useLang();
   const isRtl = lang === "ar";
   const section = config.reviews;
-  const featured = reviews.slice(0, 3);
+  const [featured, setFeatured] = React.useState<FeaturedReview[]>([]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    fetch("/api/reviews?featured=true")
+      .then((res) => (res.ok ? res.json() : { reviews: [] }))
+      .then((data) => {
+        if (!cancelled) setFeatured(data.reviews ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setFeatured([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // No real published reviews yet — don't show a fabricated section.
+  if (featured.length === 0) return null;
 
   return (
     <section className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-10 py-20 lg:py-28">
@@ -223,7 +250,7 @@ function ReviewsSection() {
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
-        {featured.map((r, i) => (
+        {featured.slice(0, 3).map((r, i) => (
           <motion.div
             key={r.id}
             initial={{ opacity: 0, y: 20 }}
@@ -234,17 +261,24 @@ function ReviewsSection() {
           >
             <div className="flex mb-4">
               {[1, 2, 3, 4, 5].map((j) => (
-                <Star key={j} className="h-3.5 w-3.5 fill-[#f6ec91] text-[#f6ec91]" />
+                <Star
+                  key={j}
+                  className={j <= r.rating ? "h-3.5 w-3.5 fill-[#f6ec91] text-[#f6ec91]" : "h-3.5 w-3.5 text-muted-foreground/30"}
+                />
               ))}
             </div>
-            <h3 className="font-medium text-base mb-3">{r.title}</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed mb-6 line-clamp-4">{r.body}</p>
+            {r.title && <h3 className="font-medium text-base mb-3">{r.title}</h3>}
+            {r.body && <p className="text-sm text-muted-foreground leading-relaxed mb-6 line-clamp-4">{r.body}</p>}
             <div className="flex items-center justify-between text-xs">
               <div>
                 <p className="font-medium text-foreground">{r.author}</p>
-                <p className="text-muted-foreground">{isRtl ? "مشترٍ موثق" : "Verified buyer"}</p>
+                <p className="text-muted-foreground">
+                  {r.is_verified ? (isRtl ? "مشترٍ موثق" : "Verified buyer") : (isRtl ? "عميل" : "Customer")}
+                </p>
               </div>
-              <span className="text-muted-foreground">{r.date}</span>
+              <span className="text-muted-foreground">
+                {new Date(r.created_at).toLocaleDateString(isRtl ? "ar-EG" : "en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </span>
             </div>
           </motion.div>
         ))}

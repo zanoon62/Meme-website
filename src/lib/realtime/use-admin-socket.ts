@@ -19,7 +19,8 @@ export type AdminRealtimeEvent =
   | "order.created"
   | "order.status_changed"
   | "return.created"
-  | "product.low_stock";
+  | "product.low_stock"
+  | "review.created";
 
 let sharedSocket: Socket | null = null;
 

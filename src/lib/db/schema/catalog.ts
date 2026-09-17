@@ -112,6 +112,7 @@ export const reviews = pgTable(
     rating: integer("rating").notNull(),
     title: text("title"),
     body: text("body"),
+    imageUrl: text("image_url"),
     isVerified: boolean("is_verified").default(false),
     isPublished: boolean("is_published").default(false),
     helpful: integer("helpful").default(0),
