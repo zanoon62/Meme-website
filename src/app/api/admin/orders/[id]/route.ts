@@ -52,13 +52,42 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (body.status === "delivered" && !body.delivered_at) rawUpdate.delivered_at = now;
   if (body.status === "cancelled" && !body.cancelled_at) rawUpdate.cancelled_at = now;
 
-  // "Confirm payment" for InstaPay/Vodafone Cash orders is just this same
-  // PATCH with status: "paid" — the admin has verified the transfer proof
-  // and there's no separate endpoint for it. Stamp who/when confirmed it.
+  // "Confirm order" — the one action an admin takes after reviewing a new
+  // order. It accepts the order and, for prepaid methods (InstaPay/Vodafone),
+  // also records that the transfer was verified. COD orders are accepted the
+  // same way but stay payment_status "awaiting" until the courier collects
+  // the cash, because no money has actually changed hands yet.
   if (body.status === "paid") {
-    rawUpdate.payment_status = "paid";
     rawUpdate.payment_confirmed_at = now;
     rawUpdate.payment_confirmed_by = guard.userId;
+
+    const [existing] = await db
+      .select({ paymentMethod: orders.paymentMethod })
+      .from(orders)
+      .where(eq(orders.id, id))
+      .limit(1);
+
+    if (existing?.paymentMethod === "cod") {
+      // Accepted, but the cash arrives on delivery — don't claim it's paid.
+      rawUpdate.payment_status = "awaiting";
+      delete rawUpdate.paid_at;
+    } else {
+      rawUpdate.payment_status = "paid";
+    }
+  }
+
+  // Cash collected on delivery — settle a COD order's payment at that point.
+  if (body.status === "delivered") {
+    const [existing] = await db
+      .select({ paymentMethod: orders.paymentMethod, paymentStatus: orders.paymentStatus })
+      .from(orders)
+      .where(eq(orders.id, id))
+      .limit(1);
+
+    if (existing?.paymentMethod === "cod" && existing.paymentStatus !== "paid") {
+      rawUpdate.payment_status = "paid";
+      rawUpdate.paid_at = now;
+    }
   }
 
   // A cancelled order's payment is no longer expected to arrive.

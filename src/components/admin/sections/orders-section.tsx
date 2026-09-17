@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
   Select,
@@ -31,7 +30,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -99,16 +97,30 @@ type OrderItem = {
   product_image: string | null;
 };
 
+// The `paid` DB status means "admin reviewed and accepted this order".
+// It's labelled "Confirmed" everywhere in the UI because that's what it
+// actually represents — whether the money has arrived is tracked separately
+// in payment_status (a COD order is confirmed long before it's paid).
 const STATUS_OPTIONS: { value: OrderStatus | "all"; label: string }[] = [
   { value: "all", label: "All statuses" },
-  { value: "pending", label: "Pending" },
-  { value: "paid", label: "Paid" },
+  { value: "pending", label: "Needs review" },
+  { value: "paid", label: "Confirmed" },
   { value: "fulfilled", label: "Fulfilled" },
   { value: "shipped", label: "Shipped" },
   { value: "delivered", label: "Delivered" },
   { value: "cancelled", label: "Cancelled" },
   { value: "refunded", label: "Refunded" },
 ];
+
+const statusLabel: Record<OrderStatus, string> = {
+  pending: "Needs review",
+  paid: "Confirmed",
+  fulfilled: "Fulfilled",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+  refunded: "Refunded",
+};
 
 const statusColor: Record<OrderStatus, string> = {
   pending: "bg-amber-100 text-amber-800",
@@ -118,6 +130,15 @@ const statusColor: Record<OrderStatus, string> = {
   delivered: "bg-emerald-100 text-emerald-800",
   cancelled: "bg-rose-100 text-rose-800",
   refunded: "bg-neutral-100 text-neutral-800",
+};
+
+const paymentLabel: Record<string, string> = {
+  awaiting: "Unpaid",
+  authorized: "Authorized",
+  paid: "Paid",
+  partial_refund: "Partly refunded",
+  refunded: "Refunded",
+  failed: "Failed",
 };
 
 // Module-level cache keyed by status+page, so switching admin sections and
@@ -332,35 +353,76 @@ export function OrdersSection() {
           </div>
         ) : (
           filtered.map((o) => (
-            <button
-              key={o.id}
-              onClick={() => setSelected(o)}
-              className="w-full text-left p-4 active:bg-accent/40 transition-colors"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <span className="font-mono text-xs font-medium">{o.order_number}</span>
-                <span
-                  className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${statusColor[o.status]}`}
+            <div key={o.id} className="p-4">
+              <button
+                onClick={() => setSelected(o)}
+                className="w-full text-left active:opacity-70 transition-opacity"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <span className="font-mono text-xs font-medium">{o.order_number}</span>
+                  <span
+                    className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium ${statusColor[o.status]}`}
+                  >
+                    {statusLabel[o.status]}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1.5 truncate">{o.email}</p>
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-[11px] text-muted-foreground">
+                    {new Date(o.placed_at).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                    {" · "}
+                    {paymentLabel[o.payment_status] ?? o.payment_status}
+                  </span>
+                  <span className="text-sm font-medium">
+                    {formatPrice(Number(o.total), o.currency)}
+                  </span>
+                </div>
+              </button>
+
+              <div className="flex gap-2 mt-3">
+                {o.status === "pending" && (
+                  <Button
+                    size="sm"
+                    className="flex-1 h-9 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                    onClick={() => updateOrderStatus(o.id, "paid", load)}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Confirm
+                  </Button>
+                )}
+                {o.status === "paid" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 h-9 text-xs"
+                    onClick={() => updateOrderStatus(o.id, "shipped", load)}
+                  >
+                    <Truck className="h-3.5 w-3.5 mr-1" /> Mark shipped
+                  </Button>
+                )}
+                {o.status === "shipped" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 h-9 text-xs"
+                    onClick={() => updateOrderStatus(o.id, "delivered", load)}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark delivered
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 text-xs px-3"
+                  onClick={() => setSelected(o)}
                 >
-                  {o.status}
-                </span>
+                  <Eye className="h-3.5 w-3.5 mr-1" /> Details
+                </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-1.5 truncate">{o.email}</p>
-              <div className="flex items-center justify-between mt-2">
-                <span className="text-[11px] text-muted-foreground">
-                  {new Date(o.placed_at).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                  {" · "}
-                  <span className="capitalize">{o.payment_status}</span>
-                </span>
-                <span className="text-sm font-medium">
-                  {formatPrice(Number(o.total), o.currency)}
-                </span>
-              </div>
-            </button>
+            </div>
           ))
         )}
         <div className="flex items-center justify-between px-4 py-3 text-xs text-muted-foreground">
@@ -442,70 +504,83 @@ export function OrdersSection() {
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${statusColor[o.status]}`}
+                        className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${statusColor[o.status]}`}
                       >
-                        {o.status}
+                        {statusLabel[o.status]}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-xs capitalize text-muted-foreground">
-                        {o.payment_status}
+                      <span className="text-xs text-muted-foreground">
+                        {paymentLabel[o.payment_status] ?? o.payment_status}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right font-medium">
                       {formatPrice(Number(o.total), o.currency)}
                     </td>
-                    <td className="px-4 py-3">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1">
+                        {/* The whole point: a new order is confirmed in one
+                            click, right from the list — no dropdown, no
+                            walking it through intermediate statuses. */}
+                        {o.status === "pending" && (
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={(e) => e.stopPropagation()}
+                            size="sm"
+                            className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                            onClick={() => updateOrderStatus(o.id, "paid", load)}
                           >
-                            <MoreHorizontal className="h-3.5 w-3.5" />
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Confirm
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setSelected(o)}>
-                            <Eye className="mr-2 h-3.5 w-3.5" /> View details
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          {o.payment_status === "awaiting" && o.payment_method !== "cod" && (
-                            <DropdownMenuItem
-                              className="text-emerald-600"
-                              onClick={() =>
-                                updateOrderStatus(o.id, "paid", load)
-                              }
-                            >
-                              <CheckCircle2 className="mr-2 h-3.5 w-3.5" /> Confirm payment
+                        )}
+                        {o.status === "paid" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2.5 text-xs"
+                            onClick={() => updateOrderStatus(o.id, "shipped", load)}
+                          >
+                            <Truck className="h-3.5 w-3.5 mr-1" /> Ship
+                          </Button>
+                        )}
+                        {o.status === "shipped" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2.5 text-xs"
+                            onClick={() => updateOrderStatus(o.id, "delivered", load)}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Delivered
+                          </Button>
+                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setSelected(o)}>
+                              <Eye className="mr-2 h-3.5 w-3.5" /> View details
                             </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem
-                            onClick={() =>
-                              updateOrderStatus(o.id, "shipped", load)
-                            }
-                          >
-                            <Truck className="mr-2 h-3.5 w-3.5" /> Mark as shipped
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              updateOrderStatus(o.id, "delivered", load)
-                            }
-                          >
-                            <CheckCircle2 className="mr-2 h-3.5 w-3.5" /> Mark delivered
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-rose-600"
-                            onClick={() =>
-                              updateOrderStatus(o.id, "cancelled", load)
-                            }
-                          >
-                            <XCircle className="mr-2 h-3.5 w-3.5" /> Cancel order
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => updateOrderStatus(o.id, "shipped", load)}
+                            >
+                              <Truck className="mr-2 h-3.5 w-3.5" /> Mark as shipped
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => updateOrderStatus(o.id, "delivered", load)}
+                            >
+                              <CheckCircle2 className="mr-2 h-3.5 w-3.5" /> Mark delivered
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-rose-600"
+                              onClick={() => updateOrderStatus(o.id, "cancelled", load)}
+                            >
+                              <XCircle className="mr-2 h-3.5 w-3.5" /> Cancel order
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -650,21 +725,36 @@ function OrderDetailDialog({
               Status
             </p>
             <span
-              className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${statusColor[order.status]}`}
+              className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${statusColor[order.status]}`}
             >
-              {order.status}
+              {statusLabel[order.status]}
             </span>
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
               Payment
             </p>
-            <span className="text-xs capitalize">{order.payment_status}</span>
+            <span className="text-xs">{paymentLabel[order.payment_status] ?? order.payment_status}</span>
             {order.payment_method && (
-              <span className="text-xs text-muted-foreground capitalize"> · {order.payment_method}</span>
+              <span className="text-xs text-muted-foreground uppercase"> · {order.payment_method}</span>
             )}
           </div>
         </div>
+
+        {/* One-click accept, right at the top where the admin lands after
+            reviewing the order below. */}
+        {order.status === "pending" && (
+          <Button
+            className="mt-3 w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+            onClick={async () => {
+              await updateOrderStatus(order.id, "paid", onUpdated);
+              onClose();
+            }}
+          >
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            {order.payment_method === "cod" ? "Confirm order (pay on delivery)" : "Confirm order & payment"}
+          </Button>
+        )}
 
         {/* Transfer proof review — InstaPay / Vodafone Cash orders awaiting confirmation */}
         {order.payment_method !== "cod" && (order.payment_proof_url || order.payment_sender_info) && (
@@ -685,18 +775,6 @@ function OrderDetailDialog({
                   className="max-h-56 rounded-md border border-border/60 object-contain"
                 />
               </a>
-            )}
-            {order.payment_status === "awaiting" && (
-              <Button
-                size="sm"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs"
-                onClick={async () => {
-                  await updateOrderStatus(order.id, "paid", onUpdated);
-                  onClose();
-                }}
-              >
-                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Confirm payment received
-              </Button>
             )}
             {order.payment_confirmed_at && (
               <p className="text-[10px] text-muted-foreground">
@@ -814,7 +892,7 @@ function OrderDetailDialog({
               </SelectContent>
             </Select>
             <p className="text-[10px] text-muted-foreground mt-1">
-              Changing to Paid confirms payment and emails the customer.
+              Setting &ldquo;Confirmed&rdquo; accepts the order and emails the customer.
             </p>
           </div>
           <div>

@@ -175,10 +175,15 @@ export async function createOrder(
   const method = PAYMENT_METHODS.find((m) => m.id === input.payment_method_id) ?? PAYMENT_METHODS[0];
   const total = discountedSub + shippingTotal;
 
-  // COD is confirmed the moment the courier hands over cash — there's no
-  // transfer to verify, so it never needs the admin's manual "confirm
-  // payment" step that InstaPay/Vodafone Cash orders go through.
-  const isCod = method.id === "cod";
+  // Every new order starts as "pending" — awaiting the admin's review —
+  // regardless of payment method. A COD order is NOT paid at creation time
+  // (the cash only arrives with the courier, days later), so marking it
+  // "paid" up front was a lie that made the admin list unreadable: genuinely
+  // unreviewed orders looked identical to settled ones.
+  //
+  // `status` tracks the ORDER lifecycle (pending -> confirmed -> shipped ->
+  // delivered) and `paymentStatus` tracks the MONEY, independently. COD just
+  // means the money is collected on delivery rather than up front.
 
   try {
     const { orderId, orderNumber, lowStockAlerts } = await db.transaction(async (tx) => {
@@ -192,8 +197,8 @@ export async function createOrder(
           orderNumber,
           customerId: input.customer_id ?? null,
           email: input.email,
-          status: isCod ? "paid" : "pending",
-          paymentStatus: isCod ? "paid" : "awaiting",
+          status: "pending",
+          paymentStatus: "awaiting",
           fulfillmentStatus: "unfulfilled",
           subtotal: subtotal.toFixed(2),
           discountTotal: discountTotal.toFixed(2),
@@ -209,7 +214,7 @@ export async function createOrder(
           paymentMethod: method.id,
           paymentSenderInfo: input.payment_sender_info ?? null,
           paymentProofUrl: input.payment_proof_url ?? null,
-          paidAt: isCod ? new Date() : null,
+          paidAt: null,
           placedAt: new Date(),
         })
         .returning();

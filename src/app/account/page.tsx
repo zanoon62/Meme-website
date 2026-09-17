@@ -128,6 +128,11 @@ function statusVariant(status: string): "default" | "secondary" | "outline" {
 }
 
 function statusLabel(status: string): string {
+  // The `paid` DB status means "we accepted your order" — for a COD order the
+  // money hasn't changed hands yet, so showing "Paid" to the customer would
+  // be wrong. "Confirmed" is accurate for both prepaid and COD.
+  if (status === "paid") return "Confirmed";
+  if (status === "pending") return "Awaiting confirmation";
   return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, " ");
 }
 

@@ -208,14 +208,16 @@ export function Header() {
             <ThemeToggle />
             <LanguageToggle />
 
+            {/* Search/wishlist are already in the mobile bottom nav — showing
+                them here too crowded small phones out of horizontal room. */}
             <Button
               variant="ghost"
               size="icon"
-              className="text-foreground hover:bg-white/5 h-8 w-8 sm:h-9 sm:w-9"
+              className="hidden lg:inline-flex text-foreground hover:bg-white/5 h-9 w-9"
               onClick={() => setSearchOpen(!searchOpen)}
               aria-label="Search"
             >
-              <Search className="h-4 w-4 sm:h-5 sm:w-5" />
+              <Search className="h-5 w-5" />
             </Button>
 
             <Link href="/account" className="hidden sm:inline-flex">
@@ -235,9 +237,9 @@ export function Header() {
               </Link>
             )}
 
-            <Link href="/wishlist">
-              <Button variant="ghost" size="icon" className="relative text-foreground hover:bg-white/5 h-8 w-8 sm:h-9 sm:w-9" aria-label="Wishlist">
-                <Heart className="h-4 w-4 sm:h-5 sm:w-5" />
+            <Link href="/wishlist" className="hidden lg:inline-flex">
+              <Button variant="ghost" size="icon" className="relative text-foreground hover:bg-white/5 h-9 w-9" aria-label="Wishlist">
+                <Heart className="h-5 w-5" />
                 {wishlistCount > 0 && (
                   <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
                     {wishlistCount}

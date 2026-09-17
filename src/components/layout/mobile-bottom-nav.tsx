@@ -24,16 +24,15 @@ export function MobileBottomNav() {
 
   return (
     <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 glass border-t border-border/60 pb-[env(safe-area-inset-bottom)]">
-      <div className="flex items-center justify-around h-16">
+      <div className="flex items-stretch justify-around h-16">
         {items_nav.map((item, i) => {
           const isActive = item.href && pathname === item.href;
-          const content = (
-            <button
-              key={i}
-              onClick={item.action}
-              className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full relative"
-              aria-label={item.label}
-            >
+          // Inner content only — the interactive element is the <Link> or the
+          // <button> below. Previously a <button> was nested inside the
+          // <Link>, which is invalid HTML and swallowed taps in some mobile
+          // browsers.
+          const inner = (
+            <>
               <item.icon
                 className={cn(
                   "h-5 w-5 transition-colors",
@@ -53,14 +52,20 @@ export function MobileBottomNav() {
                   {item.badge}
                 </span>
               ) : null}
-            </button>
+            </>
           );
+
+          const classes =
+            "flex flex-col items-center justify-center gap-0.5 flex-1 h-full relative";
+
           return item.href ? (
-            <Link key={i} href={item.href} className="flex-1 h-full flex items-center justify-center">
-              {content}
+            <Link key={i} href={item.href} className={classes} aria-label={item.label}>
+              {inner}
             </Link>
           ) : (
-            content
+            <button key={i} onClick={item.action} className={classes} aria-label={item.label}>
+              {inner}
+            </button>
           );
         })}
       </div>

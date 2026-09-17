@@ -26,7 +26,14 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
       <CartDrawer />
       <SearchOverlay />
       <MobileBottomNav />
-      <div className="lg:hidden h-16 shrink-0" aria-hidden /> {/* Spacer for bottom nav */}
+      {/* Spacer matching the bottom nav's real height: 4rem + the phone's
+          safe-area inset. A plain h-16 left the nav overlapping the last
+          rows of page content on home-indicator phones. */}
+      <div
+        className="lg:hidden shrink-0"
+        style={{ height: "calc(4rem + env(safe-area-inset-bottom))" }}
+        aria-hidden
+      />
     </div>
   );
 }

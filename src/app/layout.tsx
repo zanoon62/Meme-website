@@ -45,6 +45,10 @@ export const viewport = {
   // iOS input auto-zoom is avoided by using >=16px font on form controls
   // instead of by disabling zoom.
   maximumScale: 5,
+  // Required for env(safe-area-inset-*) to resolve to real values on
+  // notched/home-indicator phones — without it the mobile bottom nav's
+  // safe-area padding is always 0 and the nav sits under the home bar.
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fafafa" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0c" },
