@@ -38,6 +38,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAdminT } from "@/components/admin/admin-i18n";
+import { useAdminRealtimeEvent } from "@/lib/realtime/use-admin-socket";
 
 // ─────────────────────────────────────────────
 // Types
@@ -150,6 +151,12 @@ export function ReturnsSection() {
   React.useEffect(() => {
     fetchReturns();
   }, [fetchReturns]);
+
+  // Live update — a new return request appears immediately instead of
+  // requiring a manual refresh or filter toggle to notice it.
+  useAdminRealtimeEvent("return.created", () => {
+    fetchReturns();
+  });
 
   // ── Open detail dialog
   const openDetail = (r: ReturnRecord) => {

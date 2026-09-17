@@ -76,6 +76,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     collectionName: payload.collection_name,
     colors: payload.colors,
     sizes: payload.sizes,
+    sizeChart: payload.size_chart,
     material: payload.material,
     care: payload.care,
     inventory: payload.inventory,

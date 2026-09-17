@@ -15,6 +15,7 @@ import { requireCustomerSession } from "@/lib/auth/customer-guard";
 import { toSnakeCase, toSnakeCaseArray } from "@/lib/db/to-snake-case";
 import { limiters } from "@/lib/rate-limit";
 import { publishRealtimeEvent } from "@/lib/realtime/publish";
+import { isResendConfigured, sendReturnRequestAdminEmail } from "@/lib/email";
 import { logger } from "@/lib/logger";
 
 const RETURN_WINDOW_DAYS = 14;
@@ -110,6 +111,17 @@ export async function POST(req: NextRequest) {
       customerId: guard.customerId,
       reason: parsed.data.reason,
     }).catch(() => {});
+    if (isResendConfigured()) {
+      sendReturnRequestAdminEmail({
+        returnId: returnRecord.id,
+        orderNumber: parsed.data.order_number,
+        customerEmail: guard.email,
+        reason: parsed.data.reason,
+        description: parsed.data.description,
+      }).catch((err) => {
+        logger.error("Failed to send return request admin email", { error: err });
+      });
+    }
     return NextResponse.json({ ok: true, return: toSnakeCase(returnRecord) }, { status: 201 });
   } catch (e) {
     logger.error("return insert failed", { error: e instanceof Error ? e.message : String(e) });

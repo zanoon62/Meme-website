@@ -52,7 +52,7 @@ server {
 
     # Micro-cache the three read-heavy public JSON endpoints — replaces
     # Vercel's edge cache for these routes.
-    location ~ ^/api/(products|homepage|categories) {
+    location ~ ^/api/(products|homepage|categories|payment-settings) {
         proxy_cache meme_cache;
         proxy_cache_valid 200 300s;
         proxy_cache_use_stale updating error timeout http_500 http_502 http_503;

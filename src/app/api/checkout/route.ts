@@ -136,6 +136,8 @@ export async function POST(req: NextRequest) {
     shipping_method: payload.shipping_method,
     shipping_zone_id: payload.shipping_zone_id,
     payment_method_id: payload.payment_method_id,
+    payment_sender_info: payload.payment_sender_info,
+    payment_proof_url: payload.payment_proof_url,
     coupon_code: payload.coupon_code,
     customer_note: payload.customer_note,
     customer_id: customerId,
@@ -154,8 +156,11 @@ export async function POST(req: NextRequest) {
       .where(eq(orders.id, result.order.id));
   }
 
-  // 6. Send order confirmation email via Resend (non-blocking)
-  if (isResendConfigured()) {
+  // 6. Send the order confirmation email via Resend (non-blocking) — but
+  // only for COD, which is confirmed automatically. InstaPay/Vodafone Cash
+  // orders wait until an admin reviews the transfer proof and confirms
+  // payment (see PATCH /api/admin/orders/[id]), which sends this same email.
+  if (isResendConfigured() && result.order.payment_method_id === "cod") {
     sendOrderConfirmationEmail({
       orderNumber: result.order.order_number,
       recipientEmail: payload.email,
@@ -166,7 +171,6 @@ export async function POST(req: NextRequest) {
       shippingTotal: result.order.shipping_total,
       shippingZoneName: result.order.shipping_zone_name,
       vatTotal: result.order.vat_total,
-      paymentFee: result.order.payment_fee,
       paymentMethodName: result.order.payment_method_name,
       total: result.order.total,
       shippingAddress: payload.shipping_address,
@@ -174,6 +178,10 @@ export async function POST(req: NextRequest) {
     }).catch((err) => {
       logger.error("Failed to send order confirmation email", { error: err });
     });
+    await db
+      .update(orders)
+      .set({ confirmationEmailSentAt: new Date() })
+      .where(eq(orders.id, result.order.id));
   }
 
   return NextResponse.json({ ok: true, order: result.order });

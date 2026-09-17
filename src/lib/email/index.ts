@@ -31,7 +31,6 @@ export interface OrderConfirmationEmailParams {
   shippingTotal?: number;
   shippingZoneName?: string;
   vatTotal?: number;
-  paymentFee?: number;
   paymentMethodName?: string;
   total: number;
   shippingAddress: {
@@ -222,20 +221,6 @@ export async function sendOrderConfirmationEmail(
                       </td>
                     </tr>
 
-                    ${
-                      (params.paymentFee ?? 0) > 0
-                        ? `
-                    <tr>
-                      <td style="padding: 6px 0; font-size: 14px; color: #666666;">
-                        Payment Fee ${params.paymentMethodName ? `(${params.paymentMethodName})` : ""}
-                      </td>
-                      <td style="padding: 6px 0; font-size: 14px; text-align: right; color: #111111; font-weight: 600;">
-                        EGP ${params.paymentFee!.toLocaleString("en-US")}
-                      </td>
-                    </tr>`
-                        : ""
-                    }
-
                     <tr>
                       <td style="padding: 14px 0 6px 0; font-size: 15px; font-weight: 700; color: #111111; border-top: 2px solid #111111;">
                         Total Amount
@@ -340,6 +325,88 @@ export async function sendOrderConfirmationEmail(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error("Exception sending email", { error: message });
+    return { ok: false, error: message };
+  }
+}
+
+const STORE_ADMIN_EMAIL = "suitbymeme@gmail.com";
+
+export interface ReturnRequestAdminEmailParams {
+  returnId: string;
+  orderNumber: string;
+  customerEmail: string;
+  reason: string;
+  description?: string | null;
+}
+
+/**
+ * Notifies the store owner's inbox that a new return request came in —
+ * mirrors the order confirmation email's bcc target, since that's the only
+ * admin inbox this store has configured today.
+ */
+export async function sendReturnRequestAdminEmail(
+  params: ReturnRequestAdminEmailParams,
+): Promise<{ ok: boolean; id?: string; error?: string }> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    logger.warn("Resend API key missing — skipping return request admin email.");
+    return { ok: false, error: "RESEND_API_KEY not set" };
+  }
+
+  const fromAddress = process.env.EMAIL_FROM || "MEME Atelier <orders@memefashion.com>";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://meme-eg.store";
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <body style="margin:0;padding:0;background:#f8f8f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#222;">
+      <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="padding:32px 12px;">
+        <tr><td align="center">
+          <table role="presentation" width="100%" maxWidth="520" cellPadding="0" cellSpacing="0" style="max-width:520px;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #eaeaea;">
+            <tr><td style="background:#111;padding:22px 28px;">
+              <h1 style="margin:0;color:#fff;font-size:15px;font-weight:400;letter-spacing:3px;text-transform:uppercase;">New Return Request</h1>
+            </td></tr>
+            <tr><td style="padding:28px;">
+              <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#444;">
+                A customer submitted a return request for order <strong style="color:#111;">#${params.orderNumber}</strong>.
+              </p>
+              <table role="presentation" width="100%" cellPadding="0" cellSpacing="0" style="font-size:13px;">
+                <tr><td style="padding:6px 0;color:#888;width:120px;">Order</td><td style="padding:6px 0;color:#111;font-weight:600;">#${params.orderNumber}</td></tr>
+                <tr><td style="padding:6px 0;color:#888;">Customer</td><td style="padding:6px 0;color:#111;">${params.customerEmail}</td></tr>
+                <tr><td style="padding:6px 0;color:#888;">Reason</td><td style="padding:6px 0;color:#111;">${params.reason}</td></tr>
+                ${params.description ? `<tr><td style="padding:6px 0;color:#888;vertical-align:top;">Details</td><td style="padding:6px 0;color:#111;">${params.description}</td></tr>` : ""}
+              </table>
+              <div style="text-align:center;margin-top:24px;">
+                <a href="${siteUrl}/admin?tab=returns" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;">Review in Admin</a>
+              </div>
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: fromAddress,
+        to: [STORE_ADMIN_EMAIL],
+        subject: `New Return Request — #${params.orderNumber}`,
+        html,
+      }),
+    });
+    const data = (await res.json()) as { id?: string; message?: string };
+    if (!res.ok) {
+      logger.error("Resend return-request admin email failed", { status: res.status, error: data.message });
+      return { ok: false, error: data.message || `HTTP ${res.status}` };
+    }
+    return { ok: true, id: data.id };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error("Exception sending return-request admin email", { error: message });
     return { ok: false, error: message };
   }
 }

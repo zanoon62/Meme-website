@@ -658,35 +658,41 @@ function StoreSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => v
 function PaymentsSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => void }) {
   const { isAr } = useAdminT();
   const paymentStore = usePaymentStore();
+  const fetchFromServer = usePaymentStore((s) => s.fetchFromServer);
+  const hydrated = usePaymentStore((s) => s.hydrated);
+  const saving = usePaymentStore((s) => s.saving);
 
-  const [paymobApiKey, setPaymobApiKey] = React.useState(paymentStore.paymobApiKey);
-  const [paymobIntegrationId, setPaymobIntegrationId] = React.useState(paymentStore.paymobIntegrationId);
-  const [paymobFrameId, setPaymobFrameId] = React.useState(paymentStore.paymobFrameId);
-  const [paymobHmacSecret, setPaymobHmacSecret] = React.useState(paymentStore.paymobHmacSecret);
-  const [paymobTestMode, setPaymobTestMode] = React.useState(paymentStore.paymobTestMode);
+  React.useEffect(() => {
+    fetchFromServer();
+  }, [fetchFromServer]);
 
-  const [vodafoneNumber, setVodafoneNumber] = React.useState(paymentStore.vodafoneCashNumber);
-  const [instapayAddr, setInstapayAddr] = React.useState(paymentStore.instapayAddress);
-  const [instapayPhone, setInstapayPhone] = React.useState(paymentStore.instapayPhone);
-  const [instapayName, setInstapayName] = React.useState(paymentStore.instapayAccountName);
+  const [vodafoneNumber, setVodafoneNumber] = React.useState(paymentStore.config.vodafoneCashNumber);
+  const [instapayAddr, setInstapayAddr] = React.useState(paymentStore.config.instapayAddress);
+  const [instapayPhone, setInstapayPhone] = React.useState(paymentStore.config.instapayPhone);
+  const [instapayName, setInstapayName] = React.useState(paymentStore.config.instapayAccountName);
 
-  const handleSaveAll = () => {
-    paymentStore.updatePaymob({
-      paymobApiKey,
-      paymobIntegrationId,
-      paymobFrameId,
-      paymobHmacSecret,
-      paymobTestMode,
-    });
-    paymentStore.updateVodafoneCash({
+  // Once the server config loads, hydrate the local editable fields from it.
+  React.useEffect(() => {
+    if (hydrated) {
+      setVodafoneNumber(paymentStore.config.vodafoneCashNumber);
+      setInstapayAddr(paymentStore.config.instapayAddress);
+      setInstapayPhone(paymentStore.config.instapayPhone);
+      setInstapayName(paymentStore.config.instapayAccountName);
+    }
+    // Deliberately re-runs only when `hydrated` flips true — paymentStore.config
+    // is intentionally excluded so this doesn't clobber the admin's in-progress
+    // edits on every store update caused by their own save.
+  }, [hydrated]);
+
+  const handleSaveAll = async () => {
+    await paymentStore.saveConfig({
+      ...paymentStore.config,
       vodafoneCashNumber: vodafoneNumber,
-    });
-    paymentStore.updateInstapay({
       instapayAddress: instapayAddr,
       instapayPhone,
       instapayAccountName: instapayName,
     });
-    toast.success(isAr ? "تم حفظ إعدادات بوابات وأرقام التحويل بنجاح! 🎉" : "Payment gateway keys & numbers saved successfully!");
+    toast.success(isAr ? "تم حفظ أرقام التحويل بنجاح! 🎉" : "Transfer numbers saved successfully!");
   };
 
   return (
@@ -694,12 +700,12 @@ function PaymentsSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
         <div>
           <h3 className="font-display text-lg font-bold mb-1">
-            {isAr ? "بوابة دفع باي موب (PayMob) وإعدادات التحويلات" : "PayMob Gateway & Wallet Transfer Settings"}
+            {isAr ? "وسائل الدفع والتحويل" : "Payment & Transfer Methods"}
           </h3>
           <p className="text-xs text-muted-foreground">
             {isAr
-              ? "ربط مادي وتكامل مباشر لبوابة باي موب (Visa/MasterCard/Meeza/Apple Pay) وتعديل أرقام فودافون كاش وإنستاباي التي تظهر للعميل في Checkout."
-              : "Direct PayMob API integration keys (Visa, MasterCard, Meeza, Apple Pay) & mobile wallet numbers rendered dynamically at checkout."}
+              ? "الموقع يقبل 3 طرق دفع فقط: إنستاباي، فودافون كاش، والدفع عند الاستلام. تحكم هنا في أرقام فودافون كاش وإنستاباي التي تظهر للعميل في Checkout."
+              : "The store accepts 3 payment methods only: InstaPay, Vodafone Cash, and Cash on Delivery. Manage the Vodafone Cash & InstaPay numbers shown to customers at checkout here."}
           </p>
         </div>
 
@@ -723,78 +729,6 @@ function PaymentsSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
         instapayPhone={instapayPhone}
         instapayName={instapayName}
       />
-
-      {/* PayMob Gateway Card */}
-      <div className="p-5 border border-amber-500/30 rounded-2xl bg-amber-500/5 dark:bg-amber-500/10 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-amber-500 text-black flex items-center justify-center font-bold">
-              <CreditCard className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h4 className="font-bold text-sm text-foreground">
-                  {isAr ? "ربط بوابة باي موب (PayMob Gateway)" : "PayMob Gateway (Visa, MasterCard, Meeza, Apple Pay)"}
-                </h4>
-                <FieldLocationBadge
-                  arText="تظهر في: صفحة Checkout عند خيار الدفع الفيزا والفيزا المباشرة"
-                  enText="Appears in: Checkout card payment step"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {isAr ? "البوابة المعتمدة للدفع بالبطاقات البنكية في مصر" : "Certified online payment gateway for cards in Egypt"}
-              </p>
-            </div>
-          </div>
-          <span className="text-xs font-bold text-emerald-600 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-            {isAr ? "مفعل ومربوط" : "Connected"}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-          <div>
-            <Label className="text-xs font-bold">{isAr ? "مفتاح API الخاص بباي موب (API Key)" : "PayMob API Key"}</Label>
-            <Input
-              type="password"
-              value={paymobApiKey}
-              onChange={(e) => setPaymobApiKey(e.target.value)}
-              className="mt-1.5 h-10 text-xs font-mono"
-            />
-          </div>
-          <div>
-            <Label className="text-xs font-bold">{isAr ? "رقم التكامل (Integration ID)" : "Integration ID"}</Label>
-            <Input
-              value={paymobIntegrationId}
-              onChange={(e) => setPaymobIntegrationId(e.target.value)}
-              className="mt-1.5 h-10 text-xs font-mono"
-            />
-          </div>
-          <div>
-            <Label className="text-xs font-bold">{isAr ? "رقم الإطار (Frame ID)" : "Iframe ID"}</Label>
-            <Input
-              value={paymobFrameId}
-              onChange={(e) => setPaymobFrameId(e.target.value)}
-              className="mt-1.5 h-10 text-xs font-mono"
-            />
-          </div>
-          <div>
-            <Label className="text-xs font-bold">{isAr ? "المفتاح السري (HMAC Secret)" : "HMAC Secret Key"}</Label>
-            <Input
-              type="password"
-              value={paymobHmacSecret}
-              onChange={(e) => setPaymobHmacSecret(e.target.value)}
-              className="mt-1.5 h-10 text-xs font-mono"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between pt-2">
-          <Label className="text-xs font-bold">{isAr ? "تفعيل بيئة التجربة (PayMob Test Mode)" : "PayMob Sandbox / Test Mode"}</Label>
-          <Switch checked={paymobTestMode} onCheckedChange={setPaymobTestMode} />
-        </div>
-      </div>
-
-      <Separator />
 
       {/* Vodafone Cash Card */}
       <div className="p-5 border border-border/80 rounded-2xl bg-card space-y-4 shadow-xs">
@@ -901,9 +835,9 @@ function PaymentsSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
             {isAr ? "معاينة خيارات الدفع في Checkout 👁️" : "Preview Checkout Payments 👁️"}
           </Button>
         )}
-        <Button onClick={handleSaveAll} className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-11 px-8 text-sm shadow-md ml-auto">
+        <Button onClick={handleSaveAll} disabled={saving} className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-11 px-8 text-sm shadow-md ml-auto">
           <Save className="h-4 w-4 mr-2" />
-          {isAr ? "حفظ مفاتيح باي موب وأرقام المحافظ" : "Save PayMob Keys & Wallet Numbers"}
+          {saving ? (isAr ? "جاري الحفظ..." : "Saving...") : isAr ? "حفظ أرقام التحويل" : "Save Transfer Numbers"}
         </Button>
       </div>
     </Card>

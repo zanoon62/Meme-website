@@ -93,6 +93,7 @@ export async function GET(req: NextRequest) {
         collection: p.collectionName ?? "",
         colors: (p.colors as Product["colors"]) ?? [],
         sizes: (p.sizes as Product["sizes"]) ?? [],
+        sizeChart: (p.sizeChart as Product["sizeChart"]) ?? undefined,
         images: productImageUrls.length ? productImageUrls : getProductFallbackImages(p.slug, p.name),
         badges: p.badges ?? [],
         rating: Number(p.rating ?? 5),

@@ -1,75 +1,96 @@
+"use client";
+
 /**
- * Live Payment Settings Store
- * 
- * Manages PayMob keys, Vodafone Cash wallet details, InstaPay address,
- * and enabled payment methods across Admin Settings and Checkout.
+ * Payment Settings Store
+ *
+ * Admin-managed Vodafone Cash & InstaPay receiver details shown to
+ * customers at checkout. Backed by the `payment_settings` singleton table
+ * (same pattern as homepage-store.ts / homepage_settings) so every admin,
+ * browser, and the checkout page itself all see the same numbers —
+ * previously this was a localStorage-only Zustand store, which meant a
+ * different browser/device never saw the same numbers and the customer's
+ * checkout page never saw admin edits at all.
+ *
+ * The store only accepts 3 payment methods total: InstaPay, Vodafone Cash,
+ * and Cash on Delivery — no PayMob/card gateway.
  */
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { isBackendConfigured } from "@/lib/config/backend";
 
-export interface PaymentStoreState {
-  // PayMob Integration
-  paymobEnabled: boolean;
-  paymobApiKey: string;
-  paymobIntegrationId: string;
-  paymobFrameId: string;
-  paymobHmacSecret: string;
-  paymobTestMode: boolean;
-
-  // Vodafone Cash
-  vodafoneCashEnabled: boolean;
+export interface PaymentSettingsConfig {
   vodafoneCashNumber: string;
   vodafoneCashInstructionsAr: string;
   vodafoneCashInstructionsEn: string;
 
-  // InstaPay
-  instapayEnabled: boolean;
   instapayAddress: string; // e.g. suitedbymeme@instapay
   instapayPhone: string;
   instapayAccountName: string;
-
-  // COD
-  codEnabled: boolean;
-  codFee: number;
-
-  // Actions
-  updatePaymob: (patch: Partial<Pick<PaymentStoreState, "paymobEnabled" | "paymobApiKey" | "paymobIntegrationId" | "paymobFrameId" | "paymobHmacSecret" | "paymobTestMode">>) => void;
-  updateVodafoneCash: (patch: Partial<Pick<PaymentStoreState, "vodafoneCashEnabled" | "vodafoneCashNumber" | "vodafoneCashInstructionsAr" | "vodafoneCashInstructionsEn">>) => void;
-  updateInstapay: (patch: Partial<Pick<PaymentStoreState, "instapayEnabled" | "instapayAddress" | "instapayPhone" | "instapayAccountName">>) => void;
-  updateCod: (patch: Partial<Pick<PaymentStoreState, "codEnabled" | "codFee">>) => void;
 }
 
-export const usePaymentStore = create<PaymentStoreState>()(
-  persist(
-    (set) => ({
-      paymobEnabled: true,
-      paymobApiKey: "ZXlKaGJHY2lPaUpJVXpVeE1pSXNJbXRwWkNJNkkyTmlNakps...",
-      paymobIntegrationId: "4820193",
-      paymobFrameId: "812049",
-      paymobHmacSecret: "sec_live_9f81a7d62b...",
-      paymobTestMode: true,
+const DEFAULT_CONFIG: PaymentSettingsConfig = {
+  vodafoneCashNumber: "01098765432",
+  vodafoneCashInstructionsAr:
+    "يرجى تحويل المبلغ الإجمالي إلى رقم فودافون كاش أعلاه، ثم إرفاق صورة التحويل.",
+  vodafoneCashInstructionsEn:
+    "Please transfer the total amount to the Vodafone Cash number above, then attach a screenshot of the transfer.",
 
-      vodafoneCashEnabled: true,
-      vodafoneCashNumber: "01098765432",
-      vodafoneCashInstructionsAr: "يرجى تحويل المبلغ الإجمالي إلى رقم فودافون كاش أعلاه، ثم إرفاق رقم الهاتف المحول منه أو صورة التحويل.",
-      vodafoneCashInstructionsEn: "Please transfer the total amount to the Vodafone Cash number above, then enter your transfer sender number.",
+  instapayAddress: "suitedbymeme@instapay",
+  instapayPhone: "01098765432",
+  instapayAccountName: "SUITED BY MEME Atelier",
+};
 
-      instapayEnabled: true,
-      instapayAddress: "suitedbymeme@instapay",
-      instapayPhone: "01098765432",
-      instapayAccountName: "SUITED BY MEME Atelier",
+type PaymentStoreState = {
+  config: PaymentSettingsConfig;
+  loading: boolean;
+  saving: boolean;
+  hydrated: boolean;
 
-      codEnabled: true,
-      codFee: 25,
+  fetchFromServer: () => Promise<void>;
+  saveConfig: (config: PaymentSettingsConfig) => Promise<void>;
+};
 
-      updatePaymob: (patch) => set((s) => ({ ...s, ...patch })),
-      updateVodafoneCash: (patch) => set((s) => ({ ...s, ...patch })),
-      updateInstapay: (patch) => set((s) => ({ ...s, ...patch })),
-      updateCod: (patch) => set((s) => ({ ...s, ...patch })),
-    }),
-    {
-      name: "meme-payment-settings-v1",
+export const usePaymentStore = create<PaymentStoreState>()((set) => ({
+  config: DEFAULT_CONFIG,
+  loading: false,
+  saving: false,
+  hydrated: false,
+
+  fetchFromServer: async () => {
+    try {
+      set({ loading: true });
+      const res = await fetch("/api/payment-settings");
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.config) {
+          set({ config: { ...DEFAULT_CONFIG, ...data.config }, loading: false, hydrated: true });
+          return;
+        }
+      }
+      set({ loading: false, hydrated: true });
+    } catch (e) {
+      console.error("fetchFromServer (payment settings) failed:", e);
+      set({ loading: false, hydrated: true });
     }
-  )
-);
+  },
+
+  saveConfig: async (config) => {
+    set({ config, saving: true });
+    if (isBackendConfigured()) {
+      try {
+        const res = await fetch("/api/admin/payment-settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ config }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          console.warn("Save payment settings failed:", err);
+        }
+      } catch (e) {
+        console.warn("Save payment settings error:", e);
+      }
+    }
+    set({ saving: false });
+  },
+}));

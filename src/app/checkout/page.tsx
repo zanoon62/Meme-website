@@ -3,7 +3,6 @@
 import * as React from "react";
 import Link from "next/link";
 import { SmartImage as Image } from "@/components/ui/smart-image";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronRight,
@@ -17,6 +16,10 @@ import {
   MapPin,
   Phone,
   Tag,
+  Copy,
+  Upload,
+  X,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,50 +50,109 @@ import { toast } from "sonner";
 
 const steps = [
   { id: 1, name: "Information", icon: Package },
-  { id: 2, name: "Shipping", icon: Truck },
-  { id: 3, name: "Payment", icon: CreditCard },
+  { id: 2, name: "Payment", icon: CreditCard },
 ];
 
-// Egyptian governorates (top 15 by population)
-const GOVERNORATES = [
-  "Cairo", "Giza", "Alexandria", "Dakahlia", "Beheira", "Gharbia", "Qalyubia",
-  "Sharqia", "Monufia", "Faiyum", "Beni Suef", "Minya", "Asyut", "Sohag",
-  "Qena", "Luxor", "Aswan", "Red Sea", "Ismailia", "Suez", "Port Said", "Damietta",
-  "Kafr El Sheikh", "Matrouh", "New Valley", "North Sinai", "South Sinai",
-];
+const DRAFT_KEY = "meme-checkout-draft-v1";
+
+type CheckoutForm = {
+  email: string;
+  firstName: string;
+  lastName: string;
+  address: string;
+  buildingNo: string;
+  floor: string;
+  apartment: string;
+  landmark: string;
+  city: string;
+  governorate: string;
+  postalCode: string;
+  phone: string;
+  shippingZone: string;
+  paymentMethod: string;
+  senderInfo: string;
+  notes: string;
+};
+
+const DEFAULT_FORM: CheckoutForm = {
+  email: "",
+  firstName: "",
+  lastName: "",
+  address: "",
+  buildingNo: "",
+  floor: "",
+  apartment: "",
+  landmark: "",
+  city: "",
+  governorate: "Cairo",
+  postalCode: "11511",
+  phone: "",
+  shippingZone: "cairo",
+  paymentMethod: "instapay",
+  senderInfo: "",
+  notes: "",
+};
+
+/**
+ * Persists checkout progress across a reload — a customer who leaves this
+ * tab to copy a wallet number/open their banking app and comes back (or
+ * accidentally refreshes) resumes exactly where they were, on the same
+ * step, with everything they'd typed still there, instead of re-entering
+ * their address and picking a payment method again.
+ */
+function loadDraft(): { form: CheckoutForm; step: number } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    return { form: { ...DEFAULT_FORM, ...parsed.form }, step: parsed.step ?? 1 };
+  } catch {
+    return null;
+  }
+}
+
+function saveDraft(form: CheckoutForm, step: number) {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ form, step }));
+  } catch {
+    // ignore (private browsing / storage full)
+  }
+}
+
+function clearDraft() {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 export default function CheckoutPage() {
-  const router = useRouter();
   const lines = useCart((s) => s.lines);
   const clear = useCart((s) => s.clear);
   const sub = useCartSubtotal();
   const paymentStore = usePaymentStore();
-  const [currentStep, setCurrentStep] = React.useState(1);
+  const fetchPaymentSettings = usePaymentStore((s) => s.fetchFromServer);
+
+  const draft = React.useMemo(() => loadDraft(), []);
+  const [currentStep, setCurrentStep] = React.useState(draft?.step ?? 1);
   const [completed, setCompleted] = React.useState(false);
-  const [form, setForm] = React.useState({
-    email: "",
-    firstName: "",
-    lastName: "",
-    address: "",
-    buildingNo: "",
-    floor: "",
-    apartment: "",
-    landmark: "",
-    city: "",
-    governorate: "Cairo",
-    postalCode: "11511",
-    phone: "",
-    shippingZone: "cairo",
-    paymentMethod: "card",
-    cardNumber: "",
-    cardName: "",
-    cardExpiry: "",
-    cardCvc: "",
-    fawryRef: "",
-    vodafonePhone: "",
-    instapayHandle: "",
-    notes: "",
-  });
+  const [form, setForm] = React.useState<CheckoutForm>(draft?.form ?? DEFAULT_FORM);
+
+  React.useEffect(() => {
+    fetchPaymentSettings();
+  }, [fetchPaymentSettings]);
+
+  // Save the draft on every change so a reload resumes on the same step —
+  // sessionStorage (not localStorage) so it clears when the tab closes,
+  // matching how far a customer would expect "leaving mid-checkout" to persist.
+  React.useEffect(() => {
+    if (!completed) saveDraft(form, currentStep);
+  }, [form, currentStep, completed]);
 
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [confirmedOrder, setConfirmedOrder] = React.useState<{
@@ -109,6 +171,11 @@ export default function CheckoutPage() {
     freeShipping?: boolean;
   } | null>(null);
 
+  // Payment proof upload (InstaPay / Vodafone Cash)
+  const [proofUrl, setProofUrl] = React.useState<string | null>(null);
+  const [uploadingProof, setUploadingProof] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   const liveZones = useShippingStore((s) => s.zones);
 
   // Auto-detect & sync shipping zone based on selected governorate
@@ -122,17 +189,12 @@ export default function CheckoutPage() {
   const zone = liveZones.find((z) => z.id === form.shippingZone) ?? getZoneForGovernorate(form.governorate, liveZones);
   const method = PAYMENT_METHODS.find((m) => m.id === form.paymentMethod) ?? PAYMENT_METHODS[0];
 
-  // Calculate discount amount
   const discountAmount = appliedCoupon ? appliedCoupon.discount : 0;
   const discountedSub = Math.max(0, sub - discountAmount);
-
-  // Free shipping over threshold or via free_shipping promo code, otherwise zone cost
   const shippingCost = (appliedCoupon?.freeShipping || sub >= FREE_SHIPPING_THRESHOLD) ? 0 : zone.cost;
-  // Payment processing fee calculated on discounted subtotal
-  const processingFee =
-    (method.processingFee ?? 0) +
-    Math.round(((method.feePercent ?? 0) / 100) * discountedSub);
-  const total = discountedSub + shippingCost + processingFee;
+  const total = discountedSub + shippingCost;
+
+  const requiresTransfer = form.paymentMethod === "vodafone" || form.paymentMethod === "instapay";
 
   const handleApplyPromo = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -143,7 +205,6 @@ export default function CheckoutPage() {
     setPromoError(null);
 
     try {
-      // 1. Validate against server API endpoint
       const res = await fetch("/api/coupons/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -182,7 +243,6 @@ export default function CheckoutPage() {
       // fallback to client check
     }
 
-    // 2. Client-side check for local admin-created promo codes (fallback)
     try {
       const saved = localStorage.getItem("meme-admin-promotions-v2");
       if (saved) {
@@ -227,8 +287,33 @@ export default function CheckoutPage() {
     setValidatingPromo(false);
   };
 
-  const updateForm = (key: string, value: string) =>
+  const updateForm = (key: keyof CheckoutForm, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const copyToClipboard = (value: string, label: string) => {
+    navigator.clipboard.writeText(value);
+    toast.success(`${label} copied to clipboard!`);
+  };
+
+  const handleProofUpload = async (file: File) => {
+    setUploadingProof(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/checkout/payment-proof-upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        toast.error(data.error || "Failed to upload screenshot");
+        return;
+      }
+      setProofUrl(data.url);
+      toast.success("Transfer screenshot uploaded");
+    } catch {
+      toast.error("Network error while uploading screenshot");
+    } finally {
+      setUploadingProof(false);
+    }
+  };
 
   const nextStep = async () => {
     if (currentStep === 1) {
@@ -237,77 +322,88 @@ export default function CheckoutPage() {
         return;
       }
       setCurrentStep(2);
-    } else if (currentStep === 2) {
-      setCurrentStep(3);
-    } else {
-      // Step 3: Real Checkout API call
-      setIsSubmitting(true);
-      try {
-        const fullStreet = form.buildingNo
-          ? `Bldg ${form.buildingNo}, ${form.address}`
-          : form.address;
-        const details = [
-          form.floor ? `Floor ${form.floor}` : null,
-          form.apartment ? `Apt ${form.apartment}` : null,
-          form.landmark ? `Near ${form.landmark}` : null,
-        ].filter(Boolean).join(", ");
+      return;
+    }
 
-        const payload = {
+    // Step 2: Real Checkout API call
+    if (requiresTransfer && !form.senderInfo.trim()) {
+      toast.error(
+        form.paymentMethod === "vodafone"
+          ? "Please enter the phone number you're transferring from"
+          : "Please enter your InstaPay handle or sender name"
+      );
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const fullStreet = form.buildingNo
+        ? `Bldg ${form.buildingNo}, ${form.address}`
+        : form.address;
+      const details = [
+        form.floor ? `Floor ${form.floor}` : null,
+        form.apartment ? `Apt ${form.apartment}` : null,
+        form.landmark ? `Near ${form.landmark}` : null,
+      ].filter(Boolean).join(", ");
+
+      const payload = {
+        email: form.email,
+        shipping_address: {
+          first_name: form.firstName,
+          last_name: form.lastName,
           email: form.email,
-          shipping_address: {
-            first_name: form.firstName,
-            last_name: form.lastName,
-            email: form.email,
-            address1: fullStreet,
-            address2: details || undefined,
-            city: form.city,
-            state: form.governorate,
-            postal_code: form.postalCode || "11511",
-            country: "EG",
-            phone: form.phone,
-          },
-          shipping_method: "standard" as const,
-          shipping_zone_id: form.shippingZone,
-          payment_method_id: form.paymentMethod,
-          coupon_code: appliedCoupon?.code,
-          lines: lines.map((l) => ({
-            productId: l.productId,
-            slug: l.slug,
-            name: l.name,
-            image: l.image,
-            color: l.color,
-            size: l.size,
-            price: l.price,
-            quantity: l.quantity,
-          })),
-          customer_note: form.notes || undefined,
-        };
+          address1: fullStreet,
+          address2: details || undefined,
+          city: form.city,
+          state: form.governorate,
+          postal_code: form.postalCode || "11511",
+          country: "EG",
+          phone: form.phone,
+        },
+        shipping_method: "standard" as const,
+        shipping_zone_id: form.shippingZone,
+        payment_method_id: form.paymentMethod,
+        payment_sender_info: requiresTransfer ? form.senderInfo : undefined,
+        payment_proof_url: proofUrl ?? undefined,
+        coupon_code: appliedCoupon?.code,
+        lines: lines.map((l) => ({
+          productId: l.productId,
+          slug: l.slug,
+          name: l.name,
+          image: l.image,
+          color: l.color,
+          size: l.size,
+          price: l.price,
+          quantity: l.quantity,
+        })),
+        customer_note: form.notes || undefined,
+      };
 
-        const res = await fetch("/api/checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-        const data = await res.json();
-        if (!res.ok || !data.ok) {
-          toast.error(data.error || "Failed to process order. Please try again.");
-          setIsSubmitting(false);
-          return;
-        }
-
-        setConfirmedOrder({
-          order_number: data.order.order_number,
-          total: data.order.total,
-        });
-        setCompleted(true);
-        clear();
-        toast.success("Order placed successfully!");
-      } catch (err: any) {
-        toast.error("Network error during checkout. Please try again.");
-      } finally {
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        toast.error(data.error || "Failed to process order. Please try again.");
         setIsSubmitting(false);
+        return;
       }
+
+      setConfirmedOrder({
+        order_number: data.order.order_number,
+        total: data.order.total,
+      });
+      setCompleted(true);
+      clearDraft();
+      clear();
+      toast.success("Order placed successfully!");
+    } catch {
+      toast.error("Network error during checkout. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -329,7 +425,7 @@ export default function CheckoutPage() {
           </motion.div>
           <h1 className="font-display text-4xl tracking-tight mb-3">Order confirmed</h1>
           <p className="text-muted-foreground mb-8">
-            Thank you for your order. A confirmation has been sent to {form.email || "your inbox"} and WhatsApp {form.phone || "your phone"}.
+            Thank you for your order. You can track updates on this order via WhatsApp with our team, and a confirmation email will follow once your payment is verified.
           </p>
           <div className="border border-border/60 rounded-sm p-6 text-left space-y-3">
             <div className="flex justify-between text-sm">
@@ -348,17 +444,6 @@ export default function CheckoutPage() {
               <span className="text-muted-foreground">Estimated delivery</span>
               <span className="font-medium">{zone.estimatedDays}</span>
             </div>
-            {form.paymentMethod === "fawry" && (
-              <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-sm">
-                <p className="text-xs text-orange-800 dark:text-orange-300 font-medium mb-1">Fawry Reference Code</p>
-                <p className="font-mono text-lg font-bold tracking-wider text-orange-900 dark:text-orange-200">
-                  {Math.random().toString(36).slice(2, 12).toUpperCase()}
-                </p>
-                <p className="text-[11px] text-orange-700 dark:text-orange-400 mt-1">
-                  Pay at any Fawry outlet within 24 hours. Order ships after payment confirmation.
-                </p>
-              </div>
-            )}
           </div>
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button asChild className="w-full sm:w-auto rounded-full h-12 px-8 bg-amber-500 hover:bg-amber-600 text-black font-semibold">
@@ -402,7 +487,7 @@ export default function CheckoutPage() {
       </div>
 
       {/* Stepper */}
-      <div className="flex items-center justify-between mb-10 max-w-2xl">
+      <div className="flex items-center justify-between mb-10 max-w-md">
         {steps.map((step, i) => (
           <React.Fragment key={step.id}>
             <button
@@ -482,7 +567,6 @@ export default function CheckoutPage() {
                     <Input placeholder="Last name (اسم العائلة) *" value={form.lastName} onChange={(e) => updateForm("lastName", e.target.value)} className="h-12" />
                   </div>
 
-                  {/* Street & Building info */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
                     <Input placeholder="Building No. (رقم المبنى)" value={form.buildingNo} onChange={(e) => updateForm("buildingNo", e.target.value)} className="h-12" />
                     <Input placeholder="Floor (الطابق)" value={form.floor} onChange={(e) => updateForm("floor", e.target.value)} className="h-12" />
@@ -490,7 +574,7 @@ export default function CheckoutPage() {
                   </div>
 
                   <Input placeholder="Street name / Area (اسم الشارع / المنطقة) *" value={form.address} onChange={(e) => updateForm("address", e.target.value)} className="h-12 mt-3" />
-                  
+
                   <Input placeholder="Nearest Landmark (أقرب علامة مميزة) e.g. Near Mall / Bank / Mosque" value={form.landmark} onChange={(e) => updateForm("landmark", e.target.value)} className="h-12 mt-3" />
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
@@ -515,7 +599,7 @@ export default function CheckoutPage() {
                       <Truck className="h-4 w-4 text-amber-500 shrink-0" />
                       <div>
                         <p className="font-bold text-foreground">
-                          Auto-Selected Shipping: {zone.nameAr || zone.name}
+                          Shipping: {zone.nameAr || zone.name}
                         </p>
                         <p className="text-[11px] text-muted-foreground">
                           Delivery in {zone.estimatedDays} {!zone.codAvailable && "· (No COD)"}
@@ -526,9 +610,14 @@ export default function CheckoutPage() {
                       {sub >= FREE_SHIPPING_THRESHOLD ? "FREE SHIPPING" : formatPrice(zone.cost)}
                     </span>
                   </div>
+                  {sub < FREE_SHIPPING_THRESHOLD && (
+                    <div className="text-xs p-3 bg-accent/40 border border-border/60 rounded-sm mt-3">
+                      Free shipping on orders over {formatPrice(FREE_SHIPPING_THRESHOLD)}. You're {formatPrice(FREE_SHIPPING_THRESHOLD - sub)} away.
+                    </div>
+                  )}
                 </div>
                 <Button onClick={nextStep} size="lg" className="w-full h-12 rounded-full font-bold">
-                  Continue to shipping <ChevronRight className="h-4 w-4 ml-1" />
+                  Continue to payment <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               </motion.div>
             )}
@@ -536,64 +625,6 @@ export default function CheckoutPage() {
             {currentStep === 2 && (
               <motion.div
                 key="step2"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-6"
-              >
-                <h2 className="font-display text-2xl mb-4">Shipping zone</h2>
-                <p className="text-sm text-muted-foreground -mt-3 mb-4">
-                  Confirm or change your delivery region within Egypt. Auto-selected based on your address.
-                </p>
-                <RadioGroup
-                  value={form.shippingZone}
-                  onValueChange={(v) => updateForm("shippingZone", v)}
-                  className="space-y-3"
-                >
-                  {liveZones.map((z) => {
-                    const isFree = sub >= FREE_SHIPPING_THRESHOLD;
-                    const price = isFree ? "FREE" : formatPrice(z.cost);
-                    return (
-                      <Label
-                        key={z.id}
-                        htmlFor={z.id}
-                        className={cn(
-                          "flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all",
-                          form.shippingZone === z.id ? "border-amber-500 bg-amber-500/5 dark:bg-amber-500/10 shadow-xs" : "border-border hover:border-foreground"
-                        )}
-                      >
-                        <div className="flex items-center gap-3">
-                          <RadioGroupItem value={z.id} id={z.id} />
-                          <div>
-                            <p className="font-bold text-sm">{z.nameAr} ({z.name})</p>
-                            <p className="text-xs text-muted-foreground">
-                              {z.estimatedDays}
-                              {!z.codAvailable && " · COD unavailable"}
-                            </p>
-                          </div>
-                        </div>
-                        <span className="font-bold text-sm text-amber-600 dark:text-amber-400 font-mono">{price}</span>
-                      </Label>
-                    );
-                  })}
-                </RadioGroup>
-                {sub < FREE_SHIPPING_THRESHOLD && (
-                  <div className="text-xs p-3 bg-accent/40 border border-border/60 rounded-sm">
-                    Free shipping on orders over {formatPrice(FREE_SHIPPING_THRESHOLD)}. You're {formatPrice(FREE_SHIPPING_THRESHOLD - sub)} away.
-                  </div>
-                )}
-                <Button onClick={() => setCurrentStep(1)} variant="ghost" className="mr-2">
-                  Back
-                </Button>
-                <Button onClick={nextStep} size="lg" className="w-full h-12 rounded-full">
-                  Continue to payment <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-              </motion.div>
-            )}
-
-            {currentStep === 3 && (
-              <motion.div
-                key="step3"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -608,7 +639,10 @@ export default function CheckoutPage() {
 
                 <RadioGroup
                   value={form.paymentMethod}
-                  onValueChange={(v) => updateForm("paymentMethod", v)}
+                  onValueChange={(v) => {
+                    updateForm("paymentMethod", v);
+                    setProofUrl(null);
+                  }}
                   className="space-y-3"
                 >
                   {PAYMENT_METHODS.map((opt) => (
@@ -630,36 +664,12 @@ export default function CheckoutPage() {
                           </div>
                         </div>
                       </div>
-                      {opt.processingFee ? (
-                        <span className="text-xs text-muted-foreground">+{formatPrice(opt.processingFee)} fee</span>
-                      ) : opt.feePercent ? (
-                        <span className="text-xs text-muted-foreground">+{opt.feePercent}% fee</span>
-                      ) : (
-                        <span className="text-xs text-green-600 dark:text-green-400">No fee</span>
-                      )}
+                      <span className="text-xs text-green-600 dark:text-green-400">No fee</span>
                     </Label>
                   ))}
                 </RadioGroup>
 
                 {/* Payment-specific fields */}
-                {form.paymentMethod === "card" && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 p-4 border border-border/80 rounded-2xl bg-card">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">PayMob Online Card Payment</p>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                        PayMob Secured
-                      </span>
-                    </div>
-                    <Input placeholder="Card number (Visa / Mastercard / Meeza)" value={form.cardNumber} onChange={(e) => updateForm("cardNumber", e.target.value)} className="h-12 font-mono" />
-                    <Input placeholder="Name on card" value={form.cardName} onChange={(e) => updateForm("cardName", e.target.value)} className="h-12" />
-                    <div className="grid grid-cols-2 gap-3">
-                      <Input placeholder="MM / YY" value={form.cardExpiry} onChange={(e) => updateForm("cardExpiry", e.target.value)} className="h-12 font-mono" />
-                      <Input placeholder="CVC" value={form.cardCvc} onChange={(e) => updateForm("cardCvc", e.target.value)} className="h-12 font-mono" />
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">Encrypted & processed directly via PayMob Payment Gateway · 3D Secure & Apple Pay supported</p>
-                  </motion.div>
-                )}
-
                 {form.paymentMethod === "vodafone" && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 p-4 border border-red-500/30 rounded-2xl bg-red-500/5 dark:bg-red-500/10">
                     <div className="flex items-center justify-between">
@@ -671,27 +681,24 @@ export default function CheckoutPage() {
                         variant="outline"
                         size="sm"
                         className="h-7 text-xs font-mono font-bold"
-                        onClick={() => {
-                          navigator.clipboard.writeText(paymentStore.vodafoneCashNumber);
-                          toast.success("Vodafone Cash number copied to clipboard!");
-                        }}
+                        onClick={() => copyToClipboard(paymentStore.config.vodafoneCashNumber, "Vodafone Cash number")}
                       >
-                        Copy Number
+                        <Copy className="h-3 w-3 mr-1" /> Copy Number
                       </Button>
                     </div>
                     <div className="p-3 bg-card border border-border rounded-xl text-center font-mono font-bold text-lg text-foreground tracking-wider shadow-xs">
-                      {paymentStore.vodafoneCashNumber}
+                      {paymentStore.config.vodafoneCashNumber}
                     </div>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      {paymentStore.vodafoneCashInstructionsEn}
+                      {paymentStore.config.vodafoneCashInstructionsEn}
                     </p>
                     <div className="relative pt-1">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         type="tel"
                         placeholder="Your sender phone number (+20 1X XXXX XXXX) *"
-                        value={form.vodafonePhone}
-                        onChange={(e) => updateForm("vodafonePhone", e.target.value)}
+                        value={form.senderInfo}
+                        onChange={(e) => updateForm("senderInfo", e.target.value)}
                         className="h-12 pl-10"
                       />
                     </div>
@@ -709,27 +716,70 @@ export default function CheckoutPage() {
                         variant="outline"
                         size="sm"
                         className="h-7 text-xs font-mono font-bold"
-                        onClick={() => {
-                          navigator.clipboard.writeText(paymentStore.instapayAddress);
-                          toast.success("InstaPay IPA address copied!");
-                        }}
+                        onClick={() => copyToClipboard(paymentStore.config.instapayAddress, "InstaPay IPA address")}
                       >
-                        Copy IPA
+                        <Copy className="h-3 w-3 mr-1" /> Copy IPA
                       </Button>
                     </div>
                     <div className="p-3 bg-card border border-border rounded-xl text-center font-mono font-bold text-base text-foreground tracking-wide shadow-xs">
-                      {paymentStore.instapayAddress}
+                      {paymentStore.config.instapayAddress}
                     </div>
                     <div className="text-xs text-muted-foreground space-y-1 bg-card/60 p-2.5 rounded-lg border border-border/50">
-                      <p>Account Holder Name: <span className="font-bold text-foreground">{paymentStore.instapayAccountName}</span></p>
-                      <p>Registered Phone: <span className="font-bold font-mono text-foreground">{paymentStore.instapayPhone}</span></p>
+                      <p>Account Holder Name: <span className="font-bold text-foreground">{paymentStore.config.instapayAccountName}</span></p>
+                      <p>Registered Phone: <span className="font-bold font-mono text-foreground">{paymentStore.config.instapayPhone}</span></p>
                     </div>
                     <Input
                       placeholder="Your InstaPay handle / Sender Name (e.g. name@instapay) *"
-                      value={form.instapayHandle}
-                      onChange={(e) => updateForm("instapayHandle", e.target.value)}
+                      value={form.senderInfo}
+                      onChange={(e) => updateForm("senderInfo", e.target.value)}
                       className="h-12"
                     />
+                  </motion.div>
+                )}
+
+                {requiresTransfer && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                      Transfer screenshot (optional, speeds up confirmation)
+                    </Label>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleProofUpload(file);
+                        e.target.value = "";
+                      }}
+                    />
+                    {proofUrl ? (
+                      <div className="relative w-32 h-40 rounded-lg overflow-hidden border border-border">
+                        <Image src={proofUrl} alt="Transfer proof" fill sizes="128px" className="object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setProofUrl(null)}
+                          className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/70 text-white flex items-center justify-center"
+                          aria-label="Remove screenshot"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingProof}
+                        className="h-12 rounded-xl"
+                      >
+                        {uploadingProof ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Uploading…</>
+                        ) : (
+                          <><Upload className="h-4 w-4 mr-2" /> Upload transfer screenshot</>
+                        )}
+                      </Button>
+                    )}
                   </motion.div>
                 )}
 
@@ -753,7 +803,7 @@ export default function CheckoutPage() {
                   />
                 </div>
 
-                <Button onClick={() => setCurrentStep(2)} variant="ghost" className="mr-2">
+                <Button onClick={() => setCurrentStep(1)} variant="ghost" className="mr-2">
                   Back
                 </Button>
                 <Button onClick={nextStep} disabled={isSubmitting} size="lg" className="w-full h-12 rounded-full font-bold">
@@ -803,12 +853,6 @@ export default function CheckoutPage() {
                 <span className="text-muted-foreground">Shipping ({zone.name.split(" (")[0]})</span>
                 <span>{shippingCost === 0 ? "FREE" : formatPrice(shippingCost)}</span>
               </div>
-              {processingFee > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Payment fee ({method.name})</span>
-                  <span>{formatPrice(processingFee)}</span>
-                </div>
-              )}
             </div>
 
             <Separator className="my-4" />
@@ -877,7 +921,7 @@ export default function CheckoutPage() {
                 <Truck className="h-3 w-3" /> Free returns within 14 days nationwide
               </p>
               <p className="text-[11px] text-muted-foreground flex items-center gap-2">
-                <Lock className="h-3 w-3" /> SSL encrypted · Paymob secured
+                <Lock className="h-3 w-3" /> SSL encrypted checkout
               </p>
             </div>
           </div>

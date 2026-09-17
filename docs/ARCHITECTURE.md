@@ -17,9 +17,14 @@ procedure.
 - **Caching**: Next.js ISR for pages; Nginx `proxy_cache` for the three
   read-heavy public JSON endpoints (`/api/products`, `/api/homepage`,
   `/api/categories`)
-- **Payments**: Stripe + Cash on Delivery
+- **Payments**: InstaPay, Vodafone Cash (manual wallet transfer, admin
+  confirms against an uploaded screenshot), and Cash on Delivery. Stripe
+  integration code (`src/lib/stripe/`) still exists and is exercised if
+  `STRIPE_SECRET_KEY` is set, but the checkout UI no longer offers a card
+  option — no processing fees on any method. See "Checkout" below.
 - **Realtime**: standalone Socket.io service (`realtime/`) fed by Redis
-  pub/sub — see "Realtime" below
+  pub/sub, consumed by a client-side socket in the admin panel
+  (`src/lib/realtime/use-admin-socket.ts`) — see "Realtime" below
 - **Hosting**: self-hosted VPS via Docker Compose (see `docs/VPS_DEPLOYMENT.md`)
 
 ## Database (`src/lib/db/`)
@@ -28,7 +33,7 @@ procedure.
   TypeScript). `enums.ts`, `catalog.ts` (products/categories/collections/
   reviews), `commerce.ts` (customers/orders/coupons/returns/wishlists),
   `auth.ts` (users/sessions/oauth_accounts/staff_profiles/admin_allowed_emails),
-  `content.ts` (homepage_settings), `analytics.ts`, `relations.ts`.
+  `content.ts` (homepage_settings, payment_settings), `analytics.ts`, `relations.ts`.
 - `drizzle/migrations/` — generated SQL migrations (`drizzle-kit generate`),
   plus one hand-written custom migration (`0001_functions_and_triggers.sql`)
   for the two native Postgres functions (`decrement_inventory`,
@@ -112,11 +117,16 @@ still whitelisted).
 
 ## Storage (`src/lib/storage/client.ts`)
 
-MinIO (S3-compatible), three buckets: `products`, `homepage`, `returns`.
-Upload routes (`api/admin/product-image`, `api/admin/homepage-image`,
-`api/returns/image-upload`) keep the original `sharp`-resize-to-WebP
+MinIO (S3-compatible), four buckets: `products`, `homepage`, `returns`,
+`payment-proofs`. Upload routes (`api/admin/product-image`,
+`api/admin/homepage-image`, `api/returns/image-upload`,
+`api/checkout/payment-proof-upload`) keep the original `sharp`-resize-to-WebP
 pipeline unchanged, only the upload client changed. `ensureBucket()` is
 idempotent (creates the bucket + sets a public-read policy on first use).
+
+`payment-proofs` is the one bucket with no auth guard on its upload route —
+guest checkout has no session to check, so abuse is bounded by the
+`checkout` rate limiter plus file type/size validation instead.
 
 Public URLs are built from `MINIO_PUBLIC_URL`, which in production points
 at Nginx's `/media/` proxy (`deploy/nginx/meme-eg.store`), not directly
@@ -158,6 +168,37 @@ per line that crosses its threshold inside the same transaction) — see
 "Realtime" below. These are published only after the transaction commits,
 and a publish failure never affects the checkout response.
 
+**Payment methods & confirmation flow.** `PAYMENT_METHODS` in
+`src/lib/format.ts` is now just 3 entries: `instapay`, `vodafone`, `cod` —
+no processing fees on any of them (the previous PayMob/card option and its
+2.5% fee, and the 25 EGP flat COD fee, were both removed). Checkout is a
+2-step flow (Information → Payment), not 3 — the old separate "Shipping
+zone" step was folded into Information since the zone is auto-detected from
+the governorate anyway.
+
+- **COD** orders are created already `status: "paid"` / `paymentStatus:
+  "paid"` — there's no transfer to verify, so the confirmation email fires
+  immediately from `POST /api/checkout`.
+- **InstaPay / Vodafone Cash** orders are created `status: "pending"` /
+  `paymentStatus: "awaiting"`. The customer optionally uploads a transfer
+  screenshot during checkout (`POST /api/checkout/payment-proof-upload`,
+  unauthenticated — see Storage above) and types the sender phone/handle;
+  both are stored on the order (`orders.payment_proof_url`,
+  `orders.payment_sender_info`). No email goes out yet. An admin reviews the
+  proof in the order detail dialog and clicks **Confirm payment** — this is
+  just `PATCH /api/admin/orders/[id]` with `{ status: "paid" }` (no separate
+  endpoint); that route stamps `payment_confirmed_at`/`payment_confirmed_by`
+  and, the first time an order transitions to `paid`
+  (`confirmationEmailSentAt` is null, checked to stay idempotent), sends the
+  same order-confirmation email checkout would have sent for COD.
+- Checkout form state (address, payment method, sender info, uploaded proof
+  URL, current step) is mirrored to `sessionStorage`
+  (`meme-checkout-draft-v1`) on every change and restored on mount, so a
+  customer who tabs away to their banking app and comes back — or hits
+  reload by accident — resumes on the same step with everything intact,
+  without re-entering their address. Cleared once an order is successfully
+  placed.
+
 ## Realtime (`realtime/`, `src/lib/realtime/publish.ts`)
 
 A standalone Socket.io service, deliberately **not** part of the Next.js
@@ -171,6 +212,16 @@ down checkout/admin/storefront. Two halves:
   and low-stock crossing (`src/lib/checkout/server.ts`), order status
   change (`src/app/api/admin/orders/[id]/route.ts`), return submission
   (`src/app/api/returns/route.ts`).
+- **Admin client** (`src/lib/realtime/use-admin-socket.ts`): a module-level
+  singleton `socket.io-client` connection (same-origin, `withCredentials`,
+  authenticated automatically via the `meme_session` cookie already on the
+  request — see `auth.ts` below). `useAdminRealtimeEvent(event, handler)`
+  subscribes a component to one event for its lifetime; multiple components
+  share the one socket. Used by `admin-notifications.tsx` (live bell
+  updates, replacing the old 30s `setInterval` poll), `orders-section.tsx`
+  (invalidates the current page's cache on `order.created`/
+  `order.status_changed`), and `returns-section.tsx` (refetches on
+  `return.created`) — none of these poll anymore.
 - **Delivery side** (`realtime/`, a separate Node process/container):
   `server.ts` starts a Socket.io server on `REALTIME_PORT` (default 4001)
   at path `/socket.io/`. `redis-sub.ts` subscribes to the `meme:*` channels

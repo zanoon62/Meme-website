@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { useAdminT } from "@/components/admin/admin-i18n";
 import { toast } from "sonner";
 import type { AdminSection } from "@/components/admin/admin-shell";
+import { useAdminRealtimeEvent } from "@/lib/realtime/use-admin-socket";
 
 type NotificationItem = {
   id: string;
@@ -49,7 +50,9 @@ export function AdminNotifications({
   const [notifications, setNotifications] =
     React.useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
 
-  // Fetch real order notifications, low inventory alerts & return requests
+  // One-time initial load (low-stock alerts aren't pushed individually, so
+  // this still needs a snapshot fetch) — then live updates arrive via
+  // Socket.io below, no polling required.
   React.useEffect(() => {
     let isMounted = true;
 
@@ -139,13 +142,85 @@ export function AdminNotifications({
     };
 
     load();
-    const interval = setInterval(load, 30_000);
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
     };
   }, []);
+
+  const nowLabel = () => {
+    const t = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return { ar: t, en: t };
+  };
+
+  // Live push — a new order arrives instantly instead of on the next poll.
+  useAdminRealtimeEvent<{ orderId: string; orderNumber: string; total: number; email: string }>(
+    "order.created",
+    (payload) => {
+      const time = nowLabel();
+      setNotifications((list) => [
+        {
+          id: `order-${payload.orderId}`,
+          type: "order",
+          titleAr: `طلب جديد #${payload.orderNumber}`,
+          titleEn: `New Order #${payload.orderNumber}`,
+          descAr: `طلب بقيمة LE ${payload.total?.toLocaleString()} من ${payload.email}`,
+          descEn: `Order worth LE ${payload.total?.toLocaleString()} by ${payload.email}`,
+          timeAr: time.ar,
+          timeEn: time.en,
+          read: false,
+          targetSection: "orders",
+        },
+        ...list.filter((n) => n.id !== `order-${payload.orderId}`),
+      ]);
+    },
+  );
+
+  // Live push — low-stock crossings detected during checkout inventory decrement.
+  useAdminRealtimeEvent<{ productId: string; name: string; inventory: number }>(
+    "product.low_stock",
+    (payload) => {
+      const time = nowLabel();
+      setNotifications((list) => [
+        {
+          id: `low-stock-${payload.productId}-${Date.now()}`,
+          type: "inventory",
+          titleAr: `تنبيه مخزون منخفض: ${payload.name}`,
+          titleEn: `Low Stock Alert: ${payload.name}`,
+          descAr: `المتبقي فقط ${payload.inventory} قطعة في المخزن!`,
+          descEn: `Only ${payload.inventory} units remaining in stock!`,
+          timeAr: time.ar,
+          timeEn: time.en,
+          read: false,
+          targetSection: "inventory",
+        },
+        ...list,
+      ]);
+    },
+  );
+
+  // Live push — a customer just submitted a return request.
+  useAdminRealtimeEvent<{ returnId: string; orderNumber: string; reason: string }>(
+    "return.created",
+    (payload) => {
+      const time = nowLabel();
+      setNotifications((list) => [
+        {
+          id: `return-${payload.returnId}`,
+          type: "return",
+          titleAr: `طلب مرتجع جديد #${payload.orderNumber}`,
+          titleEn: `New Return Request #${payload.orderNumber}`,
+          descAr: `${payload.reason} — الحالة: pending`,
+          descEn: `${payload.reason} — Status: pending`,
+          timeAr: time.ar,
+          timeEn: time.en,
+          read: false,
+          targetSection: "returns",
+        },
+        ...list.filter((n) => n.id !== `return-${payload.returnId}`),
+      ]);
+    },
+  );
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 

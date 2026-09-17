@@ -100,6 +100,8 @@ export type CreateOrderInput = {
   shipping_method: string;
   shipping_zone_id?: string;
   payment_method_id?: string;
+  payment_sender_info?: string;
+  payment_proof_url?: string;
   coupon_code?: string;
   customer_note?: string;
   customer_id?: string;
@@ -114,10 +116,10 @@ export type CreatedOrder = {
   discount_total: number;
   shipping_total: number;
   vat_total: number;
-  payment_fee: number;
   tax_total: number;
   currency: string;
   shipping_zone_name: string;
+  payment_method_id: string;
   payment_method_name: string;
   coupon_code?: string;
 };
@@ -146,9 +148,12 @@ export async function createOrder(
       : zone.cost;
 
   const method = PAYMENT_METHODS.find((m) => m.id === input.payment_method_id) ?? PAYMENT_METHODS[0];
-  const paymentFee = (method.processingFee ?? 0) + Math.round(((method.feePercent ?? 0) / 100) * discountedSub);
+  const total = discountedSub + shippingTotal;
 
-  const total = discountedSub + shippingTotal + paymentFee;
+  // COD is confirmed the moment the courier hands over cash — there's no
+  // transfer to verify, so it never needs the admin's manual "confirm
+  // payment" step that InstaPay/Vodafone Cash orders go through.
+  const isCod = method.id === "cod";
 
   try {
     const { orderId, orderNumber, lowStockAlerts } = await db.transaction(async (tx) => {
@@ -162,8 +167,8 @@ export async function createOrder(
           orderNumber,
           customerId: input.customer_id ?? null,
           email: input.email,
-          status: "pending",
-          paymentStatus: "awaiting",
+          status: isCod ? "paid" : "pending",
+          paymentStatus: isCod ? "paid" : "awaiting",
           fulfillmentStatus: "unfulfilled",
           subtotal: subtotal.toFixed(2),
           discountTotal: discountTotal.toFixed(2),
@@ -176,6 +181,10 @@ export async function createOrder(
           shippingMethod: input.shipping_method,
           customerNote: input.customer_note ?? null,
           paymentIntentId: input.payment_intent_id ?? null,
+          paymentMethod: method.id,
+          paymentSenderInfo: input.payment_sender_info ?? null,
+          paymentProofUrl: input.payment_proof_url ?? null,
+          paidAt: isCod ? new Date() : null,
           placedAt: new Date(),
         })
         .returning();
@@ -269,10 +278,10 @@ export async function createOrder(
         discount_total: discountTotal,
         shipping_total: shippingTotal,
         vat_total: vatTotal,
-        payment_fee: paymentFee,
         tax_total: 0,
         currency: "EGP",
         shipping_zone_name: zone.name,
+        payment_method_id: method.id,
         payment_method_name: method.name,
         coupon_code: couponCode,
       },

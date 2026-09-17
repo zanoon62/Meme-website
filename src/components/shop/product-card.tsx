@@ -85,11 +85,6 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
 
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-            {product.isNew && (
-              <span className="bg-foreground text-background text-[10px] uppercase tracking-wider px-2 py-1 rounded-sm font-medium">
-                New
-              </span>
-            )}
             {product.isLimited && (
               <span className="bg-foreground/90 text-background text-[10px] uppercase tracking-wider px-2 py-1 rounded-sm font-medium">
                 Limited

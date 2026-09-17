@@ -47,6 +47,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatPrice } from "@/lib/format";
 import { toast } from "sonner";
 import { useAdminT } from "@/components/admin/admin-i18n";
+import { useAdminRealtimeEvent } from "@/lib/realtime/use-admin-socket";
 
 type OrderStatus =
   | "pending"
@@ -64,6 +65,10 @@ type Order = {
   status: OrderStatus;
   payment_status: string;
   fulfillment_status: string;
+  payment_method: string | null;
+  payment_proof_url: string | null;
+  payment_sender_info: string | null;
+  payment_confirmed_at: string | null;
   subtotal: number;
   discount_total: number;
   shipping_total: number;
@@ -114,20 +119,24 @@ const statusColor: Record<OrderStatus, string> = {
   refunded: "bg-neutral-100 text-neutral-800",
 };
 
-// Module-level cache so switching admin sections and coming back to Orders
-// shows the last-fetched data instantly instead of a blank reload every time.
+// Module-level cache keyed by status+page, so switching admin sections and
+// coming back to Orders shows the last-fetched page instantly.
 const ordersCache = new Map<
   string,
-  { orders: Order[]; items: Record<string, OrderItem[]>; fetchedAt: number }
+  { orders: Order[]; items: Record<string, OrderItem[]>; total: number; fetchedAt: number }
 >();
 const ORDERS_STALE_MS = 30_000;
+const PAGE_SIZE = 50;
 
 export function OrdersSection() {
   const { t } = useAdminT();
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
-  const cached = ordersCache.get(statusFilter);
+  const [page, setPage] = React.useState(0);
+  const cacheKey = `${statusFilter}:${page}`;
+  const cached = ordersCache.get(cacheKey);
   const [orders, setOrders] = React.useState<Order[]>(cached?.orders ?? []);
   const [items, setItems] = React.useState<Record<string, OrderItem[]>>(cached?.items ?? {});
+  const [total, setTotal] = React.useState(cached?.total ?? 0);
   const [loading, setLoading] = React.useState(!cached);
   const [search, setSearch] = React.useState("");
   const [selected, setSelected] = React.useState<Order | null>(null);
@@ -136,32 +145,35 @@ export function OrdersSection() {
     if (!opts?.silent) setLoading(true);
     try {
       const res = await fetch(
-        `/api/admin/orders?status=${statusFilter}&limit=100`
+        `/api/admin/orders?status=${statusFilter}&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`
       );
       if (res.ok) {
         const data = await res.json();
         const nextOrders: Order[] = data.orders ?? [];
+        const nextTotal: number = data.total ?? nextOrders.length;
         const map: Record<string, OrderItem[]> = {};
         for (const it of data.items ?? []) {
           (map[it.order_id] ??= []).push(it);
         }
         setOrders(nextOrders);
         setItems(map);
-        ordersCache.set(statusFilter, { orders: nextOrders, items: map, fetchedAt: Date.now() });
+        setTotal(nextTotal);
+        ordersCache.set(cacheKey, { orders: nextOrders, items: map, total: nextTotal, fetchedAt: Date.now() });
       }
     } catch {
       // ignore
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [statusFilter, page, cacheKey]);
 
   React.useEffect(() => {
-    const entry = ordersCache.get(statusFilter);
+    const entry = ordersCache.get(cacheKey);
     if (entry) {
       // Show cached data immediately; revalidate in the background if stale.
       setOrders(entry.orders);
       setItems(entry.items);
+      setTotal(entry.total);
       setLoading(false);
       if (Date.now() - entry.fetchedAt > ORDERS_STALE_MS) {
         load({ silent: true });
@@ -169,7 +181,22 @@ export function OrdersSection() {
     } else {
       load();
     }
-  }, [statusFilter, load]);
+  }, [cacheKey, load]);
+
+  // Reset to page 0 whenever the status filter changes.
+  React.useEffect(() => {
+    setPage(0);
+  }, [statusFilter]);
+
+  // Live updates — a new order or a status change (e.g. another admin tab
+  // confirming payment) invalidates the cache and silently revalidates
+  // the currently visible page instead of waiting for a manual refresh.
+  const invalidateAndReload = React.useCallback(() => {
+    ordersCache.delete(cacheKey);
+    load({ silent: true });
+  }, [cacheKey, load]);
+  useAdminRealtimeEvent("order.created", invalidateAndReload);
+  useAdminRealtimeEvent("order.status_changed", invalidateAndReload);
 
   const filtered = orders.filter((o) => {
     if (!search) return true;
@@ -180,6 +207,7 @@ export function OrdersSection() {
     );
   });
 
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const totalRevenue = orders.reduce((s, o) => s + Number(o.total), 0);
   const pendingCount = orders.filter((o) => o.status === "pending").length;
   const shippedCount = orders.filter((o) => o.status === "shipped").length;
@@ -332,6 +360,16 @@ export function OrdersSection() {
                             <Eye className="mr-2 h-3.5 w-3.5" /> View details
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
+                          {o.payment_status === "awaiting" && o.payment_method !== "cod" && (
+                            <DropdownMenuItem
+                              className="text-emerald-600"
+                              onClick={() =>
+                                updateOrderStatus(o.id, "paid", load)
+                              }
+                            >
+                              <CheckCircle2 className="mr-2 h-3.5 w-3.5" /> Confirm payment
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem
                             onClick={() =>
                               updateOrderStatus(o.id, "shipped", load)
@@ -362,6 +400,36 @@ export function OrdersSection() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination — fetches one page (50 rows) at a time from the server
+            rather than loading the whole orders table, so this stays fast
+            no matter how many orders the store accumulates. */}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-border/60 text-xs text-muted-foreground">
+          <span>
+            {total === 0 ? "0 orders" : `${page * PAGE_SIZE + 1}–${Math.min(total, (page + 1) * PAGE_SIZE)} of ${total}`}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              disabled={page === 0 || loading}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              Previous
+            </Button>
+            <span className="font-medium">{page + 1} / {totalPages}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              disabled={page + 1 >= totalPages || loading}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
         </div>
       </Card>
 
@@ -476,8 +544,51 @@ function OrderDetailDialog({
               Payment
             </p>
             <span className="text-xs capitalize">{order.payment_status}</span>
+            {order.payment_method && (
+              <span className="text-xs text-muted-foreground capitalize"> · {order.payment_method}</span>
+            )}
           </div>
         </div>
+
+        {/* Transfer proof review — InstaPay / Vodafone Cash orders awaiting confirmation */}
+        {order.payment_method !== "cod" && (order.payment_proof_url || order.payment_sender_info) && (
+          <div className="mt-4 p-3 border border-amber-500/30 rounded-lg bg-amber-500/5 space-y-2">
+            <p className="text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400 font-bold">
+              Transfer proof
+            </p>
+            {order.payment_sender_info && (
+              <p className="text-xs">
+                Sender: <span className="font-mono font-medium">{order.payment_sender_info}</span>
+              </p>
+            )}
+            {order.payment_proof_url && (
+              <a href={order.payment_proof_url} target="_blank" rel="noopener noreferrer" className="block">
+                <img
+                  src={order.payment_proof_url}
+                  alt="Transfer proof screenshot"
+                  className="max-h-56 rounded-md border border-border/60 object-contain"
+                />
+              </a>
+            )}
+            {order.payment_status === "awaiting" && (
+              <Button
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs"
+                onClick={async () => {
+                  await updateOrderStatus(order.id, "paid", onUpdated);
+                  onClose();
+                }}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Confirm payment received
+              </Button>
+            )}
+            {order.payment_confirmed_at && (
+              <p className="text-[10px] text-muted-foreground">
+                Confirmed {new Date(order.payment_confirmed_at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Items */}
         <div className="mt-4">

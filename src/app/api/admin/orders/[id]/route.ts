@@ -13,6 +13,8 @@ import { orders, orderItems } from "@/lib/db/schema";
 import { toSnakeCase, toSnakeCaseArray } from "@/lib/db/to-snake-case";
 import { demoStore } from "@/lib/demo-store";
 import { publishRealtimeEvent } from "@/lib/realtime/publish";
+import { isResendConfigured, sendOrderConfirmationEmail } from "@/lib/email";
+import { PAYMENT_METHODS } from "@/lib/format";
 import { logger } from "@/lib/logger";
 
 type Params = { params: Promise<{ id: string }> };
@@ -51,6 +53,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (body.status === "cancelled" && !body.cancelled_at)
     rawUpdate.cancelled_at = new Date().toISOString();
 
+  // "Confirm payment" for InstaPay/Vodafone Cash orders is just this same
+  // PATCH with status: "paid" — the admin has verified the transfer proof
+  // and there's no separate endpoint for it. Stamp who/when confirmed it.
+  if (body.status === "paid") {
+    rawUpdate.payment_status = "paid";
+    rawUpdate.payment_confirmed_at = new Date().toISOString();
+    rawUpdate.payment_confirmed_by = guard.userId;
+  }
+
   const update: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(rawUpdate)) {
     update[toCamelKey(key)] = value;
@@ -73,6 +84,41 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         newStatus: row.status,
       }).catch(() => {});
     }
+
+    // Admin just confirmed an InstaPay/Vodafone transfer — send the order
+    // confirmation email now (COD already got its email at checkout time).
+    if (body.status === "paid" && !row.confirmationEmailSentAt && isResendConfigured()) {
+      const items = await db.select().from(orderItems).where(eq(orderItems.orderId, row.id));
+      const method = PAYMENT_METHODS.find((m) => m.id === row.paymentMethod);
+      const addr = (row.shippingAddress ?? { city: "" }) as { city: string; [key: string]: unknown };
+      sendOrderConfirmationEmail({
+        orderNumber: row.orderNumber,
+        recipientEmail: row.email,
+        lines: items.map((it) => ({
+          name: it.productName,
+          quantity: it.quantity,
+          price: Number(it.unitPrice),
+          size: it.variantSize ?? undefined,
+          color: it.variantColor ?? undefined,
+          image: it.productImage ?? undefined,
+        })),
+        subtotal: Number(row.subtotal),
+        discountTotal: Number(row.discountTotal),
+        couponCode: row.couponCode ?? undefined,
+        shippingTotal: Number(row.shippingTotal),
+        paymentMethodName: method?.name,
+        total: Number(row.total),
+        shippingAddress: addr,
+        customerNote: row.customerNote ?? undefined,
+      }).catch((err) => {
+        logger.error("Failed to send payment-confirmed order email", { error: err, orderId: row.id });
+      });
+      await db
+        .update(orders)
+        .set({ confirmationEmailSentAt: new Date() })
+        .where(eq(orders.id, row.id));
+    }
+
     return NextResponse.json({ order: toSnakeCase(row) });
   } catch (e) {
     logger.warn("order update failed", { id, error: e instanceof Error ? e.message : String(e) });

@@ -32,7 +32,7 @@ const infoLinks = [
   { label: "Terms of Service", href: "/" },
 ];
 
-const paymentMethods = ["VISA", "MASTERCARD", "MEEZA", "COD", "FAWRY", "VODAFONE CASH", "INSTAPAY"];
+const paymentMethods = ["INSTAPAY", "VODAFONE CASH", "COD"];
 
 export function Footer() {
   const [emailInput, setEmailInput] = React.useState("");

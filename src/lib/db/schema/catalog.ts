@@ -75,6 +75,7 @@ export const products = pgTable(
     metaDescription: text("meta_description"),
     colors: jsonb("colors").default([]),
     sizes: jsonb("sizes").default([]),
+    sizeChart: jsonb("size_chart"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),

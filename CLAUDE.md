@@ -136,7 +136,7 @@ touches customer-owned or draft/unpublished data.
 - `orders` / `order_items` / `coupons` / `returns` / `wishlists`
 - `customers` / `addresses`
 - `users` / `sessions` / `oauth_accounts` / `staff_profiles` / `admin_allowed_emails`
-- `homepage_settings` (singleton row) / `analytics_events`
+- `homepage_settings` (singleton row) / `payment_settings` (singleton row) / `analytics_events`
 
 ### Environment Variables
 See `.env.example` for the full current list (Postgres, Redis, MinIO,

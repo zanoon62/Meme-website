@@ -8,7 +8,7 @@
  * didn't need to change during the Supabase -> Postgres migration).
  */
 
-import type { Product, ProductColor, ProductSize } from "@/components/providers/ui-provider";
+import type { Product, ProductColor, ProductSize, SizeChartData } from "@/components/providers/ui-provider";
 
 /** A product row as returned by the API (snake_case, matching DB column names). */
 export interface ApiProductRow {
@@ -24,6 +24,7 @@ export interface ApiProductRow {
   collection_name?: string | null;
   colors?: unknown;
   sizes?: unknown;
+  size_chart?: SizeChartData | null;
   badges?: string[] | null;
   rating?: number | string | null;
   review_count?: number | null;
@@ -52,6 +53,7 @@ export function dbProductToStore(p: ApiProductRow): Product {
     collection: p.collection_name ?? "",
     colors: (p.colors as ProductColor[]) ?? [],
     sizes: (p.sizes as ProductSize[]) ?? [],
+    sizeChart: p.size_chart ?? undefined,
     images: [], // filled by product_images join — see the API route response
     badges: p.badges ?? [],
     rating: Number(p.rating ?? 5),
@@ -81,6 +83,7 @@ export function storeProductToDb(p: Partial<Product>) {
     collection_name: p.collection,
     colors: p.colors ?? [],
     sizes: p.sizes ?? [],
+    size_chart: p.sizeChart ?? null,
     material: p.material,
     care: p.care,
     inventory: p.inventory ? Number(p.inventory) : 0,

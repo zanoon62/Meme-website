@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { CartDrawer } from "@/components/shop/cart-drawer";
+import { SearchOverlay } from "@/components/layout/search-overlay";
 
 export function SiteShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -23,6 +24,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
       <main className="flex-1 flex flex-col">{children}</main>
       <Footer />
       <CartDrawer />
+      <SearchOverlay />
       <MobileBottomNav />
       <div className="lg:hidden h-16 shrink-0" aria-hidden /> {/* Spacer for bottom nav */}
     </div>

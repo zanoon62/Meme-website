@@ -35,6 +35,8 @@ export const CheckoutPayloadSchema = z.object({
   shipping_method: z.enum(["standard", "express", "overnight"]).default("standard"),
   shipping_zone_id: z.string().optional(),
   payment_method_id: z.string().optional(),
+  payment_sender_info: z.string().max(120).optional(),
+  payment_proof_url: z.string().url().optional(),
   coupon_code: z.string().max(50).optional(),
   lines: z.array(CartLineSchema).min(1),
   customer_note: z.string().max(1000).optional(),

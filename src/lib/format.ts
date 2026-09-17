@@ -134,6 +134,8 @@ export const SHIPPING_ZONES: ShippingZone[] = [
 ];
 
 // ============ Egyptian Payment Methods ============
+// Store only accepts 3 methods: InstaPay, Vodafone Cash, and Cash on
+// Delivery — no card gateway (PayMob), no processing fees on any of them.
 export type PaymentMethod = {
   id: string;
   name: string;
@@ -141,28 +143,16 @@ export type PaymentMethod = {
   description: string;
   descriptionAr: string;
   icon: string; // emoji or short text
-  processingFee?: number; // flat fee in EGP
-  feePercent?: number; // percentage of total
 };
 
 export const PAYMENT_METHODS: PaymentMethod[] = [
   {
-    id: "card",
-    name: "PayMob (Credit / Debit Card)",
-    nameAr: "بوابة باي موب (فيزا / ماستركارد / ميزا / Apple Pay)",
-    description: "Visa, Mastercard, Meeza, Apple Pay via PayMob Gateway",
-    descriptionAr: "فيزا، ماستركارد، ميزا، أبل باي عبر بوابة باي موب",
-    icon: "💳",
-    feePercent: 2.5,
-  },
-  {
-    id: "cod",
-    name: "Cash on Delivery (COD)",
-    nameAr: "الدفع عند الاستلام",
-    description: "Pay in cash when your order arrives — EGP only",
-    descriptionAr: "ادفع نقدًا عند الاستلام — جنيه مصري فقط",
-    icon: "💵",
-    processingFee: 25,
+    id: "instapay",
+    name: "InstaPay",
+    nameAr: "إنستاباي",
+    description: "Instant bank transfer via InstaPay app",
+    descriptionAr: "تحويل بنكي فوري عبر تطبيق إنستاباي",
+    icon: "⚡",
   },
   {
     id: "vodafone",
@@ -171,15 +161,13 @@ export const PAYMENT_METHODS: PaymentMethod[] = [
     description: "Pay instantly via Vodafone Cash wallet",
     descriptionAr: "ادفع فورًا عبر محفظة فودافون كاش",
     icon: "🔴",
-    processingFee: 12,
   },
   {
-    id: "instapay",
-    name: "InstaPay",
-    nameAr: "إنستاباي",
-    description: "Instant bank transfer via InstaPay app",
-    descriptionAr: "تحويل بنكي فوري عبر تطبيق إنستاباي",
-    icon: "⚡",
-    processingFee: 0,
+    id: "cod",
+    name: "Cash on Delivery (COD)",
+    nameAr: "الدفع عند الاستلام",
+    description: "Pay in cash when your order arrives — EGP only",
+    descriptionAr: "ادفع نقدًا عند الاستلام — جنيه مصري فقط",
+    icon: "💵",
   },
 ];

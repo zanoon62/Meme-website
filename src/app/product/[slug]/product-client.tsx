@@ -434,7 +434,7 @@ export default function ProductPageClient({ slug }: { slug: string }) {
                 <p><strong className="text-foreground">Free shipping across Egypt</strong> on orders over 7,500 EGP.</p>
                 <p>Cairo & Giza: 1–2 business days · Alexandria: 2–3 · Delta: 2–4 · Upper Egypt: 3–5 · Red Sea: 3–6.</p>
                 <p>Cash on Delivery available nationwide (except Red Sea & Sinai).</p>
-                <p>Pay with Card, Fawry, Vodafone Cash, or InstaPay.</p>
+                <p>Pay via Vodafone Cash, InstaPay, or Cash on Delivery.</p>
                 <p>14-day returns on unworn items with tags attached.</p>
               </TabsContent>
 
