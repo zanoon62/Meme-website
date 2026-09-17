@@ -411,7 +411,7 @@ function StoreSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => v
   };
 
   return (
-    <Card className="p-6 max-w-4xl shadow-sm border-border/80 space-y-6">
+    <Card className="p-4 sm:p-6 max-w-4xl shadow-sm border-border/80 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
         <div>
           <h3 className="font-display text-lg font-bold mb-1">
@@ -696,7 +696,7 @@ function PaymentsSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
   };
 
   return (
-    <Card className="p-6 max-w-4xl shadow-sm border-border/80 space-y-6">
+    <Card className="p-4 sm:p-6 max-w-4xl shadow-sm border-border/80 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
         <div>
           <h3 className="font-display text-lg font-bold mb-1">
@@ -896,7 +896,7 @@ function ShippingSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
   };
 
   return (
-    <Card className="p-6 max-w-4xl shadow-sm border-border/80 space-y-6">
+    <Card className="p-4 sm:p-6 max-w-4xl shadow-sm border-border/80 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-4">
         <div>
           <div className="flex items-center gap-2 flex-wrap mb-1">

@@ -217,51 +217,51 @@ export function OrdersSection() {
     <div className="space-y-6">
       {/* KPI strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="p-4">
+        <Card className="p-3 sm:p-4 min-w-0">
           <div className="flex items-center justify-between mb-2">
             <DollarSign className="h-4 w-4 text-muted-foreground" />
             <TrendingUp className="h-3 w-3 text-emerald-500" />
           </div>
-          <p className="text-xl font-display">{formatPrice(totalRevenue)}</p>
+          <p className="text-base sm:text-xl font-display truncate">{formatPrice(totalRevenue)}</p>
           <p className="text-xs text-muted-foreground">Total revenue</p>
         </Card>
-        <Card className="p-4">
+        <Card className="p-3 sm:p-4 min-w-0">
           <div className="flex items-center justify-between mb-2">
             <Clock className="h-4 w-4 text-muted-foreground" />
           </div>
-          <p className="text-xl font-display">{pendingCount}</p>
+          <p className="text-base sm:text-xl font-display">{pendingCount}</p>
           <p className="text-xs text-muted-foreground">Pending</p>
         </Card>
-        <Card className="p-4">
+        <Card className="p-3 sm:p-4 min-w-0">
           <div className="flex items-center justify-between mb-2">
             <Truck className="h-4 w-4 text-muted-foreground" />
           </div>
-          <p className="text-xl font-display">{shippedCount}</p>
+          <p className="text-base sm:text-xl font-display">{shippedCount}</p>
           <p className="text-xs text-muted-foreground">In transit</p>
         </Card>
-        <Card className="p-4">
+        <Card className="p-3 sm:p-4 min-w-0">
           <div className="flex items-center justify-between mb-2">
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
           </div>
-          <p className="text-xl font-display">{deliveredCount}</p>
+          <p className="text-base sm:text-xl font-display">{deliveredCount}</p>
           <p className="text-xs text-muted-foreground">Delivered</p>
         </Card>
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <div className="flex gap-2 flex-1 w-full">
-          <div className="relative flex-1 max-w-md">
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-2 flex-1 w-full">
+          <div className="relative flex-1 sm:max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search by order # or email…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-9 bg-background"
+              className="pl-9 h-10 sm:h-9 bg-background"
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40 h-9 bg-background">
+            <SelectTrigger className="w-full sm:w-40 h-10 sm:h-9 bg-background">
               <Filter className="h-3.5 w-3.5 mr-1" />
               <SelectValue />
             </SelectTrigger>
@@ -274,13 +274,85 @@ export function OrdersSection() {
             </SelectContent>
           </Select>
         </div>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" className="h-10 sm:h-9 shrink-0">
           <Download className="h-4 w-4 mr-1" /> Export CSV
         </Button>
       </div>
 
-      {/* Orders table */}
-      <Card className="overflow-hidden">
+      {/* Orders — card list on phones, table from `md` up. A 7-column table
+          can't be read on a 390px screen, so small viewports get a stacked
+          card per order with the same tap targets. */}
+      <Card className="overflow-hidden md:hidden divide-y divide-border/40">
+        {loading ? (
+          <p className="text-center py-12 text-sm text-muted-foreground">{t("loading")}</p>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-12 text-sm text-muted-foreground">
+            <ShoppingCart className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            {t("noResults")}
+          </div>
+        ) : (
+          filtered.map((o) => (
+            <button
+              key={o.id}
+              onClick={() => setSelected(o)}
+              className="w-full text-left p-4 active:bg-accent/40 transition-colors"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <span className="font-mono text-xs font-medium">{o.order_number}</span>
+                <span
+                  className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${statusColor[o.status]}`}
+                >
+                  {o.status}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1.5 truncate">{o.email}</p>
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-[11px] text-muted-foreground">
+                  {new Date(o.placed_at).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                  {" · "}
+                  <span className="capitalize">{o.payment_status}</span>
+                </span>
+                <span className="text-sm font-medium">
+                  {formatPrice(Number(o.total), o.currency)}
+                </span>
+              </div>
+            </button>
+          ))
+        )}
+        <div className="flex items-center justify-between px-4 py-3 text-xs text-muted-foreground">
+          <span>
+            {total === 0 ? "0 orders" : `${page * PAGE_SIZE + 1}–${Math.min(total, (page + 1) * PAGE_SIZE)} of ${total}`}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3 text-xs"
+              disabled={page === 0 || loading}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              Prev
+            </Button>
+            <span className="font-medium">{page + 1}/{totalPages}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-3 text-xs"
+              disabled={page + 1 >= totalPages || loading}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Orders table (md and up) */}
+      <Card className="overflow-hidden hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-accent/50 border-b border-border/60">
@@ -455,7 +527,11 @@ async function updateOrderStatus(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
-    if (!res.ok) throw new Error("Failed to update");
+    // Surface the server's real reason (auth, validation, DB) instead of a
+    // generic "Failed" — a silent 400 here is what made this look like the
+    // button simply did nothing.
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || `Update failed (HTTP ${res.status})`);
     toast.success(`Order marked as ${status}`);
     reload();
   } catch (e) {
@@ -678,6 +754,30 @@ function OrderDetailDialog({
         {/* Staff controls */}
         <div className="mt-4 space-y-3">
           <div>
+            <Label className="text-xs">Order status</Label>
+            <Select
+              value={order.status}
+              onValueChange={async (v) => {
+                await updateOrderStatus(order.id, v as OrderStatus, onUpdated);
+                onClose();
+              }}
+            >
+              <SelectTrigger className="mt-1 h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.filter((s) => s.value !== "all").map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Changing to Paid confirms payment and emails the customer.
+            </p>
+          </div>
+          <div>
             <Label className="text-xs">Tracking number</Label>
             <Input
               value={tracking}
@@ -698,11 +798,11 @@ function OrderDetailDialog({
           </div>
         </div>
 
-        <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="mt-4 flex-col-reverse sm:flex-row gap-2">
+          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
             Close
           </Button>
-          <Button onClick={saveTracking}>Save changes</Button>
+          <Button onClick={saveTracking} className="w-full sm:w-auto">Save changes</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

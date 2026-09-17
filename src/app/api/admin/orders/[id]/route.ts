@@ -40,32 +40,65 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.error;
 
-  // Auto-set timestamp fields based on status changes (same rule as before,
-  // keyed on the snake_case body — converted to camelCase columns below).
+  // Auto-set timestamp fields based on status changes. These must be real
+  // Date objects, not ISO strings — Drizzle's timestamp columns call
+  // .toISOString() on the value, so a string here throws and the whole
+  // update 400s (which is what silently broke every admin status change).
+  const now = new Date();
   const rawUpdate: Record<string, unknown> = { ...body };
-  if (body.status === "paid" && !body.paid_at) rawUpdate.paid_at = new Date().toISOString();
-  if (body.status === "fulfilled" && !body.fulfilled_at)
-    rawUpdate.fulfilled_at = new Date().toISOString();
-  if (body.status === "shipped" && !body.shipped_at)
-    rawUpdate.shipped_at = new Date().toISOString();
-  if (body.status === "delivered" && !body.delivered_at)
-    rawUpdate.delivered_at = new Date().toISOString();
-  if (body.status === "cancelled" && !body.cancelled_at)
-    rawUpdate.cancelled_at = new Date().toISOString();
+  if (body.status === "paid" && !body.paid_at) rawUpdate.paid_at = now;
+  if (body.status === "fulfilled" && !body.fulfilled_at) rawUpdate.fulfilled_at = now;
+  if (body.status === "shipped" && !body.shipped_at) rawUpdate.shipped_at = now;
+  if (body.status === "delivered" && !body.delivered_at) rawUpdate.delivered_at = now;
+  if (body.status === "cancelled" && !body.cancelled_at) rawUpdate.cancelled_at = now;
 
   // "Confirm payment" for InstaPay/Vodafone Cash orders is just this same
   // PATCH with status: "paid" — the admin has verified the transfer proof
   // and there's no separate endpoint for it. Stamp who/when confirmed it.
   if (body.status === "paid") {
     rawUpdate.payment_status = "paid";
-    rawUpdate.payment_confirmed_at = new Date().toISOString();
+    rawUpdate.payment_confirmed_at = now;
     rawUpdate.payment_confirmed_by = guard.userId;
   }
+
+  // A cancelled order's payment is no longer expected to arrive.
+  if (body.status === "cancelled" && !body.payment_status) {
+    rawUpdate.payment_status = "failed";
+  }
+
+  // Shipping/delivering implies the goods went out, so keep
+  // fulfillment_status coherent rather than leaving it "unfulfilled" forever.
+  if (
+    (body.status === "shipped" || body.status === "delivered" || body.status === "fulfilled") &&
+    !body.fulfillment_status
+  ) {
+    rawUpdate.fulfillment_status = "fulfilled";
+  }
+
+  // Any caller-supplied timestamp still arrives as an ISO string over JSON —
+  // coerce those too, for the same reason as above.
+  for (const key of [
+    "paid_at",
+    "fulfilled_at",
+    "shipped_at",
+    "delivered_at",
+    "cancelled_at",
+    "payment_confirmed_at",
+  ]) {
+    const value = rawUpdate[key];
+    if (typeof value === "string") rawUpdate[key] = new Date(value);
+  }
+
+  // Never let a client overwrite identity/audit columns directly.
+  delete rawUpdate.id;
+  delete rawUpdate.order_number;
+  delete rawUpdate.created_at;
 
   const update: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(rawUpdate)) {
     update[toCamelKey(key)] = value;
   }
+  update.updatedAt = now;
 
   try {
     const [row] = await db.update(orders).set(update).where(eq(orders.id, id)).returning();
@@ -87,6 +120,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
     // Admin just confirmed an InstaPay/Vodafone transfer — send the order
     // confirmation email now (COD already got its email at checkout time).
+    // Wrapped so an email/DB hiccup here can never fail the status change
+    // the admin actually asked for — the order is already updated above.
+    try {
     if (body.status === "paid" && !row.confirmationEmailSentAt && isResendConfigured()) {
       const items = await db.select().from(orderItems).where(eq(orderItems.orderId, row.id));
       const method = PAYMENT_METHODS.find((m) => m.id === row.paymentMethod);
@@ -118,10 +154,22 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         .set({ confirmationEmailSentAt: new Date() })
         .where(eq(orders.id, row.id));
     }
+    } catch (emailErr) {
+      logger.error("post-confirm email step failed (order status still updated)", {
+        orderId: row.id,
+        error: emailErr instanceof Error ? emailErr.message : String(emailErr),
+      });
+    }
 
     return NextResponse.json({ order: toSnakeCase(row) });
   } catch (e) {
-    logger.warn("order update failed", { id, error: e instanceof Error ? e.message : String(e) });
+    logger.error("order update failed", {
+      id,
+      by: guard.userId,
+      attemptedStatus: body.status,
+      fields: Object.keys(update),
+      error: e instanceof Error ? e.message : String(e),
+    });
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Unknown error" },
       { status: 400 },

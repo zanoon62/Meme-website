@@ -24,6 +24,8 @@ import {
   Smartphone,
   Monitor,
   ShieldCheck,
+  Menu,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -92,6 +94,16 @@ export function AdminShell({
     const email = getAdminEmailClient();
     if (email) setAdminEmail(email);
   }, []);
+
+  // Stop the page behind the mobile drawer from scrolling under it.
+  React.useEffect(() => {
+    if (!mobileNavOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [mobileNavOpen]);
 
   const handleResetData = async () => {
     setResettingData(true);
@@ -251,42 +263,43 @@ export function AdminShell({
         {/* Main Content Viewport */}
         <div className="flex-1 min-w-0">
           {/* Top bar — iOS Frosted Glass Capsule Bar */}
-          <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border/70 px-4 lg:px-8 py-3 flex items-center justify-between shadow-xs transition-colors duration-200">
-            <div className="flex items-center gap-3">
+          <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border/70 px-3 sm:px-4 lg:px-8 py-2.5 sm:py-3 flex items-center justify-between gap-2 shadow-xs transition-colors duration-200">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <Button
                 variant="ghost"
-                size="sm"
-                className="lg:hidden rounded-xl border border-border/60"
-                onClick={() => setMobileNavOpen(!mobileNavOpen)}
+                size="icon"
+                className="lg:hidden rounded-xl border border-border/60 h-10 w-10 shrink-0"
+                onClick={() => setMobileNavOpen(true)}
+                aria-label={isAr ? "القائمة" : "Open navigation"}
               >
-                Navigation
+                <Menu className="h-5 w-5" />
               </Button>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold">
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold hidden sm:block">
                   Atelier Control
                 </p>
-                <h1 className="font-display text-lg font-bold text-foreground tracking-tight">
+                <h1 className="font-display text-base sm:text-lg font-bold text-foreground tracking-tight truncate">
                   {currentLabel}
                 </h1>
               </div>
             </div>
 
             {/* Header Right / Left Action Icons Bar with iPhone Frosted Pill Effect */}
-            <div className="flex items-center gap-2 sm:gap-2.5 p-1 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-xl">
-              {/* Reset Test Data & Revenue button */}
+            <div className="flex items-center gap-1 sm:gap-2.5 p-1 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 backdrop-blur-xl shrink-0">
+              {/* Reset Test Data & Revenue button — icon-only on phones */}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowResetDialog(true)}
-                className="h-9 px-3 rounded-xl border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs"
+                className="h-9 w-9 sm:w-auto sm:px-3 rounded-xl border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs"
                 title={isAr ? "تصفير بيانات الاختبار والإيرادات" : "Reset Test Data & Revenue to LE 0"}
               >
-                <RotateCcw className="h-3.5 w-3.5" />
+                <RotateCcw className="h-3.5 w-3.5 shrink-0" />
                 <span className="hidden md:inline">{isAr ? "تصفير البيانات" : "Reset Test Data"}</span>
               </Button>
 
               {/* Quick link back to storefront website */}
-              <Link href="/" title={isAr ? "العودة للموقع" : "Back to Website"}>
+              <Link href="/" title={isAr ? "العودة للموقع" : "Back to Website"} className="hidden sm:block">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -300,8 +313,10 @@ export function AdminShell({
               {/* Interactive Notifications Center */}
               <AdminNotifications onJumpSection={onSection} />
 
-              <LanguageToggle />
-              <ThemeToggle />
+              <div className="hidden sm:flex items-center gap-1 sm:gap-2.5">
+                <LanguageToggle />
+                <ThemeToggle />
+              </div>
 
               {onNewProduct && (
                 <Button
@@ -315,41 +330,99 @@ export function AdminShell({
             </div>
           </header>
 
-          {/* Mobile nav drawer */}
+          {/* Mobile nav — slide-over drawer. The old version was an inline
+              panel that pushed the page down and made two-column buttons
+              tiny; a real overlay drawer with full-width rows is usable
+              one-handed on a phone. */}
           {mobileNavOpen && (
-            <div className="lg:hidden border-b border-border/80 bg-card p-4 space-y-4 shadow-lg">
-              {navGroups.map((group) => (
-                <div key={group.label}>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2 font-bold">
-                    {group.label}
-                  </p>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {group.items.map((item) => (
-                      <button
-                        key={item.id}
+            <div className="lg:hidden fixed inset-0 z-50 flex">
+              <button
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                onClick={() => setMobileNavOpen(false)}
+                aria-label="Close navigation"
+              />
+              <nav
+                dir={dir}
+                className={cn(
+                  "relative w-[82vw] max-w-xs h-full bg-card shadow-2xl overflow-y-auto overscroll-contain",
+                  isAr ? "ms-auto" : "me-auto"
+                )}
+              >
+                <div className="sticky top-0 bg-card border-b border-border/70 px-4 py-3 flex items-center justify-between">
+                  <span className="font-display text-lg tracking-[0.18em] font-bold flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-amber-500" /> MEME
+                  </span>
+                  <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setMobileNavOpen(false)}>
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
+
+                <div className="p-3 space-y-4">
+                  {navGroups.map((group) => (
+                    <div key={group.label}>
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1.5 px-2 font-bold">
+                        {group.label}
+                      </p>
+                      <div className="space-y-1">
+                        {group.items.map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              onSection(item.id);
+                              setMobileNavOpen(false);
+                            }}
+                            className={cn(
+                              "w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition-colors text-start",
+                              section === item.id
+                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold"
+                                : "text-foreground/80 active:bg-accent"
+                            )}
+                          >
+                            <item.icon className="h-4 w-4 shrink-0" />
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="border-t border-border/70 pt-3 space-y-1">
+                    <div className="flex items-center gap-2 px-2 pb-2">
+                      <LanguageToggle />
+                      <ThemeToggle />
+                    </div>
+                    {onNewProduct && (
+                      <Button
+                        className="w-full rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-bold h-11"
                         onClick={() => {
-                          onSection(item.id);
+                          onNewProduct();
                           setMobileNavOpen(false);
                         }}
-                        className={cn(
-                          "flex items-center gap-2 p-2.5 rounded-lg text-xs font-semibold transition-colors",
-                          section === item.id
-                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold"
-                            : "text-foreground/70 hover:bg-accent"
-                        )}
                       >
-                        <item.icon className="h-4 w-4" />
-                        {item.label}
-                      </button>
-                    ))}
+                        + {t("newProduct")}
+                      </Button>
+                    )}
+                    <Link href="/" onClick={() => setMobileNavOpen(false)}>
+                      <Button variant="outline" className="w-full rounded-xl h-11 mt-1">
+                        {isAr ? "العودة للموقع" : "Back to Website"}
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      className="w-full rounded-xl h-11 text-rose-600 dark:text-rose-400"
+                      onClick={handleLogout}
+                    >
+                      <LogOut className="h-4 w-4 me-2" />
+                      {t("signOut")}
+                    </Button>
                   </div>
                 </div>
-              ))}
+              </nav>
             </div>
           )}
 
           {/* Main section panel with smooth fade-in transition */}
-          <div className="p-4 sm:p-8">
+          <div className="p-3 sm:p-6 lg:p-8">
             <AnimatePresence mode="wait">
               <motion.div
                 key={section}

@@ -119,19 +119,19 @@ export function ProductsSection({
           {t("lowStock")}
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
+          <div className="relative flex-1 min-w-[10rem] sm:flex-none">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("searchProducts")}
-              className="pl-9 h-9 w-44 sm:w-56 text-xs rounded-xl bg-card/80 backdrop-blur-md border-border/80 focus:border-amber-500 transition-all"
+              className="pl-9 h-10 sm:h-9 w-full sm:w-56 text-sm sm:text-xs rounded-xl bg-card/80 backdrop-blur-md border-border/80 focus:border-amber-500 transition-all"
             />
           </div>
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="h-9 rounded-xl border border-border/80 bg-card/80 backdrop-blur-md px-3 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all"
+            className="h-10 sm:h-9 rounded-xl border border-border/80 bg-card/80 backdrop-blur-md px-3 text-sm sm:text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 transition-all"
           >
             <option value="all">{t("filterByCategory")}</option>
             {categoryOptions.map((c) => (

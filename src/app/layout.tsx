@@ -40,7 +40,11 @@ const jetbrainsMono = JetBrains_Mono({
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1, // Prevents auto-zooming on inputs in iOS and maintains rigid mobile app-like layout
+  // Pinch-zoom stays enabled on purpose: locking it to 1 blocks users from
+  // zooming dense screens (admin tables, size charts) and fails WCAG 1.4.4.
+  // iOS input auto-zoom is avoided by using >=16px font on form controls
+  // instead of by disabling zoom.
+  maximumScale: 5,
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fafafa" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0c" },
