@@ -177,6 +177,11 @@ export default function CheckoutPage() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const liveZones = useShippingStore((s) => s.zones);
+  const fetchShippingZones = useShippingStore((s) => s.fetchFromServer);
+
+  React.useEffect(() => {
+    fetchShippingZones();
+  }, [fetchShippingZones]);
 
   // Auto-detect & sync shipping zone based on selected governorate
   React.useEffect(() => {

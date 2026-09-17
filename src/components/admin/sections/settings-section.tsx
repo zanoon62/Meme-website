@@ -355,59 +355,27 @@ function LiveShippingPreview({ zones }: { zones: ShippingZone[] }) {
 
 function StoreSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) => void }) {
   const { isAr } = useAdminT();
-  const storeSettings = useStoreSettingsStore();
-
-  const [form, setForm] = React.useState({
-    name: storeSettings.name,
-    tagline: storeSettings.tagline,
-    description: storeSettings.description,
-    email: storeSettings.email,
-    phone: storeSettings.phone,
-    currency: storeSettings.currency,
-    timezone: storeSettings.timezone,
-    instagram: storeSettings.instagram,
-    instagramHandle: storeSettings.instagramHandle,
-    domain: storeSettings.domain,
-    address: storeSettings.address,
-  });
+  const storeSettingsStore = useStoreSettingsStore();
+  const fetchFromServer = useStoreSettingsStore((s) => s.fetchFromServer);
+  const hydrated = useStoreSettingsStore((s) => s.hydrated);
+  const saving = useStoreSettingsStore((s) => s.saving);
 
   React.useEffect(() => {
-    setForm({
-      name: storeSettings.name,
-      tagline: storeSettings.tagline,
-      description: storeSettings.description,
-      email: storeSettings.email,
-      phone: storeSettings.phone,
-      currency: storeSettings.currency,
-      timezone: storeSettings.timezone,
-      instagram: storeSettings.instagram,
-      instagramHandle: storeSettings.instagramHandle,
-      domain: storeSettings.domain,
-      address: storeSettings.address,
-    });
-  }, [
-    storeSettings.name,
-    storeSettings.tagline,
-    storeSettings.description,
-    storeSettings.email,
-    storeSettings.phone,
-    storeSettings.currency,
-    storeSettings.timezone,
-    storeSettings.instagram,
-    storeSettings.instagramHandle,
-    storeSettings.domain,
-    storeSettings.address,
-  ]);
+    fetchFromServer();
+  }, [fetchFromServer]);
 
-  const [saving, setSaving] = React.useState(false);
+  const [form, setForm] = React.useState(storeSettingsStore.config);
 
-  const handleSave = () => {
-    setSaving(true);
-    storeSettings.updateSettings(form);
-    setTimeout(() => {
-      setSaving(false);
-      toast.success(isAr ? "تم حفظ إعدادات وتفاصيل المتجر بنجاح ✨" : "Store profile updated & persisted live!");
-    }, 250);
+  // Hydrate the editable form once the real server config loads.
+  // Deliberately re-runs only when `hydrated` flips true — storeSettingsStore.config
+  // is intentionally excluded so this doesn't clobber the admin's in-progress edits.
+  React.useEffect(() => {
+    if (hydrated) setForm(storeSettingsStore.config);
+  }, [hydrated]);
+
+  const handleSave = async () => {
+    await storeSettingsStore.saveConfig(form);
+    toast.success(isAr ? "تم حفظ إعدادات وتفاصيل المتجر بنجاح ✨" : "Store profile updated & persisted live!");
   };
 
   return (
@@ -851,6 +819,11 @@ function ShippingSettings({ onOpenPreview }: { onOpenPreview?: (path?: string) =
   const updateZone = useShippingStore((s) => s.updateZone);
   const deleteZone = useShippingStore((s) => s.deleteZone);
   const resetToDefaults = useShippingStore((s) => s.resetToDefaults);
+  const fetchZonesFromServer = useShippingStore((s) => s.fetchFromServer);
+
+  React.useEffect(() => {
+    fetchZonesFromServer();
+  }, [fetchZonesFromServer]);
 
   const [showAddModal, setShowAddModal] = React.useState(false);
   const [editingZone, setEditingZone] = React.useState<ShippingZone | null>(null);

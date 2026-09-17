@@ -33,7 +33,16 @@ procedure.
   TypeScript). `enums.ts`, `catalog.ts` (products/categories/collections/
   reviews), `commerce.ts` (customers/orders/coupons/returns/wishlists),
   `auth.ts` (users/sessions/oauth_accounts/staff_profiles/admin_allowed_emails),
-  `content.ts` (homepage_settings, payment_settings), `analytics.ts`, `relations.ts`.
+  `content.ts` (homepage_settings, payment_settings, store_settings,
+  shipping_settings), `analytics.ts`, `relations.ts`. All four `content.ts`
+  tables follow the same singleton (`id='main'`, `config` jsonb) pattern —
+  admin edits go through `POST /api/admin/<name>-settings`, the storefront
+  reads the same data via the public, Nginx-cached `GET /api/<name>-settings`.
+  Every one of these started life as a localStorage-only Zustand store and
+  was migrated to this pattern after admin edits from one browser/device
+  silently never reached another — if you find a new admin settings screen
+  that still only calls `persist()`/`localStorage`, it likely has the same
+  bug and needs the same treatment.
 - `drizzle/migrations/` — generated SQL migrations (`drizzle-kit generate`),
   plus one hand-written custom migration (`0001_functions_and_triggers.sql`)
   for the two native Postgres functions (`decrement_inventory`,

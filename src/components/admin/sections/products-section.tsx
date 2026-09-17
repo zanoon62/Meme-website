@@ -33,6 +33,7 @@ import { formatPrice } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAdminT } from "@/components/admin/admin-i18n";
+import { downloadCsv } from "@/lib/csv-export";
 
 export function ProductsSection({
   onAdd,
@@ -103,6 +104,29 @@ export function ProductsSection({
     }
   };
 
+  const exportCsv = () => {
+    if (filtered.length === 0) {
+      toast.error("No products to export");
+      return;
+    }
+    downloadCsv(
+      `products-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Name", "Slug", "Category", "Collection", "Price", "Compare-at price", "Inventory", "Rating", "Reviews"],
+      filtered.map((p) => [
+        p.name,
+        p.slug,
+        p.category,
+        p.collection,
+        p.price,
+        p.compareAtPrice ?? "",
+        p.inventory,
+        p.rating,
+        p.reviewCount,
+      ]),
+    );
+    toast.success(`Exported ${filtered.length} products`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -149,7 +173,7 @@ export function ProductsSection({
           >
             <RotateCcw className="h-3.5 w-3.5 mr-1.5 text-amber-500" /> {t("resetCatalog")}
           </Button>
-          <Button variant="outline" size="sm" className="h-9 rounded-xl border-border/80 bg-card/80 backdrop-blur-md hover:bg-accent hover:scale-105 transition-all text-xs">
+          <Button variant="outline" size="sm" className="h-9 rounded-xl border-border/80 bg-card/80 backdrop-blur-md hover:bg-accent hover:scale-105 transition-all text-xs" onClick={exportCsv}>
             <Download className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" /> {t("export")}
           </Button>
           <Button size="sm" className="h-9 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-bold shadow-md hover:shadow-lg hover:scale-105 active:scale-95 transition-all text-xs" onClick={onAdd}>

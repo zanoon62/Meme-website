@@ -48,6 +48,7 @@ import { formatPrice } from "@/lib/format";
 import { toast } from "sonner";
 import { useAdminT } from "@/components/admin/admin-i18n";
 import { useAdminRealtimeEvent } from "@/lib/realtime/use-admin-socket";
+import { downloadCsv } from "@/lib/csv-export";
 
 type OrderStatus =
   | "pending"
@@ -213,6 +214,45 @@ export function OrdersSection() {
   const shippedCount = orders.filter((o) => o.status === "shipped").length;
   const deliveredCount = orders.filter((o) => o.status === "delivered").length;
 
+  const [exporting, setExporting] = React.useState(false);
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      // Export every order matching the current filter, not just the
+      // currently-loaded page — the whole point of an export.
+      const res = await fetch(`/api/admin/orders?status=${statusFilter}&limit=5000&offset=0`);
+      if (!res.ok) throw new Error("Failed to fetch orders for export");
+      const data = await res.json();
+      const rows: Order[] = data.orders ?? [];
+      if (rows.length === 0) {
+        toast.error("No orders to export");
+        return;
+      }
+      downloadCsv(
+        `orders-${statusFilter}-${new Date().toISOString().slice(0, 10)}.csv`,
+        ["Order #", "Email", "Status", "Payment status", "Payment method", "Subtotal", "Discount", "Shipping", "Total", "Currency", "Placed at"],
+        rows.map((o) => [
+          o.order_number,
+          o.email,
+          o.status,
+          o.payment_status,
+          o.payment_method ?? "",
+          o.subtotal,
+          o.discount_total,
+          o.shipping_total,
+          o.total,
+          o.currency,
+          o.placed_at,
+        ]),
+      );
+      toast.success(`Exported ${rows.length} orders`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* KPI strip */}
@@ -274,8 +314,8 @@ export function OrdersSection() {
             </SelectContent>
           </Select>
         </div>
-        <Button variant="outline" size="sm" className="h-10 sm:h-9 shrink-0">
-          <Download className="h-4 w-4 mr-1" /> Export CSV
+        <Button variant="outline" size="sm" className="h-10 sm:h-9 shrink-0" onClick={exportCsv} disabled={exporting}>
+          <Download className="h-4 w-4 mr-1" /> {exporting ? "Exporting…" : "Export CSV"}
         </Button>
       </div>
 

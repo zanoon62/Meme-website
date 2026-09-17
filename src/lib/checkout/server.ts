@@ -14,11 +14,35 @@
 
 import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { coupons, customers, orderItems, orders, products } from "@/lib/db/schema";
+import { coupons, customers, orderItems, orders, products, shippingSettings } from "@/lib/db/schema";
 import type { CartLine, Address } from "./types";
-import { SHIPPING_ZONES, PAYMENT_METHODS, FREE_SHIPPING_THRESHOLD } from "@/lib/format";
+import { SHIPPING_ZONES, PAYMENT_METHODS, FREE_SHIPPING_THRESHOLD, type ShippingZone } from "@/lib/format";
 import { publishRealtimeEvent } from "@/lib/realtime/publish";
 import { logger } from "@/lib/logger";
+
+/**
+ * Live shipping zones as configured by the admin (shipping_settings table),
+ * falling back to the static defaults in format.ts if nothing's configured
+ * yet. Server-side pricing must read the same source of truth the admin
+ * edits — using the static array here would let a stale rate undercharge
+ * or overcharge every order after an admin changes a zone's cost.
+ */
+async function getShippingZones(): Promise<ShippingZone[]> {
+  try {
+    const [row] = await db
+      .select({ config: shippingSettings.config })
+      .from(shippingSettings)
+      .where(eq(shippingSettings.id, "main"))
+      .limit(1);
+    const zones = (row?.config as { zones?: ShippingZone[] } | undefined)?.zones;
+    if (Array.isArray(zones) && zones.length > 0) return zones;
+  } catch (e) {
+    logger.warn("getShippingZones failed, using static defaults", {
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+  return SHIPPING_ZONES;
+}
 
 type Coupon = typeof coupons.$inferSelect;
 
@@ -141,7 +165,8 @@ export async function createOrder(
   const discountedSub = Math.max(0, subtotal - discountTotal);
   const vatTotal = 0; // VAT removed per store policy
 
-  const zone = SHIPPING_ZONES.find((z) => z.id === input.shipping_zone_id) ?? SHIPPING_ZONES[0];
+  const liveZones = await getShippingZones();
+  const zone = liveZones.find((z) => z.id === input.shipping_zone_id) ?? liveZones[0];
   const shippingTotal =
     subtotal >= FREE_SHIPPING_THRESHOLD || (couponResult.ok && couponResult.coupon.type === "shipping")
       ? 0

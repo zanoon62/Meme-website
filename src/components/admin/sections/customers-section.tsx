@@ -10,8 +10,6 @@ import {
   DollarSign,
   TrendingUp,
   Download,
-  MoreHorizontal,
-  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +18,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatPrice } from "@/lib/format";
 import { useAdminT } from "@/components/admin/admin-i18n";
+import { downloadCsv } from "@/lib/csv-export";
+import { toast } from "sonner";
 
 type Customer = {
   id: string;
@@ -72,6 +72,28 @@ export function CustomersSection() {
       : 0;
   const marketingOptIn = customers.filter((c) => c.accepts_marketing).length;
 
+  const exportCsv = () => {
+    if (customers.length === 0) {
+      toast.error("No customers to export");
+      return;
+    }
+    downloadCsv(
+      `customers-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Name", "Email", "Phone", "Orders", "Total spent", "Marketing opt-in", "Last order", "Joined"],
+      customers.map((c) => [
+        [c.first_name, c.last_name].filter(Boolean).join(" "),
+        c.email,
+        c.phone ?? "",
+        c.total_orders,
+        c.total_spent,
+        c.accepts_marketing ? "Yes" : "No",
+        c.last_order_at ?? "",
+        c.created_at,
+      ]),
+    );
+    toast.success(`Exported ${customers.length} customers`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -107,7 +129,7 @@ export function CustomersSection() {
             className="pl-9 h-9 bg-background"
           />
         </div>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" onClick={exportCsv}>
           <Download className="h-4 w-4 mr-1" /> Export
         </Button>
       </div>
@@ -202,9 +224,13 @@ export function CustomersSection() {
                           : "—"}
                       </td>
                       <td className="px-4 py-3">
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                          <MoreHorizontal className="h-3.5 w-3.5" />
-                        </Button>
+                        <a
+                          href={`mailto:${c.email}`}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                          title={`Email ${c.email}`}
+                        >
+                          <Mail className="h-3.5 w-3.5" />
+                        </a>
                       </td>
                     </tr>
                   );

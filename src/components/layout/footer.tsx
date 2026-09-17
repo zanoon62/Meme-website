@@ -38,7 +38,12 @@ export function Footer() {
   const [emailInput, setEmailInput] = React.useState("");
   const [openCol, setOpenCol] = React.useState<string | null>(null);
 
-  const storeSettings = useStoreSettingsStore();
+  const storeSettings = useStoreSettingsStore((s) => s.config);
+  const fetchStoreSettings = useStoreSettingsStore((s) => s.fetchFromServer);
+
+  React.useEffect(() => {
+    fetchStoreSettings();
+  }, [fetchStoreSettings]);
 
   const socials = [
     { label: "Instagram", href: storeSettings.instagram || "https://www.instagram.com/suited_by_meme", handle: storeSettings.instagramHandle || "@suited_by_meme" },

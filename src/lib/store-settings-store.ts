@@ -1,9 +1,17 @@
 "use client";
 
-import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+/**
+ * Store Profile Settings — name/tagline/contact info shown in the footer
+ * and elsewhere. Backed by the `store_settings` singleton table (same
+ * pattern as payment-store.ts / payment_settings) so an admin's edit
+ * reaches every browser/device instead of staying trapped in the admin's
+ * own localStorage.
+ */
 
-export interface StoreSettingsState {
+import { create } from "zustand";
+import { isBackendConfigured } from "@/lib/config/backend";
+
+export interface StoreSettingsConfig {
   name: string;
   tagline: string;
   description: string;
@@ -15,12 +23,9 @@ export interface StoreSettingsState {
   instagramHandle: string;
   domain: string;
   address: string;
-
-  updateSettings: (settings: Partial<Omit<StoreSettingsState, "updateSettings" | "resetToDefaults">>) => void;
-  resetToDefaults: () => void;
 }
 
-export const DEFAULT_STORE_SETTINGS = {
+export const DEFAULT_STORE_SETTINGS: StoreSettingsConfig = {
   name: "MEME Atelier",
   tagline: "Tailored for the modern Egyptian woman",
   description:
@@ -35,16 +40,57 @@ export const DEFAULT_STORE_SETTINGS = {
   address: "12 Taha Hussein St. · Zamalek · Cairo · Egypt",
 };
 
-export const useStoreSettingsStore = create<StoreSettingsState>()(
-  persist(
-    (set) => ({
-      ...DEFAULT_STORE_SETTINGS,
-      updateSettings: (newSettings) => set((state) => ({ ...state, ...newSettings })),
-      resetToDefaults: () => set(DEFAULT_STORE_SETTINGS),
-    }),
-    {
-      name: "meme-store-settings-v1",
-      storage: createJSONStorage(() => localStorage),
+type StoreSettingsStoreState = {
+  config: StoreSettingsConfig;
+  loading: boolean;
+  saving: boolean;
+  hydrated: boolean;
+
+  fetchFromServer: () => Promise<void>;
+  saveConfig: (config: StoreSettingsConfig) => Promise<void>;
+};
+
+export const useStoreSettingsStore = create<StoreSettingsStoreState>()((set) => ({
+  config: DEFAULT_STORE_SETTINGS,
+  loading: false,
+  saving: false,
+  hydrated: false,
+
+  fetchFromServer: async () => {
+    try {
+      set({ loading: true });
+      const res = await fetch("/api/store-settings");
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.config) {
+          set({ config: { ...DEFAULT_STORE_SETTINGS, ...data.config }, loading: false, hydrated: true });
+          return;
+        }
+      }
+      set({ loading: false, hydrated: true });
+    } catch (e) {
+      console.error("fetchFromServer (store settings) failed:", e);
+      set({ loading: false, hydrated: true });
     }
-  )
-);
+  },
+
+  saveConfig: async (config) => {
+    set({ config, saving: true });
+    if (isBackendConfigured()) {
+      try {
+        const res = await fetch("/api/admin/store-settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ config }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          console.warn("Save store settings failed:", err);
+        }
+      } catch (e) {
+        console.warn("Save store settings error:", e);
+      }
+    }
+    set({ saving: false });
+  },
+}));
