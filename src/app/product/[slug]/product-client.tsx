@@ -25,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getDefaultSizeChart } from "@/lib/size-charts";
+import { getDefaultSizeChart, recommendSize } from "@/lib/size-charts";
 import { useT, useLangDir } from "@/lib/i18n";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -54,6 +54,10 @@ export default function ProductPageClient({ slug }: { slug: string }) {
   const [zoomed, setZoomed] = React.useState(false);
   const [stickyVisible, setStickyVisible] = React.useState(false);
   const [sizeChartOpen, setSizeChartOpen] = React.useState(false);
+  const [recHeight, setRecHeight] = React.useState("");
+  const [recWeight, setRecWeight] = React.useState("");
+  const [recResult, setRecResult] = React.useState<ReturnType<typeof recommendSize>>(null);
+  const [recTouched, setRecTouched] = React.useState(false);
   const t = useT();
   const dir = useLangDir();
 
@@ -526,7 +530,16 @@ export default function ProductPageClient({ slug }: { slug: string }) {
       </AnimatePresence>
 
       {/* Interactive Size Chart Modal */}
-      <Dialog open={sizeChartOpen} onOpenChange={setSizeChartOpen}>
+      <Dialog
+        open={sizeChartOpen}
+        onOpenChange={(v) => {
+          setSizeChartOpen(v);
+          if (!v) {
+            setRecResult(null);
+            setRecTouched(false);
+          }
+        }}
+      >
         <DialogContent dir={dir} className="max-w-xl">
           <DialogHeader>
             <DialogTitle className="font-display text-xl font-bold flex items-center gap-2">
@@ -538,7 +551,10 @@ export default function ProductPageClient({ slug }: { slug: string }) {
           {(() => {
             const chart = product.sizeChart || getDefaultSizeChart(product.category);
             const sizeHeader = chart.headers.find((h) => h.toLowerCase().includes("size")) || chart.headers[0];
-            
+            const hasRecommenderData = chart.headers.some(
+              (h) => h.toLowerCase().includes("height") || h.toLowerCase().includes("weight")
+            );
+
             // Filter size chart rows to match product.sizes (e.g. if product doesn't have XL, don't show XL in chart)
             const filteredRows = (product.sizes && product.sizes.length > 0)
               ? chart.rows.filter((row) => {
@@ -548,32 +564,168 @@ export default function ProductPageClient({ slug }: { slug: string }) {
               : chart.rows;
 
             const finalRows = filteredRows.length > 0 ? filteredRows : chart.rows;
+            const chartForRecommendation = { ...chart, rows: finalRows.length > 0 ? finalRows : chart.rows };
+
+            const runRecommendation = () => {
+              const h = parseFloat(recHeight);
+              const w = parseFloat(recWeight);
+              const input: { heightCm?: number; weightKg?: number } = {};
+              if (!Number.isNaN(h) && h > 0) input.heightCm = h;
+              if (!Number.isNaN(w) && w > 0) input.weightKg = w;
+              setRecTouched(true);
+              setRecResult(recommendSize(chartForRecommendation, input));
+            };
+
+            const chartTable = (
+              <div className="space-y-2">
+                <div className="border border-border rounded-xl overflow-hidden shadow-sm">
+                  <table className="w-full text-xs border-collapse text-center">
+                    <thead>
+                      <tr className="bg-accent/60 border-b border-border">
+                        {chart.headers.map((h, i) => {
+                          const isWeight = h.toLowerCase().includes("weight");
+                          const isHeight = h.toLowerCase().includes("height");
+                          return (
+                            <th
+                              key={i}
+                              className={cn(
+                                "p-3 font-bold text-foreground",
+                                (isWeight || isHeight) && "border-l border-border/60 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                              )}
+                            >
+                              {h}
+                            </th>
+                          );
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {finalRows.map((row, rIdx) => (
+                        <tr
+                          key={rIdx}
+                          className={cn(
+                            "hover:bg-accent/20",
+                            recResult && String(row[sizeHeader]).toUpperCase().trim() === recResult.size.toUpperCase().trim() &&
+                              "bg-emerald-500/10"
+                          )}
+                        >
+                          {chart.headers.map((h, cIdx) => {
+                            const isWeight = h.toLowerCase().includes("weight");
+                            const isHeight = h.toLowerCase().includes("height");
+                            return (
+                              <td
+                                key={cIdx}
+                                className={cn(
+                                  "p-3 font-medium text-foreground",
+                                  (isWeight || isHeight) && "border-l border-border/60 bg-amber-500/5 font-mono text-amber-700 dark:text-amber-400"
+                                )}
+                              >
+                                {row[h]}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {chart.headers.some((h) => h.toLowerCase().includes("weight")) && (
+                  <p className="text-[11px] text-muted-foreground px-1">
+                    {dir === "rtl"
+                      ? "الوزن والطول هما النطاق الموصى به لهذا المقاس، وليس قياس الملابس نفسها."
+                      : "Height/weight are the recommended body ranges for that size — not garment measurements."}
+                  </p>
+                )}
+              </div>
+            );
+
+            if (!hasRecommenderData) return chartTable;
 
             return (
-              <div className="border border-border rounded-xl overflow-hidden shadow-sm my-2">
-                <table className="w-full text-xs border-collapse text-center">
-                  <thead>
-                    <tr className="bg-accent/60 border-b border-border">
-                      {chart.headers.map((h, i) => (
-                        <th key={i} className="p-3 font-bold text-foreground">
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/60">
-                    {finalRows.map((row, rIdx) => (
-                      <tr key={rIdx} className="hover:bg-accent/20">
-                        {chart.headers.map((h, cIdx) => (
-                          <td key={cIdx} className="p-3 font-medium text-foreground">
-                            {row[h]}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Tabs defaultValue="chart" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="chart">
+                    {dir === "rtl" ? "جدول المقاسات" : "Size chart"}
+                  </TabsTrigger>
+                  <TabsTrigger value="recommend">
+                    {dir === "rtl" ? "توصية المقاس" : "Size recommendation"}
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="chart" className="mt-3">
+                  {chartTable}
+                </TabsContent>
+
+                <TabsContent value="recommend" className="mt-3 space-y-4">
+                  <p className="text-xs text-muted-foreground">
+                    {dir === "rtl"
+                      ? "أدخل طولك ووزنك وسنقترح المقاس الأنسب من جدول مقاسات هذا المنتج تحديدًا."
+                      : "Enter your height and weight — we'll suggest a size from this product's own size chart."}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground">
+                        {dir === "rtl" ? "الطول (سم)" : "Height (cm)"}
+                      </label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        value={recHeight}
+                        onChange={(e) => setRecHeight(e.target.value)}
+                        placeholder="170"
+                        className="mt-1 w-full h-11 rounded-lg border border-border bg-background px-3 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground">
+                        {dir === "rtl" ? "الوزن (كجم)" : "Weight (kg)"}
+                      </label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        value={recWeight}
+                        onChange={(e) => setRecWeight(e.target.value)}
+                        placeholder="65"
+                        className="mt-1 w-full h-11 rounded-lg border border-border bg-background px-3 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    onClick={runRecommendation}
+                    disabled={!recHeight.trim() && !recWeight.trim()}
+                    className="w-full h-11 rounded-full font-bold"
+                  >
+                    {dir === "rtl" ? "اقترح مقاسي" : "Find my size"}
+                  </Button>
+
+                  {recTouched && (
+                    recResult ? (
+                      <div
+                        className={cn(
+                          "rounded-xl p-4 border text-center space-y-1",
+                          recResult.confidence === "high"
+                            ? "bg-emerald-500/10 border-emerald-500/30"
+                            : recResult.confidence === "medium"
+                            ? "bg-amber-500/10 border-amber-500/30"
+                            : "bg-accent border-border"
+                        )}
+                      >
+                        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                          {dir === "rtl" ? "المقاس الموصى به" : "Recommended size"}
+                        </p>
+                        <p className="font-display text-3xl font-bold">{recResult.size}</p>
+                        <p className="text-xs text-muted-foreground">{recResult.reason}</p>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl p-4 border border-border bg-accent/40 text-center text-xs text-muted-foreground">
+                        {dir === "rtl"
+                          ? "لا يوجد جدول مقاسات كافٍ لهذا المنتج لاقتراح مقاس دقيق."
+                          : "This product's size chart doesn't have enough data to suggest a size."}
+                      </div>
+                    )
+                  )}
+                </TabsContent>
+              </Tabs>
             );
           })()}
         </DialogContent>

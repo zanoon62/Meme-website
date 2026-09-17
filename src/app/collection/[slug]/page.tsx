@@ -1,22 +1,15 @@
 /**
- * Server component — validates slug against the seed catalog and returns
- * a real 404 (HTTP 404 status) for unknown collection slugs before
- * rendering the interactive client component.
+ * Server component. Collections are admin-managed (real DB rows via
+ * /api/admin/collections), so any slug could be valid at request time —
+ * unlike the old version, this can't pre-validate against a hardcoded seed
+ * list. dynamicParams stays implicitly true; CollectionPageClient does the
+ * real existence check against /api/collections/[slug] and 404s client-side
+ * (via notFound()) when the collection doesn't exist or isn't active.
  */
 
-import { notFound } from "next/navigation";
-import { collections } from "@/data/products";
 import CollectionPageClient from "./collection-client";
 
-// Pre-render only known slugs at build time. Unknown slugs return 404.
-// In production with Supabase, new collections added via admin will be picked
-// up on the next revalidate cycle (ISR).
-export const dynamicParams = false;
-export const revalidate = 600; // 10 minutes — collections are semi-static; reduces free-tier function invocations
-
-export function generateStaticParams() {
-  return collections.map((c) => ({ slug: c.slug }));
-}
+export const revalidate = 300;
 
 export default async function CollectionPage({
   params,
@@ -24,7 +17,5 @@ export default async function CollectionPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const exists = collections.some((c) => c.slug === slug);
-  if (!exists) notFound();
   return <CollectionPageClient slug={slug} />;
 }

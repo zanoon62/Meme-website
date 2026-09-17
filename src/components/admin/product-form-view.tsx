@@ -666,26 +666,42 @@ export function ProductFormView({ product, onBack }: Props) {
                     <table className="w-full text-xs border-collapse">
                       <thead>
                         <tr className="bg-accent/50 border-b border-border">
-                          {form.sizeChart.headers.map((h, i) => (
-                            <th key={i} className="p-3 text-start font-bold text-foreground">
-                              {h}
-                            </th>
-                          ))}
+                          {form.sizeChart.headers.map((h, i) => {
+                            const isWeight = h.toLowerCase().includes("weight");
+                            return (
+                              <th
+                                key={i}
+                                className={cn(
+                                  "p-3 text-start font-bold text-foreground",
+                                  isWeight && "border-l border-border bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                                )}
+                              >
+                                {h}
+                              </th>
+                            );
+                          })}
                           <th className="p-3 w-10 text-center font-bold text-muted-foreground">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/60">
                         {form.sizeChart.rows.map((row, rIdx) => (
                           <tr key={rIdx} className="hover:bg-accent/20 transition-colors">
-                            {form.sizeChart!.headers.map((h, cIdx) => (
-                              <td key={cIdx} className="p-2">
-                                <Input
-                                  value={row[h] || ""}
-                                  onChange={(e) => updateSizeChartCell(rIdx, h, e.target.value)}
-                                  className="h-8 text-xs font-medium bg-transparent border-border/60 focus:border-amber-500"
-                                />
-                              </td>
-                            ))}
+                            {form.sizeChart!.headers.map((h, cIdx) => {
+                              const isWeight = h.toLowerCase().includes("weight");
+                              return (
+                                <td key={cIdx} className={cn("p-2", isWeight && "border-l border-border/60 bg-amber-500/5")}>
+                                  <Input
+                                    value={row[h] || ""}
+                                    onChange={(e) => updateSizeChartCell(rIdx, h, e.target.value)}
+                                    placeholder={isWeight ? "e.g. 58-65" : undefined}
+                                    className={cn(
+                                      "h-8 text-xs font-medium bg-transparent border-border/60 focus:border-amber-500",
+                                      isWeight && "font-mono"
+                                    )}
+                                  />
+                                </td>
+                              );
+                            })}
                             <td className="p-2 text-center">
                               <Button
                                 type="button"

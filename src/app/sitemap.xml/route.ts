@@ -9,9 +9,9 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { products } from "@/lib/db/schema";
+import { products, collections } from "@/lib/db/schema";
 import { isDatabaseConfigured } from "@/lib/db/config";
-import { products as seedProducts, collections, categories } from "@/data/products";
+import { products as seedProducts, collections as seedCollections, categories } from "@/data/products";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://meme.example.com";
 
@@ -34,9 +34,21 @@ export async function GET() {
       priority: 0.7,
     });
   }
-  for (const col of collections) {
+  let collectionSlugs: string[] = seedCollections.map((c) => c.slug);
+  if (isDatabaseConfigured()) {
+    try {
+      const rows = await db
+        .select({ slug: collections.slug })
+        .from(collections)
+        .where(eq(collections.isActive, true));
+      if (rows.length > 0) collectionSlugs = rows.map((r) => r.slug);
+    } catch {
+      // keep seed fallback
+    }
+  }
+  for (const slug of collectionSlugs) {
     urls.push({
-      loc: `${SITE_URL}/collection/${col.slug}`,
+      loc: `${SITE_URL}/collection/${slug}`,
       changefreq: "weekly",
       priority: 0.7,
     });
